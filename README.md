@@ -1,6 +1,6 @@
 
 # Study-S
-=======
+
 Câu 1: Chọn đề tài, lên ý tưởng, nghiên cứu và phân tích đề tài
 
 Ý tưởng
@@ -39,7 +39,7 @@ Câu 2. Cho ra được toàn bộ ý tưởng thiết kế của ứng dụng
 2.	Đăng nhập
 3.	Đăng ký
 4.	Quên mật khẩu
-5.	Bảng tin (Home Feed)
+5.	Bảng tin 
 6.	Tìm kiếm
 7.	Chi tiết bài đăng
 8.	Thư viện tài liệu
