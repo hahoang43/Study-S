@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # Study-S
 =======
 Câu 1: Chọn đề tài, lên ý tưởng, nghiên cứu và phân tích đề tài
@@ -57,4 +57,4 @@ Câu 2. Cho ra được toàn bộ ý tưởng thiết kế của ứng dụng
 20.	Giao diện chính sách
 21.	Giao diện hỗ trợ
 LINK FIGMA: https://www.figma.com/design/09SKxXndN4cth6IlZcdDef/Study-S?node-id=0-1&t=NPJAZeL24ruqfjPm-1
->>>>>>> 35a7c32 (first)
+
