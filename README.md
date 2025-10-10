@@ -2,11 +2,11 @@
 Câu 1: Chọn đề tài, lên ý tưởng, nghiên cứu và phân tích đề tài
 
 Ý tưởng
-Ứng dụng được xây dựng nhằm tạo ra một nền tảng học tập trực tuyến dành riêng cho sinh viên, giúp:
+Ứng dụng được xây dựng nhằm tạo ra một nền tảng học tập trực tuyến dành riêng cho sinh viên:
 •	Kết nối sinh viên theo môn học, nhóm học tập.
 •	Cung cấp bảng tin học tập, thư viện tài liệu chung, chat nhóm, lịch học.
 •	Hỗ trợ sinh viên dễ dàng chia sẻ kiến thức, tài liệu và trao đổi trong quá trình học.
-Ý tưởng chính: Ứng dụng trở thành một “mạng xã hội học tập thu nhỏ” cho sinh viên.
+ Ý tưởng chính: Ứng dụng trở thành một “mạng xã hội học tập thu nhỏ” cho sinh viên.
 
 Nghiên cứu hiện trạng
 Sinh viên hiện nay thường dùng Facebook, Zalo, Google Drive để trao đổi, nhưng:
