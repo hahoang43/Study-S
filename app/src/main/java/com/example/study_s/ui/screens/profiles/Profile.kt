@@ -1,4 +1,4 @@
-package com.example.study_s.ui.screens.profiles.
+package com.example.study_s.ui.screens.profiles
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -67,7 +67,7 @@ fun ProfileScreen() {
 
             // Ảnh đại diện
             Image(
-                painter = painterResource(id = R.drawable.ic_avatar),
+                painter = painterResource(id = R.drawable.profile),
                 contentDescription = "Avatar",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -115,7 +115,7 @@ fun ProfileScreen() {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_calendar),
+                        painter = painterResource(id = R.drawable.calendar),
                         contentDescription = "Sinh nhật",
                         tint = Color.Black
                     )
@@ -127,7 +127,7 @@ fun ProfileScreen() {
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_gender),
+                        painter = painterResource(id = R.drawable.library),
                         contentDescription = "Giới tính",
                         tint = Color.Black
                     )

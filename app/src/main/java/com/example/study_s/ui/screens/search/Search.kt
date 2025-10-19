@@ -7,7 +7,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -55,7 +54,7 @@ fun HomeScreen() {
                             .clip(CircleShape)
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_avatar),
+                            painter = painterResource(id = R.drawable.`avatar`),
                             contentDescription = "Avatar"
                         )
                     }
