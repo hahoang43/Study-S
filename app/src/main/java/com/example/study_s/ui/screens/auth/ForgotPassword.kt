@@ -28,7 +28,6 @@ fun ForgotPasswordScreen(
             .fillMaxSize()
             .padding(24.dp)
     ) {
-        // 1. TẠO MỘT COLUMN MỚI ĐỂ NHÓM 2 TIÊU ĐỀ LẠI VỚI NHAU
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter) // Căn cả cụm này ra giữa, trên cùng

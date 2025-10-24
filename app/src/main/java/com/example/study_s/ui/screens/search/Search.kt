@@ -4,7 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -42,8 +46,8 @@ fun HomeScreen() {
                 },
                 actions = {
                     IconButton(onClick = { /* thông báo */ }) {
-                        Image(
-                            painter = painterResource(id = R.drawable.ic_notification),
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
                             contentDescription = "Thông báo"
                         )
                     }
@@ -54,7 +58,7 @@ fun HomeScreen() {
                             .clip(CircleShape)
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.`avatar`),
+                            painter = painterResource(id = R.drawable.avatar),
                             contentDescription = "Avatar"
                         )
                     }
@@ -87,13 +91,13 @@ fun HomeScreen() {
                 placeholder = { Text("Tìm kiếm người dùng, tài liệu ...") },
                 leadingIcon = {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_search),
+                        imageVector = Icons.Default.Search,
                         contentDescription = null
                     )
                 },
                 trailingIcon = {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_edit),
+                        imageVector = Icons.Default.Edit,
                         contentDescription = null
                     )
                 },
@@ -127,7 +131,7 @@ fun HomeScreen() {
 
                 IconButton(onClick = { /* bộ lọc nâng cao */ }) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_filter),
+                        imageVector = Icons.Default.FilterList,
                         contentDescription = "Lọc"
                     )
                 }

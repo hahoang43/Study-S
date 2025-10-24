@@ -3,13 +3,30 @@ package com.example.study_s.ui.screens.profiles
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Male
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,76 +38,71 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.study_s.R
 import com.example.study_s.ui.screens.components.BottomNavBar
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(navController: NavController) {
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Study-S",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        color = Color.Black
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { /* mở Drawer */ }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color.Black)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
-        },
         bottomBar = {
-            BottomNavBar(selectedIndex = 4)
+            BottomNavBar(
+                selectedIndex = 4, // "Hồ sơ" là mục thứ 5
+                onItemSelected = { index ->
+                    // TODO: Thêm logic điều hướng dựa trên index
+                }
+            )
         }
-    ) { padding ->
+    ) { innerPadding ->
         Column(
             modifier = Modifier
-                .padding(padding)
+                .padding(innerPadding)
                 .fillMaxSize()
                 .background(Color.White),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Phần nền banner
+            // Header (màu nền xanh nhạt + ảnh avatar)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(90.dp)
-                    .background(Color(0xFFB6DAE8))
+                    .height(100.dp)
+                    .background(Color(0xFFD6E9FF))
             )
 
-            // Ảnh đại diện
-            Image(
-                painter = painterResource(id = R.drawable.profile),
-                contentDescription = "Avatar",
-                contentScale = ContentScale.Crop,
+            // Avatar
+            Box(
                 modifier = Modifier
                     .offset(y = (-40).dp)
-                    .size(90.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, Color.White, CircleShape)
-            )
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_profile),
+                    contentDescription = "Avatar",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, Color.White, CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            }
 
-            Spacer(modifier = Modifier.height(-20.dp))
-
-            // Tên và nút chỉnh sửa
+            // Tên + icon chỉnh sửa
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = "Thúy Kiều",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
-                IconButton(onClick = { /* sửa tên */ }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Chỉnh sửa", tint = Color.Gray)
+                IconButton(onClick = { /* chỉnh sửa hồ sơ */ }) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
@@ -100,35 +112,30 @@ fun ProfileScreen() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Khung thông tin cá nhân
+            // Thông tin cá nhân (Sinh nhật, Giới tính)
             Column(
                 modifier = Modifier
                     .padding(horizontal = 24.dp)
                     .fillMaxWidth()
-                    .border(
-                        width = 2.dp,
-                        color = Color(0xFF91AFD0),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    .background(Color(0xFFE6F1FF), shape = RoundedCornerShape(12.dp))
-                    .padding(16.dp)
+                    .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
+                    .background(Color(0xFFE9F1FF), RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(id = R.drawable.calendar),
-                        contentDescription = "Sinh nhật",
+                        imageVector = Icons.Default.Today,
+                        contentDescription = null,
                         tint = Color.Black
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Sinh nhật :", fontSize = 16.sp)
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(id = R.drawable.library),
-                        contentDescription = "Giới tính",
+                        imageVector = Icons.Default.Male,
+                        contentDescription = null,
                         tint = Color.Black
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -140,17 +147,21 @@ fun ProfileScreen() {
 
             // Nút "Các bài viết"
             Button(
-                onClick = { /* mở danh sách bài viết */ },
+                onClick = { /* điều hướng sang trang bài viết */ },
+                shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE6F1FF),
+                    containerColor = Color(0xFFD6E9FF),
                     contentColor = Color.Black
                 ),
                 modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(10.dp)
+                    .padding(horizontal = 24.dp)
+                    .fillMaxWidth()
             ) {
-                Text("Các bài viết", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    text = "Các bài viết",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -158,6 +169,6 @@ fun ProfileScreen() {
 
 @Preview(showBackground = true)
 @Composable
-fun ProfileScreenPreview() {
-    ProfileScreen()
+fun PreviewProfileScreen() {
+    ProfileScreen(navController = rememberNavController())
 }
