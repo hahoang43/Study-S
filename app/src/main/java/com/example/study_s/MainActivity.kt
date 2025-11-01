@@ -13,6 +13,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.study_s.ui.screens.splash.SplashScreen
 import com.example.study_s.ui.screens.policy.PolicyScreen
 import com.example.study_s.ui.screens.support.SupportScreen
+import com.example.study_s.ui.screens.admin.AdminDashboardScreen  // ✅ thêm import này
 import com.example.study_s.ui.theme.Study_STheme
 
 class MainActivity : ComponentActivity() {
@@ -29,6 +30,9 @@ class MainActivity : ComponentActivity() {
                         composable("splash") { SplashScreen(navController) }
                         composable("policy") { PolicyScreen(navController) }
                         composable("support") { SupportScreen(navController) }
+
+                        // ✅ thêm route mới cho Admin Dashboard
+                        composable("admin_dashboard") { AdminDashboardScreen() }
                     }
                 }
             }
