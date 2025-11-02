@@ -19,14 +19,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.study_s.ui.navigation.Routes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    navController: NavController
+    navController: NavController,
+    name: String? = null,
+    email: String? = null
 ) {
-    var fullName by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf(name ?: "") }
+    var userEmail by remember { mutableStateOf(email ?: "") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var school by remember { mutableStateOf("") }
@@ -61,8 +64,8 @@ fun RegisterScreen(
 
         // --- Email ---
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
+            value = userEmail,
+            onValueChange = { userEmail = it },
             label = { Text("Email") },
             placeholder = { Text("Nhập Email của bạn") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -119,8 +122,9 @@ fun RegisterScreen(
         Button(
             onClick = {
                 // TODO: Thêm logic xử lý đăng ký ở đây (ví dụ: gọi ViewModel)
-                // Sau khi đăng ký, quay lại màn hình đăng nhập.
-                navController.popBackStack()
+                navController.navigate(Routes.Home) {
+                    popUpTo(Routes.Login) { inclusive = true }
+                }
             },
             modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(

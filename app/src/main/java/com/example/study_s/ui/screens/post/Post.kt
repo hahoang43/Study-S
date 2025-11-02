@@ -17,8 +17,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.study_s.R
-import com.example.study_s.ui.screens.components.BottomNavBar
 
+data class Post(
+    val id: Int,
+    val title: String,
+    val subject: String,
+    val uploader: String,
+    val date: String
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,7 +36,6 @@ fun NewPostScreen() {
                     Text(
                         "Study-S",
                         fontWeight = FontWeight.Bold,
-
                         fontSize = 30.sp
                     )
                 },
@@ -47,7 +52,7 @@ fun NewPostScreen() {
             )
         },
 
-    ) { padding ->
+        ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
