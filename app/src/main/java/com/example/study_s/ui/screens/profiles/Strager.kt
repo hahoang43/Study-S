@@ -35,7 +35,6 @@ fun PreviewLoginScreen() {
 @Composable
 fun StragerScreen() {
     Scaffold(
-        bottomBar = { BottomNavBar() }
     ) { innerPadding ->
         Column(
             modifier = Modifier

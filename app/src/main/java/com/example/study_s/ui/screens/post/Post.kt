@@ -46,9 +46,7 @@ fun NewPostScreen() {
                 }
             )
         },
-        bottomBar = {
-            BottomNavBar()
-        }
+
     ) { padding ->
         Column(
             modifier = Modifier

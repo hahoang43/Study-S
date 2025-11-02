@@ -59,9 +59,7 @@ fun MessageListScreen() {
             )
         },
 
-        bottomBar = {
-            BottomNavBar()
-        }
+
     ) { padding ->
         // Sử dụng LazyColumn để tối ưu hóa hiệu suất cho danh sách dài
         LazyColumn(
