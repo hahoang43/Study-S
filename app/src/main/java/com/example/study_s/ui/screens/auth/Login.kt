@@ -22,13 +22,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.input.VisualTransformation
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewLoginScreen() {
     LoginScreen()
 }
-
 @Composable
 fun LoginScreen(
     onLoginClick: () -> Unit = {},
@@ -143,7 +141,7 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-// Nút Đăng ký
+// Nút Đăng Nhập bằng Facebook
                 OutlinedButton(
                     onClick = onRegisterClick,
                     modifier = Modifier
@@ -154,7 +152,25 @@ fun LoginScreen(
                     colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFD6E6FF))
                 ) {
                     Text(
-                        text = "Đăng ký",
+                        text = "Đăng nhập bằng Facebook",
+                        color = Color.Black,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+// Nút Đăng Nhập bằng Google
+                OutlinedButton(
+                    onClick = onRegisterClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color.Black),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFD6E6FF))
+                ) {
+                    Text(
+                        text = "Đăng nhập bằng Google",
                         color = Color.Black,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
