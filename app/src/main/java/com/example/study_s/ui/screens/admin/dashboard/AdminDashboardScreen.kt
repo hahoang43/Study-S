@@ -66,9 +66,7 @@ fun AdminDashboardScreen() {
             },
 
             // ✅ THÊM THANH ĐIỀU HƯỚNG DƯỚI NHÓM
-            bottomBar = {
-                BottomNavBar()
-            }
+
         ) { padding ->
             Column(
                 modifier = Modifier

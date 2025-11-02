@@ -67,13 +67,7 @@ fun LibraryScreen(navController: NavController) {
                 onNotificationClick = {  } )
         },
         bottomBar = {
-            BottomNavBar(
-                selectedIndex = 0, // "Thư viện" là mục đầu tiên
-                onItemSelected = { index ->
-                    // TODO: Thêm logic điều hướng dựa trên index
-                    // Ví dụ: navController.navigate(routes[index])
-                }
-            )
+            BottomNavBar(navController = navController, currentRoute = null)
         }
     ) { innerPadding ->
         Column(

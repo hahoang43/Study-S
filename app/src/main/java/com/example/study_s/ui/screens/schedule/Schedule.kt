@@ -114,9 +114,7 @@ fun ScheduleScreen() {
                 }
             }
         },
-        bottomBar = {
-            BottomNavBar()
-        }
+
     ) { innerPadding ->
         Column(
             modifier = Modifier

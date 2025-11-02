@@ -52,7 +52,6 @@ fun PostListScreen() {
                 )
             )
         },
-        bottomBar = { BottomNavBar() }
     ) { innerPadding ->
         Column(
             modifier = Modifier

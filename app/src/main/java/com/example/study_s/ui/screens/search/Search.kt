@@ -46,12 +46,7 @@ fun SearchScreen() {
                 onNotificationClick = {  }
             )
         },
-        bottomBar = {
-            BottomNavBar(
-                selectedIndex = selectedTab,
-                onItemSelected = { selectedTab = it }
-            )
-        }
+
     ) { padding ->
         Column(
             modifier = Modifier

@@ -44,7 +44,7 @@ fun PostDetailScreen() {
                 )
             )
         },
-        bottomBar = { BottomNavBar() }
+
     ) { innerPadding ->
         Column(
             modifier = Modifier
