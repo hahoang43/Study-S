@@ -23,11 +23,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.example.study_s.R
 
 @Composable
 fun GroupScreen(
-    onBack: (() -> Unit)? = null
+    navController: NavHostController
 ) {
     val groups = listOf(
         Pair("Cấu Trúc Rời Rạc", "Nhóm trao đổi về môn Cấu Trúc Rời Rạc"),
@@ -90,7 +92,7 @@ fun GroupScreen(
 
 
         IconButton(
-            onClick = { onBack?.invoke() },
+            onClick = { navController.popBackStack() },
             modifier = Modifier
                 .size(36.dp)
                 .padding(start = 4.dp)
@@ -176,5 +178,5 @@ fun GroupScreen(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewGroupScreen() {
-    GroupScreen()
+    GroupScreen(navController = rememberNavController())
 }
