@@ -52,7 +52,7 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = email, style = MaterialTheme.typography.bodyLarge)
         Spacer(modifier = Modifier.height(24.dp))
-        Button(onClick = { navController.navigate(Routes.EDIT_PROFILE) }) {
+        Button(onClick = { navController.navigate(Routes.EditProfile) }) {
             Text("Edit Profile")
         }
     }
