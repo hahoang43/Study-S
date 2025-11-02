@@ -1,4 +1,4 @@
-package com.example.study_s.ui.screens.chat
+package com.example.study_s.ui.screens.group
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

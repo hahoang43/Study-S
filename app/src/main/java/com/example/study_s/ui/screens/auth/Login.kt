@@ -1,4 +1,4 @@
-package com.example.study_s.ui.screens.login
+package com.example.study_s.ui.screens.auth
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

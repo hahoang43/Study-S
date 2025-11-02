@@ -1,4 +1,4 @@
-package com.example.study_s.ui.screens.admin
+package com.example.study_s.ui.screens.admin.dashboard
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*

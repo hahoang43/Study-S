@@ -5,7 +5,7 @@
     "UnusedImport"
 )
 
-package com.example.study_s.ui.screens.admin
+package com.example.study_s.ui.screens.admin.dashboard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*

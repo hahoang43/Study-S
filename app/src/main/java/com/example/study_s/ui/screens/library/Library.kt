@@ -42,9 +42,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.study_s.ui.screens.components.BottomNavBar
+import com.example.study_s.ui.screens.components.TopBar
 
 @Composable
-fun FileListScreen(navController: NavController) {
+fun LibraryScreen(navController: NavController) {
     var selectedSubject by remember { mutableStateOf("Môn học") }
     var expandedSubject by remember { mutableStateOf(false) }
 
@@ -60,6 +61,11 @@ fun FileListScreen(navController: NavController) {
     )
 
     Scaffold(
+        topBar = {
+            TopBar(
+                onNavIconClick = { navController.navigateUp() },
+                onNotificationClick = {  } )
+        },
         bottomBar = {
             BottomNavBar(
                 selectedIndex = 0, // "Thư viện" là mục đầu tiên
@@ -206,6 +212,6 @@ data class FileItem(val name: String, val type: String)
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewFileListScreen() {
-    FileListScreen(navController = rememberNavController())
+fun PreviewLibraryScreen() {
+    LibraryScreen(navController = rememberNavController())
 }

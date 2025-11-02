@@ -5,7 +5,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
 // Sử dụng dependency injection sau này sẽ tốt hơn, tạm thời khởi tạo trực tiếp
-class AuthRepository {
+class UserRepository {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()

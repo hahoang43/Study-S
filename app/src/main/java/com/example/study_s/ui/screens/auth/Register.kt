@@ -1,8 +1,7 @@
-package com.example.study_s.ui.screens
+package com.example.study_s.ui.screens.auth
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
-
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -12,19 +11,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.study_s.R   // ✅ đảm bảo đúng namespace project (study_s chứ không phải studys)
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onRegisterClick: () -> Unit = {},
-    onBackToLoginClick: () -> Unit = {}
+    navController: NavController
 ) {
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -118,7 +117,11 @@ fun RegisterScreen(
 
         // --- Nút đăng ký ---
         Button(
-            onClick = onRegisterClick,
+            onClick = {
+                // TODO: Thêm logic xử lý đăng ký ở đây (ví dụ: gọi ViewModel)
+                // Sau khi đăng ký, quay lại màn hình đăng nhập.
+                navController.popBackStack()
+            },
             modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2196F3), // Màu xanh dương
@@ -131,7 +134,7 @@ fun RegisterScreen(
 
         // --- Nút quay lại ---
         OutlinedButton(
-            onClick = onBackToLoginClick,
+            onClick = { navController.popBackStack() },
             modifier = Modifier.fillMaxWidth() ,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF2196F3), // Màu xanh dương
@@ -148,5 +151,5 @@ fun RegisterScreen(
 @Preview(showBackground = true)
 @Composable
 fun RegisterScreenPreview() {
-    RegisterScreen()
+    RegisterScreen(navController = rememberNavController())
 }
