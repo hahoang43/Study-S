@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
@@ -124,8 +125,14 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.Home) { HomeScreen(navController) }
 
         // Post
-        composable(Routes.NewPost) { NewPostScreen() }
-        composable(Routes.PostDetail) { PostDetailScreen() }
+        composable(Routes.NewPost) { NewPostScreen(navController) }
+        composable(
+            route = "${Routes.PostDetail}/{postId}",
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId") ?: ""
+            PostDetailScreen(postId = postId)
+        }
 
         // Profile
         composable(Routes.Profile) { ProfileScreen(navController) }

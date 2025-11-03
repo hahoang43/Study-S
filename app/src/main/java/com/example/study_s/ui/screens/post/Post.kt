@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -16,52 +18,51 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.example.study_s.R
-
-data class Post(
-    val id: Int,
-    val title: String,
-    val subject: String,
-    val uploader: String,
-    val date: String
-)
+import com.example.study_s.data.model.PostModel
+import com.example.study_s.viewmodel.PostViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewPostScreen() {
+fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewModel()) {
+    var postContent by remember { mutableStateOf("") }
+    val currentUser = FirebaseAuth.getInstance().currentUser
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        "Study-S",
+                        "Tạo bài đăng",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 30.sp
+                        fontSize = 22.sp
                     )
                 },
                 navigationIcon = {
-                    TextButton(onClick = { }) {
+                    TextButton(onClick = { navController.popBackStack() }) {
                         Text("Hủy", color = Color.Black)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = { /* TODO */ }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "More")
                     }
                 }
             )
         },
-
-        ) { padding ->
+    ) { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-            // Thông tin người đăng
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Image(
+                    // TODO: Replace with actual user avatar
                     painter = painterResource(id = R.drawable.avatar1),
                     contentDescription = "Avatar",
                     modifier = Modifier
@@ -70,31 +71,31 @@ fun NewPostScreen() {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
-                    Text("emberecho", fontWeight = FontWeight.SemiBold)
+                    Text(currentUser?.displayName ?: "Người dùng", fontWeight = FontWeight.SemiBold)
                     Text("Thêm chủ đề", color = Color.Gray, fontSize = 14.sp)
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Tiêu đề
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
-                placeholder = { Text("Nhập tiêu đề ...") },
-                modifier = Modifier.fillMaxWidth(),
+                value = postContent,
+                onValueChange = { postContent = it },
+                placeholder = { Text("Bạn đang nghĩ gì? ...") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(150.dp),
                 shape = RoundedCornerShape(10.dp)
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Nút Tệp tải lên + Dropdown môn học
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Button(
-                    onClick = {},
+                    onClick = { /* TODO: Handle file upload */ },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -113,7 +114,7 @@ fun NewPostScreen() {
                 }
 
                 Button(
-                    onClick = {},
+                    onClick = { /* TODO: Handle subject selection */ },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -128,7 +129,6 @@ fun NewPostScreen() {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Công tắc chia sẻ nhóm hoặc công khai
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -138,21 +138,28 @@ fun NewPostScreen() {
                 Switch(checked = false, onCheckedChange = {})
             }
 
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-            // Nút Đăng
             Button(
-                onClick = {},
+                onClick = {
+                    if (postContent.isNotBlank() && currentUser != null) {
+                        val newPost = PostModel(
+                            authorId = currentUser.uid,
+                            content = postContent
+                        )
+                        viewModel.createNewPost(newPost)
+                        navController.popBackStack()
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF90CAF9)),
                 modifier = Modifier
-                    .fillMaxWidth(0.4f)
-                    .align(Alignment.CenterHorizontally),
-                shape = RoundedCornerShape(8.dp)
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(8.dp),
+                enabled = postContent.isNotBlank() && currentUser != null
             ) {
-                Text("Đăng", color = Color.Black)
+                Text("Đăng", color = Color.Black, fontSize = 16.sp)
             }
         }
-
     }
-
 }

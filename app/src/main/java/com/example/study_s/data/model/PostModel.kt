@@ -4,17 +4,8 @@ import com.google.firebase.firestore.Exclude
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.ServerTimestamp
 
-/**
- * Lớp dữ liệu đại diện cho một bài đăng.
- * @param authorId ID của người dùng tạo bài đăng (từ Firebase Auth).
- * @param content Nội dung văn bản của bài đăng.
- * @param imageUrl URL của hình ảnh đính kèm (có thể null).
- * @param timestamp Thời gian bài đăng được tạo, tự động gán bởi server.
- * @param likesCount Số lượt thích, mặc định là 0.
- * @param commentsCount Số bình luận, mặc định là 0.
- * @param postId ID của tài liệu trong Firestore, sẽ được gán sau khi lấy dữ liệu.
- */
-data class Post(
+
+data class PostModel(
     val authorId: String = "",
     val content: String = "",
     val imageUrl: String? = null,

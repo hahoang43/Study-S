@@ -2,7 +2,16 @@ package com.example.study_s.ui.screens.home
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -12,8 +21,17 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,24 +43,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
+import com.example.study_s.data.model.PostModel // SỬA: Import đúng data class Post
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
-import com.example.study_s.ui.screens.post.NewPostScreen
-
-
-
-// Lớp dữ liệu mẫu cho một bài viết.
-data class Post(
-    val id: String,
-    val authorName: String,
-    val authorAvatarUrl: String,
-    val content: String,
-    val timestamp: String
-)
+import com.example.study_s.viewmodel.PostViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 // Lớp dữ liệu cho một mục trên BottomBar
 data class BottomNavItem(
@@ -52,16 +63,18 @@ data class BottomNavItem(
 )
 
 @Composable
-fun HomeScreen(navController: NavController) {
-    // Dữ liệu mẫu để hiển thị.
-    val samplePosts = listOf(
-        Post("1", "An Nguyen", "https://i.pravatar.cc/150?img=1", "Chào mọi người, hôm nay trời đẹp quá! Có ai muốn đi học nhóm không?", "5 phút trước"),
-        Post("2", "Binh Tran", "https://i.pravatar.cc/150?img=2", "Mình vừa tìm được một tài liệu ôn thi cuối kỳ rất hay, sẽ chia sẻ cho cả nhóm nhé.", "1 giờ trước"),
-        Post("3", "Cam Le", "https://i.pravatar.cc/150?img=3", "Sắp tới trường mình có tổ chức cuộc thi lập trình, mọi người cùng tham gia cho vui!", "3 giờ trước"),
-        Post("4", "Dung Pham", "https://i.pravatar.cc/150?img=4", "Đã ai làm xong bài tập lớn môn Cấu trúc dữ liệu chưa? Cho mình hỏi chút với.", "Hôm qua")
-    )
+fun HomeScreen(
+    navController: NavController,
+    viewModel: PostViewModel = viewModel() // SỬA: Inject ViewModel
+) {
+    // SỬA: Lấy danh sách bài viết từ ViewModel
+    val posts by viewModel.posts.collectAsState()
 
-    // Lấy thông tin về route hiện tại
+    // SỬA: Tải bài viết khi màn hình được hiển thị lần đầu
+    LaunchedEffect(Unit) {
+        viewModel.loadPosts()
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -77,7 +90,6 @@ fun HomeScreen(navController: NavController) {
             }
         },
         bottomBar = {
-            // SỬA Ở ĐÂY: Gọi BottomNavBar có sẵn và truyền NavController, route hiện tại
             BottomNavBar(navController = navController, currentRoute = currentRoute)
         }
     ) { innerPadding ->
@@ -88,7 +100,8 @@ fun HomeScreen(navController: NavController) {
                 .background(Color(0xFFF0F2F5)),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            items(samplePosts) { post ->
+            // SỬA: Hiển thị danh sách bài viết từ state
+            items(posts) { post ->
                 PostItem(post = post, modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp))
             }
         }
@@ -97,7 +110,7 @@ fun HomeScreen(navController: NavController) {
 
 
 @Composable
-fun PostItem(post: Post, modifier: Modifier = Modifier) {
+fun PostItem(post: PostModel, modifier: Modifier = Modifier) { // SỬA: Sử dụng data class Post từ model
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -110,9 +123,10 @@ fun PostItem(post: Post, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // TODO: Cần một cơ chế để lấy avatar của tác giả từ authorId
                 Image(
-                    painter = rememberAsyncImagePainter(post.authorAvatarUrl),
-                    contentDescription = "Avatar của ${post.authorName}",
+                    painter = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=5"), // Ảnh đại diện mẫu
+                    contentDescription = "Avatar của ${post.authorId}",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -121,8 +135,14 @@ fun PostItem(post: Post, modifier: Modifier = Modifier) {
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = post.authorName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(text = post.timestamp, fontSize = 12.sp, color = Color.Gray)
+                    // TODO: Cần một cơ chế để lấy tên tác giả từ authorId
+                    Text(text = "Tác giả: ${post.authorId}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+
+                    // SỬA: Format lại timestamp để hiển thị
+                    val formattedDate = post.timestamp?.toDate()?.let {
+                        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
+                    } ?: "Không rõ thời gian"
+                    Text(text = formattedDate, fontSize = 12.sp, color = Color.Gray)
                 }
                 IconButton(onClick = { /* TODO: Xử lý menu thêm */ }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
@@ -139,6 +159,17 @@ fun PostItem(post: Post, modifier: Modifier = Modifier) {
                 lineHeight = 22.sp
             )
 
+            // SỬA: Hiển thị ảnh của bài viết nếu có
+            if (post.imageUrl != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Image(
+                    painter = rememberAsyncImagePainter(post.imageUrl),
+                    contentDescription = "Ảnh bài viết",
+                    modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
 
             // Footer
@@ -149,10 +180,12 @@ fun PostItem(post: Post, modifier: Modifier = Modifier) {
                 IconButton(onClick = { /* TODO: Xử lý like */ }) {
                     Icon(Icons.Default.FavoriteBorder, contentDescription = "Thích")
                 }
+                Text(text = "${post.likesCount}")
                 Spacer(modifier = Modifier.width(16.dp))
                 IconButton(onClick = { /* TODO: Xử lý comment */ }) {
                     Icon(Icons.Default.Send, contentDescription = "Bình luận")
                 }
+                Text(text = "${post.commentsCount}")
             }
         }
     }

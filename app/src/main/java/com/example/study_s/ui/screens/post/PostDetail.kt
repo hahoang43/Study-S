@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -17,30 +18,37 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.study_s.data.model.PostModel
+import com.example.study_s.viewmodel.PostViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostDetailScreen() {
-    val post = Post(
-        id = 1,
-        title = "Tài liệu IoT ESP32",
-        subject = "Điện tử",
-        uploader = "Danh",
-        date = "01/11/2025"
-    )
+fun PostDetailScreen(postId: String, viewModel: PostViewModel = viewModel()) {
+
+    LaunchedEffect(postId) {
+        viewModel.selectPost(postId)
+    }
+
+    val post by viewModel.selectedPost.collectAsState()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Chi tiết tài liệu", fontWeight = FontWeight.Bold) },
+                title = { Text("Chi tiết bài đăng", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { /* quay lại */ }) {
+                    IconButton(onClick = { /* TODO: Handle back navigation */ }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
                             contentDescription = "Quay lại",
@@ -54,7 +62,6 @@ fun PostDetailScreen() {
                 )
             )
         },
-
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -64,18 +71,19 @@ fun PostDetailScreen() {
                 .background(Color(0xFFF8F9FA))
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(post.title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Text("Môn học: ${post.subject}", fontSize = 15.sp, color = Color.Gray)
-            Text("Người đăng: ${post.uploader}", fontSize = 15.sp, color = Color.Gray)
-            Text("Ngày đăng: ${post.date}", fontSize = 15.sp, color = Color.Gray)
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "📄 Nội dung: Đây là tài liệu hướng dẫn chi tiết cách lập trình và giao tiếp ESP32 " +
-                        "trong các ứng dụng IoT thực tế. Bao gồm cấu trúc mạch, lập trình Wi-Fi, " +
-                        "và truyền dữ liệu cảm biến lên hệ thống giám sát.",
-                fontSize = 15.sp
-            )
+            post?.let { postData ->
+                Text(postData.content, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text("Người đăng: ${postData.authorId}", fontSize = 15.sp, color = Color.Gray)
+                postData.timestamp?.toDate()?.let {
+                    val formattedDate = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
+                    Text("Ngày đăng: $formattedDate", fontSize = 15.sp, color = Color.Gray)
+                }
+                Spacer(Modifier.height(16.dp))
+                // TODO: Display image if imageUrl is not null
+            } ?: run {
+                CircularProgressIndicator()
+            }
         }
     }
 }
@@ -83,5 +91,5 @@ fun PostDetailScreen() {
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewPostDetailScreen() {
-    PostDetailScreen()
+    PostDetailScreen(postId = "1")
 }
