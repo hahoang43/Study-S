@@ -64,7 +64,9 @@ fun LibraryScreen(navController: NavController) {
         topBar = {
             TopBar(
                 onNavIconClick = { navController.navigateUp() },
-                onNotificationClick = {  } )
+                onNotificationClick = { navController.navigate("notification") },
+                onSearchClick = { navController.navigate("search") }
+            )
         },
         bottomBar = {
             BottomNavBar(navController = navController, currentRoute = null)

@@ -47,7 +47,8 @@ fun ProfileScreen(
         topBar = {
             TopBar(
                 onNavIconClick = { /* TODO: open drawer */ },
-                onNotificationClick = { /* TODO: open notifications */ }
+                onNotificationClick = { navController.navigate(Routes.Notification) },
+                onSearchClick = { navController.navigate(Routes.Search) }
             )
         },
         bottomBar = {

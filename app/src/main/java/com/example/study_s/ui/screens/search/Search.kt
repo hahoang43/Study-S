@@ -43,9 +43,12 @@ fun SearchScreen() {
         topBar = {
             TopBar(
                 onNavIconClick = {  },
-                onNotificationClick = {  }
+                onNotificationClick = {  },
+                onSearchClick = {  }
             )
         },
+
+
 
     ) { padding ->
         Column(

@@ -8,11 +8,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -27,8 +28,8 @@ import com.example.study_s.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopBar(onNavIconClick: () -> Unit, onNotificationClick: () -> Unit) {
-    TopAppBar(
+fun TopBar(onNavIconClick: () -> Unit, onNotificationClick: () -> Unit, onSearchClick: () -> Unit) {
+    CenterAlignedTopAppBar(
         title = {
             Text(
                 text = "Study-S",
@@ -37,27 +38,24 @@ fun TopBar(onNavIconClick: () -> Unit, onNotificationClick: () -> Unit) {
                 color = Color.Black
             )
         },
+
         navigationIcon = {
             IconButton(onClick = onNavIconClick) {
                 Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color.Black)
             }
         },
+
         actions = {
+            IconButton(onClick = onSearchClick) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Tìm kiếm"
+                )
+            }
             IconButton(onClick = onNotificationClick) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Thông báo"
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .size(28.dp)
-                    .clip(CircleShape)
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.avatar),
-                    contentDescription = "Avatar"
                 )
             }
         },
@@ -70,5 +68,5 @@ fun TopBar(onNavIconClick: () -> Unit, onNotificationClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 fun TopBarPreview() {
-    TopBar(onNavIconClick = {}, onNotificationClick = {})
+    TopBar(onNavIconClick = {}, onNotificationClick = {}, onSearchClick = {})
 }

@@ -57,9 +57,16 @@ private fun downloadFile(context: Context, url: String, fileName: String) {
             .setTitle(fileName)
             .setDescription("Đang tải xuống...")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
+
+        // ✅ Sử dụng URI của thư mục Downloads thay vì đường dẫn tuyệt đối
+        val destinationUri = Uri.parse("file://" +
+                context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath +
+                "/$fileName"
+        )
+        request.setDestinationUri(destinationUri)
+
         downloadManager.enqueue(request)
         Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
@@ -67,6 +74,7 @@ private fun downloadFile(context: Context, url: String, fileName: String) {
         e.printStackTrace()
     }
 }
+
 
 @Composable
 fun HomeScreen(
@@ -86,7 +94,8 @@ fun HomeScreen(
         topBar = {
             TopBar(
                 onNavIconClick = { },
-                onNotificationClick = { navController.navigate(Routes.Notification) }
+                onNotificationClick = { navController.navigate(Routes.Notification) },
+                onSearchClick = { navController.navigate(Routes.Search) }
             )
         },
         floatingActionButton = {
