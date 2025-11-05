@@ -1,218 +1,171 @@
 package com.example.study_s.ui.screens.group
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.EmojiEmotions
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.study_s.R
-
-@Composable
-fun ChatGroupScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        ChatTopBar()
-        Divider(color = Color(0xFFECECEC))
-        MessageList(messages = sampleMessages, modifier = Modifier.weight(1f))
-        MessageInput(onSend = { })
-    }
-}
-
-@Composable
-fun ChatTopBar() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
-            tint = Color.Black,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(Modifier.width(8.dp))
-        Column {
-            Text("Nhóm CNTT", fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Text("11 thành viên", fontSize = 13.sp, color = Color.Gray)
-        }
-    }
-}
-
-data class Message(
-    val sender: String,
-    val text: String? = null,
-    val time: String,
-    val isMine: Boolean,
-    val avatarRes: Int? = null,
-    val imageRes: Int? = null
-)
-
-val sampleMessages = listOf(
-    Message("Bạn", "Mọi người ơi, tối nay chúng mình học nhóm về SQL nhé", "5:41 AM", true),
-    Message("Hà Võ", "oke nhé", "5:42 AM", false, R.drawable.avatar1),
-    Message("Hà Võ", "8g nha", "5:42 AM", false, R.drawable.avatar1),
-    Message("Hà Võ", "mình ôn phần JOIN và Subquery nha", "5:42 AM", false, R.drawable.avatar1),
-    Message("Phú Nguyễn", "Mình tham gia được", "5:43 AM", false, R.drawable.avatar2),
-    Message("Duyên Trần", "Ok, tui tham gia nha", "5:43 AM", false, R.drawable.avatar3),
-    Message("Bạn", "Tuyệt vời, chúng ta sẽ hiểu bài hơn", "5:44 AM", true, imageRes = R.drawable.happy_gif)
-)
-
-@Composable
-fun MessageList(messages: List<Message>, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        reverseLayout = false
-    ) {
-        item {
-            Text(
-                "Oct 10, 2025, 5:41 AM",
-                color = Color.Gray,
-                fontSize = 12.sp,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Center
-            )
-            Spacer(Modifier.height(8.dp))
-        }
-
-        items(messages) { message ->
-            MessageBubble(message)
-        }
-    }
-}
-
-@Composable
-fun MessageBubble(message: Message) {
-    val bubbleColor = if (message.isMine) Color(0xFF000000) else Color(0xFFF1F1F1)
-    val textColor = if (message.isMine) Color.White else Color.Black
-    val alignment = if (message.isMine) Arrangement.End else Arrangement.Start
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 2.dp),
-        horizontalArrangement = alignment
-    ) {
-        if (!message.isMine) {
-            message.avatarRes?.let {
-                Image(
-                    painter = painterResource(id = it),
-                    contentDescription = "Avatar",
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .align(Alignment.Bottom)
-                )
-                Spacer(Modifier.width(6.dp))
-            }
-        }
-
-        Column(horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start) {
-            if (!message.isMine) {
-                Text(
-                    message.sender,
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .background(bubbleColor, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            ) {
-                message.text?.let {
-                    Text(it, color = textColor)
-                }
-                message.imageRes?.let {
-                    Spacer(Modifier.height(8.dp))
-                    Image(
-                        painter = painterResource(id = it),
-                        contentDescription = "image",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(140.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                    )
-                }
-            }
-        }
-    }
-}
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import com.example.study_s.data.model.Message
+import com.example.study_s.viewmodel.ChatViewModel
+import com.example.study_s.viewmodel.GroupViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MessageInput(onSend: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
+fun ChatGroupScreen(
+    navController: NavHostController,
+    groupId: String,
+    groupViewModel: GroupViewModel = viewModel(),
+    chatViewModel: ChatViewModel = viewModel(),
+    // Replace with the actual logged-in user's ID
+    currentUserId: String = "currentUserId"
+) {
+    groupViewModel.getGroupById(groupId)
+    val group by groupViewModel.group.collectAsState()
+    val messages by chatViewModel.messages.collectAsState()
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = { }) {
-            Icon(Icons.Default.EmojiEmotions, contentDescription = "Emoji", tint = Color.Gray)
+    LaunchedEffect(groupId) {
+        chatViewModel.listenToGroupMessages(groupId)
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = group?.groupName ?: "",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                        Text(
+                            text = "Online",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            MessageInput(
+                onSendMessage = { message ->
+                    chatViewModel.sendMessage(groupId, currentUserId, message)
+                }
+            )
         }
-        TextField(
-            value = text,
-            onValueChange = { text = it },
-            placeholder = { Text("Message...") },
-            modifier = Modifier.weight(1f),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFFF2F2F2),
-                unfocusedContainerColor = Color(0xFFF2F2F2),
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            shape = RoundedCornerShape(20.dp),
-            maxLines = 3
-        )
-        IconButton(onClick = { }) {
-            Icon(Icons.Default.AttachFile, contentDescription = "Attach", tint = Color.Gray)
-        }
-        IconButton(onClick = {
-            if (text.isNotBlank()) {
-                onSend(text)
-                text = ""
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(Color.White)
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 16.dp),
+                reverseLayout = true,
+                contentPadding = PaddingValues(vertical = 8.dp)
+            ) {
+                items(messages.reversed()) { message ->
+                    MessageItem(message = message, currentUserId = currentUserId)
+                }
             }
-        }) {
-            Icon(Icons.Default.Send, contentDescription = "Send", tint = Color(0xFF007AFF))
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
 @Composable
-fun PreviewChatGroupScreen() {
-    ChatGroupScreen()
+fun MessageItem(message: Message, currentUserId: String) {
+    val isCurrentUser = message.senderId == currentUserId
+    val alignment = if (isCurrentUser) Alignment.CenterEnd else Alignment.CenterStart
+    val backgroundColor = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+    val textColor = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        contentAlignment = alignment
+    ) {
+        Column(
+            modifier = Modifier
+                .background(backgroundColor, RoundedCornerShape(12.dp))
+                .padding(12.dp)
+                .widthIn(max = 300.dp) // Max width for a message bubble
+        ) {
+            if (!isCurrentUser) {
+                Text(
+                    text = message.senderName,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            Text(
+                text = message.content,
+                style = MaterialTheme.typography.bodyLarge,
+                color = textColor
+            )
+        }
+    }
+}
+
+@Composable
+fun MessageInput(onSendMessage: (String) -> Unit) {
+    var text by remember { mutableStateOf("" ) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = text,
+            onValueChange = { text = it },
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Type a message...") }
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Button(onClick = {
+            if (text.isNotBlank()) {
+                onSendMessage(text)
+                text = ""
+            }
+        }) {
+            Text("Send")
+        }
+    }
 }

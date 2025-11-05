@@ -21,6 +21,7 @@ import com.example.study_s.ui.screens.auth.LoginScreen
 import com.example.study_s.ui.screens.auth.RegisterScreen
 import com.example.study_s.ui.screens.auth.VerifyCodeScreen
 import com.example.study_s.ui.screens.group.ChatGroupScreen
+import com.example.study_s.ui.screens.group.GroupCreateScreen
 import com.example.study_s.ui.screens.group.GroupScreen
 import com.example.study_s.ui.screens.home.HomeScreen
 import com.example.study_s.ui.screens.library.LibraryScreen
@@ -171,7 +172,15 @@ fun NavGraph(navController: NavHostController) {
         }
             // Group
         composable(Routes.GroupList) { GroupScreen(navController) }
-        composable(Routes.GroupChat) { ChatGroupScreen() }
+        composable(
+            route = "${Routes.GroupChat}/{groupId}",
+            arguments = listOf(navArgument("groupId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
+            ChatGroupScreen(navController = navController, groupId = groupId)
+        }
+        composable(Routes.GroupCreate) { GroupCreateScreen(navController) }
+
 
         // Message
         composable(Routes.Message) { MessageListScreen() }
