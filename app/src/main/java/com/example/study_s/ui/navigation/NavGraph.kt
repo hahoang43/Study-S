@@ -40,6 +40,7 @@ import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 import com.example.study_s.viewmodel.AuthViewModelFactory
+import com.example.study_s.ui.screens.FilePreviewScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -137,6 +138,18 @@ fun NavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getString("postId") ?: ""
             PostDetailScreen(postId = postId)
+        }
+        // 📎 File Preview (✅ route chính xác, không trùng)
+        composable(
+            route = "preview?fileUrl={fileUrl}&fileName={fileName}",
+            arguments = listOf(
+                navArgument("fileUrl") { type = NavType.StringType },
+                navArgument("fileName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val fileUrl = backStackEntry.arguments?.getString("fileUrl") ?: ""
+            val fileName = backStackEntry.arguments?.getString("fileName") ?: "Tệp đính kèm"
+            FilePreviewScreen(navController, fileUrl, fileName)
         }
 
         // Profile

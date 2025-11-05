@@ -1,45 +1,36 @@
 package com.example.study_s.ui.screens.home
 
+import android.os.Environment
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -48,29 +39,42 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
-import com.example.study_s.data.model.PostModel // SỬA: Import đúng data class Post
+import com.example.study_s.data.model.PostModel
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
+import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.PostViewModel
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
-import java.util.Locale
+import java.util.*
+import android.widget.Toast
 
-// Lớp dữ liệu cho một mục trên BottomBar
-data class BottomNavItem(
-    val label: String,
-    val icon: ImageVector,
-    val route: String
-)
+// ✅ Hàm tải file xuống bằng DownloadManager
+private fun downloadFile(context: Context, url: String, fileName: String) {
+    try {
+        val downloadManager = context.getSystemService(DownloadManager::class.java)
+        val request = DownloadManager.Request(Uri.parse(url))
+            .setTitle(fileName)
+            .setDescription("Đang tải xuống...")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
+        downloadManager.enqueue(request)
+        Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "Không thể tải xuống: ${e.message}", Toast.LENGTH_LONG).show()
+        e.printStackTrace()
+    }
+}
 
 @Composable
 fun HomeScreen(
     navController: NavController,
-    viewModel: PostViewModel = viewModel() // SỬA: Inject ViewModel
+    viewModel: PostViewModel = viewModel()
 ) {
-    // SỬA: Lấy danh sách bài viết từ ViewModel
     val posts by viewModel.posts.collectAsState()
 
-    // SỬA: Tải bài viết khi màn hình được hiển thị lần đầu
     LaunchedEffect(Unit) {
         viewModel.loadPosts()
     }
@@ -79,11 +83,15 @@ fun HomeScreen(
     val currentRoute = navBackStackEntry?.destination?.route
 
     Scaffold(
+        topBar = {
+            TopBar(
+                onNavIconClick = { },
+                onNotificationClick = { navController.navigate(Routes.Notification) }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = {
-                    navController.navigate(Routes.NewPost)
-                },
+                onClick = { navController.navigate(Routes.NewPost) },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Filled.Add, contentDescription = "Tạo bài viết mới", tint = Color.White)
@@ -100,17 +108,38 @@ fun HomeScreen(
                 .background(Color(0xFFF0F2F5)),
             contentPadding = PaddingValues(vertical = 8.dp)
         ) {
-            // SỬA: Hiển thị danh sách bài viết từ state
             items(posts) { post ->
-                PostItem(post = post, modifier = Modifier.padding(vertical = 4.dp, horizontal = 8.dp))
+                PostItem(navController = navController, post = post, modifier = Modifier.padding(8.dp))
             }
         }
     }
 }
 
-
 @Composable
-fun PostItem(post: PostModel, modifier: Modifier = Modifier) { // SỬA: Sử dụng data class Post từ model
+fun PostItem(navController: NavController, post: PostModel, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    var authorName by remember { mutableStateOf<String?>(null) }
+    var authorAvatar by remember { mutableStateOf<String?>(null) }
+
+    // ✅ Lấy thông tin người đăng bài từ Firestore
+    LaunchedEffect(post.authorId) {
+        if (post.authorId.isNotBlank()) {
+            FirebaseFirestore.getInstance().collection("users").document(post.authorId)
+                .get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                        authorName = document.getString("username")
+                        authorAvatar = document.getString("avatarUrl")
+                    } else {
+                        authorName = "Người dùng ẩn danh"
+                    }
+                }
+                .addOnFailureListener {
+                    authorName = "Người dùng ẩn danh"
+                }
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -123,10 +152,9 @@ fun PostItem(post: PostModel, modifier: Modifier = Modifier) { // SỬA: Sử d�
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // TODO: Cần một cơ chế để lấy avatar của tác giả từ authorId
                 Image(
-                    painter = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=5"), // Ảnh đại diện mẫu
-                    contentDescription = "Avatar của ${post.authorId}",
+                    painter = rememberAsyncImagePainter(authorAvatar ?: "https://i.pravatar.cc/150?img=5"),
+                    contentDescription = "Avatar của ${authorName ?: post.authorId}",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -135,39 +163,109 @@ fun PostItem(post: PostModel, modifier: Modifier = Modifier) { // SỬA: Sử d�
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    // TODO: Cần một cơ chế để lấy tên tác giả từ authorId
-                    Text(text = "Tác giả: ${post.authorId}", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-
-                    // SỬA: Format lại timestamp để hiển thị
+                    Text(
+                        text = authorName ?: "Đang tải...",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
                     val formattedDate = post.timestamp?.toDate()?.let {
                         SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
                     } ?: "Không rõ thời gian"
                     Text(text = formattedDate, fontSize = 12.sp, color = Color.Gray)
                 }
-                IconButton(onClick = { /* TODO: Xử lý menu thêm */ }) {
+                IconButton(onClick = { /* TODO: Menu */ }) {
                     Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Content
-            Text(
-                text = post.content,
-                style = MaterialTheme.typography.bodyLarge,
-                fontSize = 15.sp,
-                lineHeight = 22.sp
-            )
-
-            // SỬA: Hiển thị ảnh của bài viết nếu có
-            if (post.imageUrl != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Image(
-                    painter = rememberAsyncImagePainter(post.imageUrl),
-                    contentDescription = "Ảnh bài viết",
-                    modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
+            // Nội dung bài viết
+            if (post.content.isNotBlank()) {
+                Text(
+                    text = post.content,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontSize = 15.sp,
+                    lineHeight = 22.sp
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // ✅ Hiển thị file hoặc ảnh đính kèm
+            if (post.imageUrl != null) {
+                val isImage = post.fileName?.let {
+                    it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) || it.endsWith(".png", true)
+                } ?: true
+
+                if (isImage) {
+                    // Ảnh
+                    Image(
+                        painter = rememberAsyncImagePainter(post.imageUrl),
+                        contentDescription = "Ảnh đính kèm",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 300.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    // Tệp
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Icon xem tệp
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                                .clickable {
+                                    val encodedUrl = Uri.encode(post.imageUrl)
+                                    val encodedName = Uri.encode(post.fileName ?: "Tệp đính kèm")
+                                    navController.navigate("preview?fileUrl=$encodedUrl&fileName=$encodedName")
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Description,
+                                contentDescription = "File Icon",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = post.fileName ?: "Tệp đính kèm",
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Nhấn biểu tượng để xem hoặc tải xuống",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Nút tải xuống
+                        IconButton(onClick = {
+                            downloadFile(context, post.imageUrl, post.fileName ?: "downloaded_file")
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.AttachFile,
+                                contentDescription = "Tải xuống",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -190,7 +288,6 @@ fun PostItem(post: PostModel, modifier: Modifier = Modifier) { // SỬA: Sử d�
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
