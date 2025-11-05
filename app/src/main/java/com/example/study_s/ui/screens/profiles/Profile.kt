@@ -24,17 +24,24 @@ import coil.compose.AsyncImage
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.ui.screens.components.TopBar
-
+import androidx.lifecycle.viewmodel.compose.viewModel // Thêm import này
+import com.example.study_s.data.model.User
+import com.example.study_s.viewmodel.ProfileViewModel
+import com.example.study_s.viewmodel.ProfileUiState
+import java.util.Date
+import com.example.study_s.viewmodel.ProfileViewModelFactory
 @Composable
 fun ProfileScreen(
-    navController: NavController
+    navController: NavController,
+    viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory())
 ) {
-    val username = "Ngo Ich"
-    val email = "20020509@vnu.edu.vn"
-    val profileImageUrl = ""
-    var selectedTab by remember { mutableStateOf(4) } // Profile is the 5th item (index 4)
+    val uiState = viewModel.profileUiState
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    // [THÊM] Tải dữ liệu người dùng khi màn hình được hiển thị
+    LaunchedEffect(Unit) {
+        viewModel.loadCurrentUserProfile()
+    }
 
     Scaffold(
         topBar = {
@@ -44,18 +51,43 @@ fun ProfileScreen(
             )
         },
         bottomBar = {
-                // SỬA Ở ĐÂY: Gọi BottomNavBar có sẵn và truyền NavController, route hiện tại
-                BottomNavBar(navController = navController, currentRoute = currentRoute)
-            }
+            // SỬA Ở ĐÂY: Gọi BottomNavBar có sẵn và truyền NavController, route hiện tại
+            BottomNavBar(navController = navController, currentRoute = currentRoute)
+        }
     ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentAlignment = Alignment.Center
+        ) {
+            // Dùng when để quyết định hiển thị gì dựa trên trạng thái (uiState)
+            when (val uiState = viewModel.profileUiState) { // Lấy state từ ViewModel
+                is ProfileUiState.Loading -> {
+                    // Nếu đang tải -> chỉ hiển thị vòng quay
+                    CircularProgressIndicator()
+                }
+
+                is ProfileUiState.Error -> {
+                    // Nếu có lỗi -> chỉ hiển thị thông báo lỗi
+                    Text(text = uiState.message, color = MaterialTheme.colorScheme.error)
+                }
+
+                is ProfileUiState.Success -> {
+                    ProfileContent(navController = navController, user = uiState.user)
+                }
+            }
+        }
+    }
+}
+    @Composable
+    private fun ProfileContent(navController: NavController, user: User) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White)
-                .padding(innerPadding),
+                .background(Color.White),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             // ===== Header + Avatar =====
             Box(
                 modifier = Modifier
@@ -65,24 +97,27 @@ fun ProfileScreen(
                 contentAlignment = Alignment.BottomCenter
             ) {
                 AsyncImage(
-                    model = profileImageUrl.ifEmpty { "https://i.imgur.com/8p3xYso.png" },
+                    // SỬA: Lấy ảnh từ `user.avatarUrl`
+                    model = user.avatarUrl.takeIf { !it.isNullOrEmpty() }
+                        ?: "https://i.imgur.com/8p3xYso.png",
                     contentDescription = "Avatar",
                     modifier = Modifier
                         .size(90.dp)
-                        .offset(y = 45.dp) // Overlap the header
+                        .offset(y = 45.dp)
                         .clip(CircleShape),
                     contentScale = ContentScale.Crop
                 )
             }
 
-            Spacer(modifier = Modifier.height(50.dp)) // Space for the overlapping avatar
+            Spacer(modifier = Modifier.height(50.dp)) // Khoảng trống cho Avatar
 
             // ===== Name, Email + Edit Icon =====
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = username,
+                    // SỬA: Lấy tên từ `user.name`
+                    text = user.name,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 20.sp
                 )
@@ -98,19 +133,34 @@ fun ProfileScreen(
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(text = email, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Text(
+                // SỬA: Lấy email từ `user.email`
+                text = user.email,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Button(onClick = { /* TODO: Navigate to user's posts */ }) {
+            Button(onClick = { /* TODO: Điều hướng đến màn hình bài viết của người dùng */ }) {
                 Text("Các bài viết")
             }
         }
     }
-}
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ProfileScreenPreview() {
-    ProfileScreen(navController = rememberNavController())
-}
+    @Preview(showBackground = true, showSystemUi = true)
+    @Composable
+    fun ProfileScreenPreview() {
+        // Tạo một đối tượng User giả để xem trước
+        val fakeUser = User(
+            userId = "fakeId",
+            name = "Ngo Ich (Preview)",
+            email = "preview@vnu.edu.vn",
+            avatarUrl = null,
+            bio = "Đây là bio xem trước",
+            createdAt = Date()
+        )
+        // Gọi thẳng ProfileContent để xem trước giao diện khi đã có dữ liệu
+        ProfileContent(navController = rememberNavController(), user = fakeUser)
+    }
+

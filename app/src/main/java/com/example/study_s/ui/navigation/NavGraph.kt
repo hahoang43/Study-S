@@ -28,7 +28,7 @@ import com.example.study_s.ui.screens.message.MessageListScreen
 import com.example.study_s.ui.screens.notification.NotificationScreen
 import com.example.study_s.ui.screens.post.NewPostScreen
 import com.example.study_s.ui.screens.post.PostDetailScreen
-import com.example.study_s.ui.screens.profile.StragerScreen
+import com.example.study_s.ui.screens.profiles.StragerScreen
 import com.example.study_s.ui.screens.profiles.EditProfileScreen
 import com.example.study_s.ui.screens.profiles.ProfileScreen
 import com.example.study_s.ui.screens.schedule.ScheduleScreen
@@ -39,7 +39,7 @@ import com.example.study_s.ui.screens.splash.SplashScreen
 import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
-
+import com.example.study_s.viewmodel.AuthViewModelFactory
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -55,7 +55,8 @@ fun NavGraph(navController: NavHostController) {
 
         // 🔐 Auth Flow
         composable(Routes.Login) {
-            val viewModel: AuthViewModel = viewModel()
+            val viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
+
             val state by viewModel.state.collectAsState()
             val context = LocalContext.current
             val googleAuthUiClient by lazy { GoogleAuthUiClient(context) }
@@ -113,7 +114,11 @@ fun NavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             val name = backStackEntry.arguments?.getString("name") ?: ""
             val email = backStackEntry.arguments?.getString("email") ?: ""
-            RegisterScreen(navController, name, email)
+            RegisterScreen(
+                navController=navController,
+                name=name,
+                email=email
+            )
         }
         composable(Routes.ForgotPassword) { ForgotPasswordScreen(
             onBackToLogin = { navController.popBackStack() },
@@ -137,9 +142,21 @@ fun NavGraph(navController: NavHostController) {
         // Profile
         composable(Routes.Profile) { ProfileScreen(navController) }
         composable(Routes.EditProfile) { EditProfileScreen(navController) }
-        composable(Routes.OtherProfile) { StragerScreen() }
-
-        // Group
+        composable(
+            route = "${Routes.OtherProfile}/{userId}",
+            arguments = listOf(
+                navArgument("userId") {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                StragerScreen(navController = navController, userId = userId)
+            } else {
+            }
+        }
+            // Group
         composable(Routes.GroupList) { GroupScreen(navController) }
         composable(Routes.GroupChat) { ChatGroupScreen() }
 

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,6 +35,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,30 +57,50 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.study_s.R
 import kotlinx.coroutines.launch
-
+import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.study_s.viewmodel.ProfileUiState // NOTE: Thêm import
+import com.example.study_s.viewmodel.ProfileViewModel // NOTE: Thêm import
+import com.example.study_s.viewmodel.ProfileViewModelFactory
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditProfileScreen(navController: NavController) {
+fun EditProfileScreen(
+    navController: NavController,
+    viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory())
+) {
 
-    // Trạng thái để lưu trữ thông tin người dùng
-    var name by remember { mutableStateOf("An Nguyen") } // Thay bằng dữ liệu thật từ ViewModel
-    var bio by remember { mutableStateOf("Đây là tiểu sử của tôi. Tôi yêu thích lập trình và đọc sách!") } // Thay bằng dữ liệu thật
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    // NOTE 2: Sửa các state để chúng được điều khiển bởi ViewModel
+    val uiState = viewModel.profileUiState
+    var name by remember { mutableStateOf("") }
+    var bio by remember { mutableStateOf("") }
+    var imageUri by remember { mutableStateOf<Uri?>(null) } // Ảnh mới người dùng chọn
+    var initialAvatarUrl by remember { mutableStateOf<String?>(null) } // Ảnh cũ từ server
+    var isLoading by remember { mutableStateOf(false) } // State để quản lý trạng thái loading
 
-    // Coroutine Scope và SnackbarHostState để hiển thị thông báo
+    // NOTE 3: Thêm LaunchedEffect để tải dữ liệu người dùng khi màn hình được mở
+    LaunchedEffect(Unit) {
+        viewModel.loadCurrentUserProfile()
+    }
+    // NOTE 4: Thêm LaunchedEffect để cập nhật các ô nhập liệu sau khi dữ liệu được tải về
+    LaunchedEffect(uiState) {
+        if (uiState is ProfileUiState.Success) {
+            val user = (uiState as ProfileUiState.Success).user
+            // Chỉ cập nhật lần đầu để tránh ghi đè lên những gì người dùng đang gõ
+            if (name.isEmpty() && initialAvatarUrl == null) {
+                name = user.name
+                bio = user.bio ?: ""
+                initialAvatarUrl = user.avatarUrl
+            }
+        }
+    }
+
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Trình khởi chạy để chọn ảnh từ thư viện
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            imageUri = it
-            scope.launch {
-                snackbarHostState.showSnackbar("Đã chọn ảnh mới")
-            }
-        }
+        // Gán ảnh mới được chọn vào state
+        imageUri = uri
     }
 
     Scaffold(
@@ -92,14 +115,9 @@ fun EditProfileScreen(navController: NavController) {
                             contentDescription = "Quay lại"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                }
             )
-        },
-        containerColor = MaterialTheme.colorScheme.surface
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -117,7 +135,11 @@ fun EditProfileScreen(navController: NavController) {
                 modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
             ) {
                 AsyncImage(
-                    model = imageUri ?: R.drawable.profile_placeholder, // Sử dụng ảnh placeholder đẹp hơn
+                    // NOTE 5: Sửa logic hiển thị ảnh
+                    // Ưu tiên ảnh mới chọn (imageUri), rồi đến ảnh cũ (initialAvatarUrl), cuối cùng là ảnh mặc định
+                    model = imageUri ?: initialAvatarUrl,
+                    placeholder = painterResource(id = R.drawable.profile_placeholder),
+                    error = painterResource(id = R.drawable.profile_placeholder),
                     contentDescription = "Ảnh đại diện",
                     modifier = Modifier
                         .size(128.dp)
@@ -197,23 +219,35 @@ fun EditProfileScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.weight(1f)) // Đẩy nút "Lưu" xuống dưới
 
-            // -- NÚT LƯU ĐƯỢC CẢI TIẾN --
+            // Nút Lưu thay đổi
             Button(
                 onClick = {
-                    // TODO: Thêm logic lưu thông tin hồ sơ tại đây
-                    // Ví dụ: viewModel.saveProfile(name, bio, imageUri)
-                    scope.launch {
-                        snackbarHostState.showSnackbar("Đã lưu thay đổi!")
+                    isLoading = true
+                    viewModel.updateUserProfile(name, bio, imageUri) { success, errorMessage ->
+                        isLoading = false
+                        scope.launch {
+                            if (success) {
+                                snackbarHostState.showSnackbar("Đã lưu thay đổi!")
+                                navController.popBackStack()
+                            } else {
+                                snackbarHostState.showSnackbar("Lưu thất bại: $errorMessage")
+                            }
+                        }
                     }
-                    // Có thể thêm một khoảng delay nhỏ trước khi quay lại
-                    // để người dùng đọc được Snackbar
-                    navController.popBackStack()
                 },
+                enabled = !isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                Text("Lưu thay đổi", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Lưu thay đổi", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
