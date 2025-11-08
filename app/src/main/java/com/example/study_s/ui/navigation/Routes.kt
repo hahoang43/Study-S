@@ -32,6 +32,7 @@ object Routes {
 
     // Library
     const val Library = "library"
+    const val FilePreview = "file_preview"
 
     // Schedule
     const val Schedule = "schedule"

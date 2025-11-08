@@ -1,11 +1,10 @@
 package com.example.study_s.data.model
 
 data class LibraryFile(
-    val fileId: String = "",
     val fileName: String = "",
-    val fileUrl: String = "", // URL Cloudinary sau khi upload
+    val fileUrl: String = "",
     val mimeType: String = "",
     val uploaderId: String = "",
     val uploaderName: String = "",
-    val uploadedAt: Long = System.currentTimeMillis()
+    val uploadedAt: Long = System.currentTimeMillis() // Thêm trường thời gian tải lên
 )

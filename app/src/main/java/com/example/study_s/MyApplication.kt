@@ -1,4 +1,3 @@
-// File: MyApplication.kt
 package com.example.study_s
 
 import android.app.Application
@@ -7,13 +6,11 @@ import com.cloudinary.android.MediaManager
 class MyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        // Khởi tạo MediaManager với thông tin Cloudinary của bạn
+        // Khởi tạo MediaManager với cấu hình chính xác cho unsigned uploads.
         val config = mapOf(
-            "cloud_name" to "dpx9pegbu",
-            "api_key" to "556966687289974",
-            "api_secret" to "G3agYfxjmeGMBbx3w30JfsxL128"
+            "cloud_name" to "dzhiudnhu",
+            "secure" to true
         )
         MediaManager.init(this, config)
     }
 }
-    

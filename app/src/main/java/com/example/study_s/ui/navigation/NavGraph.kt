@@ -15,6 +15,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.example.study_s.ui.screens.FilePreviewScreen
 import com.example.study_s.ui.screens.auth.ForgotPasswordScreen
 import com.example.study_s.ui.screens.auth.GoogleAuthUiClient
 import com.example.study_s.ui.screens.auth.LoginScreen
@@ -39,9 +40,9 @@ import com.example.study_s.ui.screens.settings.SupportScreen
 import com.example.study_s.ui.screens.splash.SplashScreen
 import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
-import kotlinx.coroutines.launch
 import com.example.study_s.viewmodel.AuthViewModelFactory
-import com.example.study_s.ui.screens.FilePreviewScreen
+import kotlinx.coroutines.launch
+import java.net.URLDecoder
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -140,16 +141,20 @@ fun NavGraph(navController: NavHostController) {
             val postId = backStackEntry.arguments?.getString("postId") ?: ""
             PostDetailScreen(postId = postId)
         }
-        // 📎 File Preview (✅ route chính xác, không trùng)
+
+        // 📎 File Preview (Handles both upload and preview)
         composable(
-            route = "preview?fileUrl={fileUrl}&fileName={fileName}",
+            route = "${Routes.FilePreview}?fileUrl={fileUrl}&fileName={fileName}",
             arguments = listOf(
-                navArgument("fileUrl") { type = NavType.StringType },
-                navArgument("fileName") { type = NavType.StringType }
+                navArgument("fileUrl") { type = NavType.StringType; nullable = true },
+                navArgument("fileName") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
-            val fileUrl = backStackEntry.arguments?.getString("fileUrl") ?: ""
-            val fileName = backStackEntry.arguments?.getString("fileName") ?: "Tệp đính kèm"
+            val fileUrl = backStackEntry.arguments?.getString("fileUrl")?.let {
+                URLDecoder.decode(it, "UTF-8")
+            }
+            val fileName = backStackEntry.arguments?.getString("fileName")
+
             FilePreviewScreen(navController, fileUrl, fileName)
         }
 

@@ -2,7 +2,6 @@ package com.example.study_s.ui.screens.group
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -110,7 +109,6 @@ fun GroupScreen(
                             .fillMaxWidth()
                             .border(1.dp, Color(0xFF1A73E8), RoundedCornerShape(8.dp))
                             .background(Color(0xFFEAF1FD), RoundedCornerShape(8.dp))
-                            .clickable { groupViewModel.loadAllGroups() }
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -195,10 +193,12 @@ fun GroupItem(
             Spacer(modifier = Modifier.width(16.dp))
             Button(
                 onClick = {
-                    if (isMember) {
-                        navController.navigate("${Routes.GroupChat}/${group.groupId}")
-                    } else {
-                        groupViewModel.joinGroup(group.groupId, currentUserId)
+                    if (group.groupId.isNotEmpty()) { // An toàn hơn: Kiểm tra ID trước khi sử dụng
+                        if (isMember) {
+                            navController.navigate("${Routes.GroupChat}/${group.groupId}")
+                        } else {
+                            groupViewModel.joinGroup(group.groupId, currentUserId)
+                        }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
