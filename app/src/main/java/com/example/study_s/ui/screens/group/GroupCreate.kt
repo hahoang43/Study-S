@@ -2,6 +2,7 @@ package com.example.study_s.ui.screens.group
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,9 +10,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Create
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -37,7 +42,6 @@ import com.example.study_s.viewmodel.GroupViewModel
 @Composable
 fun GroupCreateScreen(
     navController: NavHostController,
-    // userId is needed here. For now, we'll use a placeholder.
     userId: String = "temp_user_id",
     groupViewModel: GroupViewModel = viewModel()
 ) {
@@ -45,12 +49,14 @@ fun GroupCreateScreen(
     val createSuccess by groupViewModel.createSuccess.collectAsState()
 
     var groupName by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    var subject by remember { mutableStateOf("") }
+    val groupTypes = listOf("Công khai", "Riêng tư")
+    var selectedGroupType by remember { mutableStateOf(groupTypes[0]) }
 
-    // When group creation is successful, navigate to the group chat screen
     LaunchedEffect(createSuccess) {
         if (createSuccess != null) {
             navController.navigate("${Routes.GroupChat}/$createSuccess") {
-                // Pop up to the group list to avoid going back to the create screen
                 popUpTo(Routes.GroupList) { inclusive = false }
             }
         }
@@ -58,7 +64,15 @@ fun GroupCreateScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Tạo Nhóm Học Tập") })
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Create, contentDescription = "Create Group Icon")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Tạo Nhóm Học Tập")
+                    }
+                }
+            )
         }
     ) { padding ->
         Column(
@@ -66,8 +80,6 @@ fun GroupCreateScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             TextField(
                 value = groupName,
@@ -76,11 +88,49 @@ fun GroupCreateScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(modifier = Modifier.height(16.dp))
+            TextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Mô tả nhóm") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            TextField(
+                value = subject,
+                onValueChange = { subject = it },
+                label = { Text("Chủ đề/Môn học") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text("Loại nhóm:")
+            Row(Modifier.fillMaxWidth()) {
+                groupTypes.forEach { groupType ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        RadioButton(
+                            selected = (groupType == selectedGroupType),
+                            onClick = { selectedGroupType = groupType }
+                        )
+                        Text(text = groupType)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
-                    if (groupName.isNotBlank()) {
-                        groupViewModel.createGroup(groupName, userId)
+                    if (groupName.isNotBlank() && description.isNotBlank() && subject.isNotBlank()) {
+                        val groupTypeInEnglish = if (selectedGroupType == "Công khai") "Public" else "Private"
+                        groupViewModel.createGroup(
+                            groupName = groupName,
+                            description = description,
+                            subject = subject,
+                            groupType = groupTypeInEnglish,
+                            creatorId = userId
+                        )
                     }
                 },
                 enabled = !isCreating,

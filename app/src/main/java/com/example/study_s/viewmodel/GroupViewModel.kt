@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+// Giả sử GroupRepository có thể được cung cấp qua DI hoặc mặc định
 class GroupViewModel(private val groupRepository: GroupRepository = GroupRepository()) : ViewModel() {
 
     private val _groups = MutableStateFlow<List<Group>>(emptyList())
@@ -24,45 +25,95 @@ class GroupViewModel(private val groupRepository: GroupRepository = GroupReposit
     private val _createSuccess = MutableStateFlow<String?>(null)
     val createSuccess: StateFlow<String?> = _createSuccess.asStateFlow()
 
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
+    // Thêm trạng thái lỗi để hiển thị phản hồi cho người dùng (nếu có lỗi tải nhóm)
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
         loadAllGroups()
     }
 
+    /**
+     * Tải tất cả các nhóm từ Repository và cập nhật trạng thái làm mới.
+     * Logic này đã chính xác trong việc sử dụng khối try/finally.
+     */
     fun loadAllGroups() {
         viewModelScope.launch {
-            _groups.value = groupRepository.getAllGroups()
+            _isRefreshing.value = true
+            _error.value = null // Xóa lỗi cũ
+            try {
+                _groups.value = groupRepository.getAllGroups()
+            } catch (e: Exception) {
+                // Xử lý và ghi nhận lỗi nếu có vấn đề khi tải
+                _error.value = "Không thể tải nhóm: ${e.message}"
+                println("Error loading groups: ${e.message}")
+            } finally {
+                // Đảm bảo trạng thái làm mới luôn tắt dù thành công hay thất bại
+                _isRefreshing.value = false
+            }
         }
     }
 
     fun getGroupById(groupId: String) {
         viewModelScope.launch {
-            _group.value = _groups.value.find { it.groupId == groupId }
+            _group.value = groupRepository.getGroupById(groupId)
         }
     }
 
-    fun createGroup(groupName: String, creatorId: String) {
+    fun createGroup(
+        groupName: String,
+        description: String,
+        subject: String,
+        groupType: String,
+        creatorId: String
+    ) {
         viewModelScope.launch {
             _isCreating.value = true
-            // Generate a new ID for the group
-            val newGroupId = FirebaseFirestore.getInstance().collection("groups").document().id
-            val newGroup = Group(
-                groupId = newGroupId,
-                groupName = groupName,
-                description = "", // Assuming description is not needed for now
-                members = listOf(creatorId)
-            )
-            groupRepository.createGroup(newGroup)
-            _createSuccess.value = newGroupId
-            _isCreating.value = false
-            loadAllGroups() // Refresh the group list
+            try {
+                val newGroupId = FirebaseFirestore.getInstance().collection("groups").document().id
+                val newGroup = Group(
+                    groupId = newGroupId,
+                    groupName = groupName,
+                    description = description,
+                    subject = subject,
+                    groupType = groupType,
+                    members = listOf(creatorId),
+                    createdBy = creatorId,
+                    createdAt = System.currentTimeMillis()
+                )
+                groupRepository.createGroup(newGroup)
+                _createSuccess.value = newGroupId
+                loadAllGroups() // Tải lại danh sách sau khi tạo thành công
+            } catch (e: Exception) {
+                // Xử lý lỗi tạo nhóm
+                _error.value = "Lỗi tạo nhóm: ${e.message}"
+            } finally {
+                _isCreating.value = false
+            }
         }
     }
 
     fun joinGroup(groupId: String, userId: String) {
         viewModelScope.launch {
             groupRepository.joinGroup(groupId, userId)
-            loadAllGroups() // Refresh the group list
+            loadAllGroups()
+        }
+    }
+
+    fun leaveGroup(groupId: String, userId: String) {
+        viewModelScope.launch {
+            groupRepository.leaveGroup(groupId, userId)
+            loadAllGroups()
+        }
+    }
+
+    fun deleteGroup(groupId: String) {
+        viewModelScope.launch {
+            groupRepository.deleteGroup(groupId)
+            loadAllGroups()
         }
     }
 }
