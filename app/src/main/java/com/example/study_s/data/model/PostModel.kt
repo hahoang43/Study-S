@@ -15,9 +15,10 @@ data class PostModel(
     val timestamp: Timestamp? = null,
     val likesCount: Long = 0,
     val commentsCount: Long = 0,
-    // Trường này không lưu trong Firestore nhưng rất hữu ích ở phía client
+    val likedBy: List<String> = emptyList(), // <-- 1. THÊM TRƯỜNG NÀY
     @get:Exclude var postId: String = ""
 ) {
     // Thêm một constructor trống để Firestore có thể tự động chuyển đổi DocumentSnapshot thành đối tượng Post
-    constructor() : this("", "", null, null, null, null, 0, 0, "")
+    // <-- 2. CẬP NHẬT CONSTRUCTOR TRỐNG
+    constructor() : this("", "", null, null, null, null, 0, 0, emptyList(), "")
 }

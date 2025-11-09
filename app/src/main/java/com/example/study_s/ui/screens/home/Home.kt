@@ -11,14 +11,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState // <-- 1. IMPORT
+import androidx.compose.foundation.lazy.rememberLazyListState // <-- 2. IMPORT
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,17 +43,20 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.PostModel
+import com.example.study_s.data.model.User
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.PostViewModel
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.*
 import android.widget.Toast
-
-// ✅ Hàm tải file xuống bằng DownloadManager
+import kotlinx.coroutines.launch // <-- 3. IMPORT
+// Hàm downloadFile (Giữ nguyên, không thay đổi)
 private fun downloadFile(context: Context, url: String, fileName: String) {
+    // ... (nội dung hàm giữ nguyên)
     try {
         val downloadManager = context.getSystemService(DownloadManager::class.java)
         val request = DownloadManager.Request(Uri.parse(url))
@@ -60,7 +66,6 @@ private fun downloadFile(context: Context, url: String, fileName: String) {
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
 
-        // ✅ Sử dụng URI của thư mục Downloads thay vì đường dẫn tuyệt đối
         val destinationUri = Uri.parse("file://" +
                 context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath +
                 "/$fileName"
@@ -82,13 +87,20 @@ fun HomeScreen(
     viewModel: PostViewModel = viewModel()
 ) {
     val posts by viewModel.posts.collectAsState()
-
-    LaunchedEffect(Unit) {
-        viewModel.loadPosts()
-    }
-
+    val lazyListState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+
+    LaunchedEffect(navBackStackEntry) {
+        if (currentRoute == Routes.Home) {
+            viewModel.loadPosts()
+            scope.launch {
+                lazyListState.animateScrollToItem(index = 0)
+            }
+        }
+    }
+
 
     Scaffold(
         topBar = {
@@ -98,14 +110,7 @@ fun HomeScreen(
                 onSearchClick = { navController.navigate(Routes.Search) }
             )
         },
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = { navController.navigate(Routes.NewPost) },
-                containerColor = MaterialTheme.colorScheme.primary
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Tạo bài viết mới", tint = Color.White)
-            }
-        },
+
         bottomBar = {
             BottomNavBar(navController = navController, currentRoute = currentRoute)
         }
@@ -115,46 +120,111 @@ fun HomeScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
                 .background(Color(0xFFF0F2F5)),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            state = lazyListState,
+            contentPadding = PaddingValues(vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp) // <-- 4. Thêm khoảng cách giữa các item
         ) {
+            // <-- 5. THÊM COMPONENT MỚI VÀO ĐẦU DANH SÁCH
+            item {
+                CreatePostTrigger(
+                    navController = navController,
+                    modifier = Modifier.padding(horizontal = 8.dp) // Thêm padding ngang
+                )
+            }
+
+            // Danh sách bài đăng (giữ nguyên)
             items(posts) { post ->
-                PostItem(navController = navController, post = post, modifier = Modifier.padding(8.dp))
+                PostItem(
+                    navController = navController,
+                    post = post,
+                    viewModel = viewModel,
+                    modifier = Modifier.padding(horizontal = 8.dp) // Chỉ cần padding ngang
+                )
             }
         }
     }
 }
 
+// <-- 6. COMPOSABLE MỚI CHO Ô TẠO BÀI ĐĂNG GỌN GÀNG
 @Composable
-fun PostItem(navController: NavController, post: PostModel, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    var authorName by remember { mutableStateOf<String?>(null) }
-    var authorAvatar by remember { mutableStateOf<String?>(null) }
-
-    // ✅ Lấy thông tin người đăng bài từ Firestore
-    LaunchedEffect(post.authorId) {
-        if (post.authorId.isNotBlank()) {
-            FirebaseFirestore.getInstance().collection("users").document(post.authorId)
-                .get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                        authorName = document.getString("username")
-                        authorAvatar = document.getString("avatarUrl")
-                    } else {
-                        authorName = "Người dùng ẩn danh"
-                    }
-                }
-                .addOnFailureListener {
-                    authorName = "Người dùng ẩn danh"
-                }
-        }
-    }
+fun CreatePostTrigger(navController: NavController, modifier: Modifier = Modifier) {
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    // Lấy avatar từ tài khoản Google (hoặc fallback)
+    val avatarUrl = currentUser?.photoUrl
+    val userName = currentUser?.displayName ?: "Người dùng"
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { navController.navigate(Routes.NewPost) }, // Nhấn vào đây để đi đến trang tạo bài
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(
+                    model = avatarUrl,
+                    // Ảnh dự phòng nếu không có avatar
+                    fallback = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=5")
+                ),
+                contentDescription = "Avatar của $userName",
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.LightGray),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            // Chữ mờ
+            Text("Bạn đang nghĩ gì?", color = Color.Gray, fontSize = 16.sp)
+            Spacer(modifier = Modifier.weight(1f))
+            // Icon ảnh cho trực quan
+            Icon(
+                imageVector = Icons.Default.PhotoLibrary,
+                contentDescription = "Thêm ảnh",
+                tint = Color(0xFF4CAF50) // Màu xanh lá
+            )
+        }
+    }
+}
+
+
+@Composable
+fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewModel, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+
+    val userCache by viewModel.userCache.collectAsState()
+    val author = userCache[post.authorId] ?: User(name = "Đang tải...")
+    // ✅ Lấy thông tin người đăng bài từ Firestore
+    LaunchedEffect(post.authorId) {
+        if (post.authorId.isNotBlank()) {
+            viewModel.fetchUser(post.authorId)
+        }
+    }
+    val authorName = author.name
+    val authorAvatar = author.avatarUrl
+    // 3. Lấy thông tin like
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isLiked = remember(post.likedBy) { // Re-check khi post.likedBy thay đổi
+        currentUserId?.let { post.likedBy.contains(it) } ?: false
+    }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { // 4. Click cả card để vào chi tiết
+                navController.navigate("${Routes.PostDetail}/${post.postId}")
+            },
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ){
         Column(modifier = Modifier.padding(12.dp)) {
             // Header
             Row(
@@ -163,7 +233,7 @@ fun PostItem(navController: NavController, post: PostModel, modifier: Modifier =
             ) {
                 Image(
                     painter = rememberAsyncImagePainter(authorAvatar ?: "https://i.pravatar.cc/150?img=5"),
-                    contentDescription = "Avatar của ${authorName ?: post.authorId}",
+                    contentDescription = "Avatar của ${authorName }",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -173,7 +243,7 @@ fun PostItem(navController: NavController, post: PostModel, modifier: Modifier =
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = authorName ?: "Đang tải...",
+                        text = authorName ,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
@@ -200,7 +270,7 @@ fun PostItem(navController: NavController, post: PostModel, modifier: Modifier =
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // ✅ Hiển thị file hoặc ảnh đính kèm
+            // ✅ Hiển thị file hoặc ảnh đính kèm (Giữ nguyên)
             if (post.imageUrl != null) {
                 val isImage = post.fileName?.let {
                     it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) || it.endsWith(".png", true)
@@ -236,8 +306,9 @@ fun PostItem(navController: NavController, post: PostModel, modifier: Modifier =
                                 .clickable {
                                     val encodedUrl = Uri.encode(post.imageUrl)
                                     val encodedName = Uri.encode(post.fileName ?: "Tệp đính kèm")
-                                    navController.navigate("preview?fileUrl=$encodedUrl&fileName=$encodedName")
-                                },
+// Dòng mới
+                                    navController.navigate("${Routes.FilePreview}?fileUrl=$encodedUrl&fileName=$encodedName")
+                                           },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -279,20 +350,30 @@ fun PostItem(navController: NavController, post: PostModel, modifier: Modifier =
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Footer
+            // Footer (Giữ nguyên)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                IconButton(onClick = { /* TODO: Xử lý like */ }) {
-                    Icon(Icons.Default.FavoriteBorder, contentDescription = "Thích")
+                // 5. Nút Like được cập nhật
+                IconButton(onClick = {
+                    viewModel.toggleLike(post.postId)
+                }) {
+                    Icon(
+                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Thích",
+                        tint = if (isLiked) Color.Red else Color.Gray
+                    )
                 }
-                Text(text = "${post.likesCount}")
+                Text(text = "${post.likesCount}") // Tự động cập nhật
                 Spacer(modifier = Modifier.width(16.dp))
-                IconButton(onClick = { /* TODO: Xử lý comment */ }) {
+                // 6. Nút bình luận (click vào sẽ đi đến chi tiết)
+                IconButton(onClick = {
+                    navController.navigate("${Routes.PostDetail}/${post.postId}")
+                }) {
                     Icon(Icons.Default.Send, contentDescription = "Bình luận")
                 }
-                Text(text = "${post.commentsCount}")
+                Text(text = "${post.commentsCount}") // Tự động cập nhật
             }
         }
     }

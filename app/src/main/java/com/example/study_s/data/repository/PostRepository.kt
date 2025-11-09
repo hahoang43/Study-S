@@ -1,19 +1,21 @@
 package com.example.study_s.data.repository
+import com.example.study_s.data.model.CommentModel // <-- THÊM
 import com.example.study_s.data.model.PostModel
+import com.google.firebase.firestore.FieldValue // <-- THÊM
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 
 class PostRepository(
-    firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance() // Sửa thành private val
 ) {
     private val postCollection = firestore.collection("posts")
 
     // 🟢 Tạo bài đăng mới
     suspend fun createPost(post: PostModel) {
         val newPostRef = postCollection.document()
-        val newPost = post.copy(postId = newPostRef.id)
-        newPostRef.set(newPost).await()
+        // Sửa: postId được gán trong PostModel, không cần copy
+        newPostRef.set(post).await()
     }
 
     // 🟢 Lấy toàn bộ danh sách bài đăng
@@ -31,5 +33,58 @@ class PostRepository(
     suspend fun getPostById(postId: String): PostModel? {
         val doc = postCollection.document(postId).get().await()
         return doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
+    }
+
+    // 🟢 MỚI: Thêm/Xóa Like (sử dụng Transaction)
+    suspend fun toggleLike(postId: String, userId: String) {
+        val postRef = postCollection.document(postId)
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(postRef)
+            val post = snapshot.toObject(PostModel::class.java)
+                ?: throw Exception("Post not found")
+
+            val likedBy = post.likedBy.toMutableList()
+            val isLiked = likedBy.contains(userId)
+
+            if (isLiked) {
+                // User đã like -> Bỏ like
+                likedBy.remove(userId)
+                transaction.update(postRef, "likesCount", FieldValue.increment(-1))
+                transaction.update(postRef, "likedBy", likedBy)
+            } else {
+                // User chưa like -> Thêm like
+                likedBy.add(userId)
+                transaction.update(postRef, "likesCount", FieldValue.increment(1))
+                transaction.update(postRef, "likedBy", likedBy)
+            }
+            null // Transaction success
+        }.await()
+    }
+
+    // 🟢 MỚI: Lấy danh sách bình luận cho 1 bài đăng
+    suspend fun getCommentsForPost(postId: String): List<CommentModel> {
+        val snapshot = postCollection.document(postId).collection("comments")
+            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toObject(CommentModel::class.java)?.copy(commentId = doc.id)
+        }
+    }
+
+    // 🟢 MỚI: Thêm bình luận mới
+    suspend fun addComment(postId: String, comment: CommentModel) {
+        val postRef = postCollection.document(postId)
+        val commentRef = postRef.collection("comments").document() // Tạo ID mới
+
+        val newComment = comment.copy(commentId = commentRef.id, postId = postId)
+
+        // Sử dụng batched write để vừa thêm comment, vừa cập nhật count
+        firestore.batch()
+            .set(commentRef, newComment)
+            .update(postRef, "commentsCount", FieldValue.increment(1))
+            .commit()
+            .await()
     }
 }

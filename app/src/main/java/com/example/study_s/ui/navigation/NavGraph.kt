@@ -139,7 +139,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("postId") { type = NavType.StringType })
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getString("postId") ?: ""
-            PostDetailScreen(postId = postId)
+            PostDetailScreen(postId = postId, navController = navController)
         }
 
         // 📎 File Preview (Handles both upload and preview)

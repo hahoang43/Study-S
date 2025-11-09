@@ -45,9 +45,18 @@ fun BottomNavBar(
                 selected = isSelected,
                 onClick = {
                     // Chỉ điều hướng khi người dùng bấm vào một mục chưa được chọn
-                    if (!isSelected) {
+                    if (item.route == Routes.Home && isSelected) {
                         navController.navigate(item.route) {
-                            // Tối ưu hóa back stack để tránh chồng chất màn hình
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    } else if (!isSelected) {
+                        // 2. NGƯỜI DÙNG NHẤN VÀO MỘT TAB KHÁC
+                        // Logic điều hướng bình thường
+                        navController.navigate(item.route) {
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
                             }
