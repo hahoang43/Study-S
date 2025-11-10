@@ -25,13 +25,13 @@ sealed interface ProfileActionState {
     object Idle : ProfileActionState
     object Loading : ProfileActionState
     data class Success(val message: String) : ProfileActionState
-    data class Error(val message: String) : ProfileActionState
+    data class Failure(val message: String) : ProfileActionState
 }
 class ProfileViewModel(
     private val userRepository: UserRepository,
     private val authRepository: AuthRepository
     ) : ViewModel() {
-
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     // Trạng thái cho màn hình Profile và EditProfile
     var profileUiState: ProfileUiState by mutableStateOf(ProfileUiState.Loading)
         private set
@@ -97,25 +97,77 @@ class ProfileViewModel(
             )
         }
     }
-    /**
-     * Xử lý sự kiện khi người dùng nhấn nút "Đổi mật khẩu".
-     */
     fun onResetPasswordClick() {
-        viewModelScope.launch {
-            actionState = ProfileActionState.Loading
-            val result = authRepository.sendPasswordResetEmail()
-            actionState = result.fold(
-                onSuccess = {
-                    // SỬA LỖI Ở ĐÂY: Gọi đúng lớp con Success
-                    ProfileActionState.Success("Đã gửi email đổi mật khẩu. Vui lòng kiểm tra hộp thư.")
-                },
-                onFailure = {
-                    // SỬA LỖI Ở ĐÂY: Gọi đúng lớp con Error
-                    ProfileActionState.Error(it.message ?: "Gửi email thất bại. Vui lòng thử lại.")
-                }
-            )
+        // Lấy email của người dùng hiện tại
+        val email = auth.currentUser?.email
+        if (email.isNullOrEmpty()) {
+            // Nếu không có email, không thể gửi. Thông báo lỗi ngay lập tức.
+            actionState = ProfileActionState.Failure("Không tìm thấy email người dùng.")
+            return
         }
+
+        // =========================================================================
+        // == BẮT ĐẦU PHẦN CODE QUAN TRỌNG NHẤT ==
+        // Đây là phần xử lý kết quả trả về từ Firebase
+        // =========================================================================
+
+        // Cập nhật trạng thái sang Loading để giao diện hiển thị vòng xoay
+        actionState = ProfileActionState.Loading
+
+        // Gửi yêu cầu và lắng nghe kết quả
+        auth.sendPasswordResetEmail(email)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    // TÁC VỤ THÀNH CÔNG: Cập nhật state thành Success
+                    actionState =
+                        ProfileActionState.Success("Email đổi mật khẩu đã được gửi. Vui lòng kiểm tra hòm thư của bạn.")
+                } else {
+                    // TÁC VỤ THẤT BẠI: Cập nhật state thành Failure với thông báo lỗi
+                    val errorMessage = task.exception?.message ?: "Đã xảy ra lỗi không xác định."
+                    actionState = ProfileActionState.Failure("Lỗi: $errorMessage")
+                }
+            }
+
     }
+    // XÓA TỪ ĐÂY
+    // ===== DÁN CODE ĐỔI MẬT KHẨU VÀO ĐÚNG CHỖ NÀY =====
+    fun changePassword(oldPassword: String, newPassword: String) {
+        actionState = ProfileActionState.Loading
+
+        val user = auth.currentUser
+        if (user?.email == null) {
+            actionState = ProfileActionState.Failure("Không tìm thấy thông tin người dùng. Vui lòng đăng nhập lại.")
+            return
+        }
+
+        // Bước quan trọng: Xác thực lại người dùng bằng mật khẩu cũ
+        val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(user.email!!, oldPassword)
+
+        user.reauthenticate(credential)
+            .addOnCompleteListener { reauthTask ->
+                if (reauthTask.isSuccessful) {
+                    // Nếu xác thực lại thành công, tiến hành cập nhật mật khẩu mới
+                    user.updatePassword(newPassword)
+                        .addOnCompleteListener { updateTask ->
+                            if (updateTask.isSuccessful) {
+                                actionState = ProfileActionState.Success("Đổi mật khẩu thành công!")
+                            } else {
+                                actionState = ProfileActionState.Failure(updateTask.exception?.message ?: "Lỗi cập nhật mật khẩu.")
+                            }
+                        }
+                } else {
+                    // Thất bại khi xác thực lại (thường do sai mật khẩu cũ)
+                    if (reauthTask.exception?.message?.contains("WRONG_PASSWORD") == true ||
+                        reauthTask.exception?.message?.contains("INVALID_LOGIN_CREDENTIALS") == true) {
+                        actionState = ProfileActionState.Failure("Mật khẩu cũ không chính xác.")
+                    } else {
+                        actionState = ProfileActionState.Failure(reauthTask.exception?.message ?: "Lỗi xác thực.")
+                    }
+                }
+            }
+    }
+    // ===== KẾT THÚC PHẦN CODE DÁN VÀO =====
+    // XÓA ĐẾN HẾT DÒNG NÀY
 
 
     /**

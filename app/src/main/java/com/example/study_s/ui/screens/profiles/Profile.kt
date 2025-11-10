@@ -9,6 +9,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,6 +40,7 @@ import com.example.study_s.viewmodel.AuthViewModel
 import com.example.study_s.viewmodel.AuthViewModelFactory
 
 @Composable
+
 fun ProfileScreen(
     navController: NavController,
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory()),
@@ -109,131 +111,245 @@ fun ProfileScreen(
         }
     }
 }
-    @Composable
-    private fun ProfileContent(navController: NavController,
-                               user: User, // NOTE 3.1: THÊM HÀNH ĐỘNG onSignOut VÀO THAM SỐ
-                               profileViewModel: ProfileViewModel,
-                               onSignOutClick: () -> Unit) {
-        val actionState = profileViewModel.actionState
-        val context = LocalContext.current
+@Composable
+private fun ProfileContent(
+    navController: NavController,
+    user: User,
+    profileViewModel: ProfileViewModel,
+    onSignOutClick: () -> Unit
+) {
+    val actionState = profileViewModel.actionState
+    val context = LocalContext.current
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // ===== Header + Avatar =====
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .background(Color(0xFFA3D6E0)),
-                contentAlignment = Alignment.BottomCenter
-            ) {
-                AsyncImage(
-                    // SỬA: Lấy ảnh từ `user.avatarUrl`
-                    model = user.avatarUrl.takeIf { !it.isNullOrEmpty() }
-                        ?: "https://i.imgur.com/8p3xYso.png",
-                    contentDescription = "Avatar",
-                    modifier = Modifier
-                        .size(90.dp)
-                        .offset(y = 45.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
+    // State để điều khiển việc hiển thị dialog
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+
+    // LaunchedEffect để hiển thị Toast và xử lý sau khi có kết quả
+    LaunchedEffect(actionState) {
+        when (actionState) {
+            is ProfileActionState.Success -> {
+                // Khi thành công, hiển thị thông báo và đóng dialog
+                android.widget.Toast.makeText(context, actionState.message, android.widget.Toast.LENGTH_LONG).show()
+                showChangePasswordDialog = false
+                profileViewModel.resetActionState()
             }
-
-            Spacer(modifier = Modifier.height(50.dp)) // Khoảng trống cho Avatar
-
-            // ===== Name, Email + Edit Icon =====
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    // SỬA: Lấy tên từ `user.name`
-                    text = user.name,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 20.sp
-                )
-                IconButton(
-                    onClick = { navController.navigate(Routes.EditProfile) },
-                    modifier = Modifier
-                        .size(24.dp)
-                        .padding(start = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Edit Profile",
-                        tint = Color.Gray
-                    )
-                }
+            is ProfileActionState.Failure -> {
+                // Khi thất bại, chỉ hiển thị thông báo, không đóng dialog
+                android.widget.Toast.makeText(context, actionState.message, android.widget.Toast.LENGTH_LONG).show()
+                profileViewModel.resetActionState()
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                // SỬA: Lấy email từ `user.email`
-                text = user.email,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Nút "Các bài viết"
-            Button(
-                onClick = { /* TODO */ },
-                // Modifier này sẽ là chuẩn cho tất cả các nút
-                modifier = Modifier
-                    .fillMaxWidth() // <-- Kéo dài ra toàn bộ chiều rộng
-                    .padding(horizontal = 32.dp), // <-- Canh lề hai bên
-                shape = RoundedCornerShape(50) // <-- Bo tròn thành hình viên thuốc
-            ) {
-                Text("Các bài viết")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-// Nút "Đổi mật khẩu"
-            Button(
-                onClick = { profileViewModel.onResetPasswordClick() },
-                // ÁP DỤNG CHÍNH XÁC MODIFIER VÀ SHAPE TỪ NÚT TRÊN
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C757D)),
-                enabled = actionState !is ProfileActionState.Loading
-            ) {
-                if (actionState is ProfileActionState.Loading) {
-                    // Khi loading, nút vẫn giữ nguyên kích thước vì đã có .fillMaxWidth()
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text("Đổi mật khẩu")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-// Nút "Đăng xuất"
-            Button(
-                onClick = onSignOutClick,
-                // ÁP DỤNG CHÍNH XÁC MODIFIER VÀ SHAPE TỪ NÚT TRÊN
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp),
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Text("Đăng xuất")
-            }
+            else -> { /* Không làm gì với Idle và Loading */ }
         }
     }
 
+    // Nếu showChangePasswordDialog là true, hiển thị Dialog
+    if (showChangePasswordDialog) {
+        ChangePasswordDialog(
+            onDismissRequest = {
+                // Chỉ cho phép đóng khi không đang loading
+                if (actionState !is ProfileActionState.Loading) {
+                    showChangePasswordDialog = false
+                }
+            },
+            onConfirmClick = { old, new, confirm ->
+                // Gọi hàm mới trong ViewModel
+                profileViewModel.changePassword(old, new)
+            },
+            isLoading = actionState is ProfileActionState.Loading
+        )
+    }
 
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // ===== Header + Avatar =====
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .background(Color(0xFFA3D6E0)),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            AsyncImage(
+                model = user.avatarUrl.takeIf { !it.isNullOrEmpty() }
+                    ?: "https://i.imgur.com/8p3xYso.png",
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(90.dp)
+                    .offset(y = 45.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        Spacer(modifier = Modifier.height(50.dp))
+
+        // ===== Name, Email + Edit Icon =====
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = user.name,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp
+            )
+            IconButton(
+                onClick = { navController.navigate(Routes.EditProfile) },
+                modifier = Modifier
+                    .size(24.dp)
+                    .padding(start = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Edit,
+                    contentDescription = "Edit Profile",
+                    tint = Color.Gray
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = user.email,
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Gray
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Nút "Các bài viết"
+        Button(
+            onClick = { /* TODO */ },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            shape = RoundedCornerShape(50)
+        ) {
+            Text("Các bài viết")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Nút "Đổi mật khẩu" (ĐÃ SỬA)
+        // Nút này bây giờ sẽ mở Dialog thay vì gọi thẳng ViewModel
+        Button(
+            onClick = {
+                showChangePasswordDialog = true // <--- SỬA CHỖ NÀY
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6C757D))
+        ) {
+            Text("Đổi mật khẩu") // <--- SỬA CHỖ NÀY, BỎ VÒNG XOAY ĐI
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Nút "Đăng xuất"
+        Button(
+            onClick = onSignOutClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("Đăng xuất")
+        }
+    }
+}
+@Composable
+fun ChangePasswordDialog(
+    onDismissRequest: () -> Unit,
+    onConfirmClick: (String, String, String) -> Unit,
+    isLoading: Boolean
+) {
+    var oldPassword by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+
+
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = { Text("Đổi mật khẩu") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = oldPassword,
+                    onValueChange = { oldPassword = it },
+                    label = { Text("Mật khẩu cũ") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password)
+                )
+
+                OutlinedTextField(
+                    value = newPassword,
+                    onValueChange = {
+                        newPassword = it
+                        // Xóa lỗi ngay khi người dùng sửa
+                        if (it.length >= 6) passwordError = null
+                    },
+                    label = { Text("Mật khẩu mới (ít nhất 6 ký tự)") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                    isError = passwordError != null
+                )
+
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = {
+                        confirmPassword = it
+                        // Xóa lỗi ngay khi người dùng sửa
+                        if (it == newPassword) passwordError = null
+                    },
+                    label = { Text("Xác nhận mật khẩu mới") },
+                    singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                    isError = passwordError != null
+                )
+
+                // Hiển thị thông báo lỗi nếu có
+                passwordError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    // Kiểm tra lỗi trước khi nhấn
+                    if (newPassword.length < 6) {
+                        passwordError = "Mật khẩu mới quá ngắn."
+                    } else if (newPassword != confirmPassword) {
+                        passwordError = "Mật khẩu xác nhận không khớp."
+                    } else {
+                        passwordError = null
+                        onConfirmClick(oldPassword, newPassword, confirmPassword)
+                    }
+                },
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                } else {
+                    Text("Xác nhận")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Hủy")
+            }
+        }
+    )
+}
             @Preview(showBackground = true, showSystemUi = true)
     @Composable
     fun ProfileScreenPreview() {

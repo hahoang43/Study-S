@@ -67,7 +67,7 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.cloudinary:cloudinary-android:2.4.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
-
+    implementation("com.google.firebase:firebase-appcheck-debug")
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
     implementation(libs.firebase.crashlytics.buildtools)

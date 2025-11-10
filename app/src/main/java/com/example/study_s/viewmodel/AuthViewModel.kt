@@ -85,6 +85,7 @@ class AuthViewModel(
             _event.emit(AuthEvent.OnSignOut) // Phát tín hiệu "đã đăng xuất"
         }
     }
+
     /**
      * Reset trạng thái của ViewModel về Idle.
      * Được gọi từ UI sau khi đã xử lý xong một trạng thái (Success hoặc Error).
