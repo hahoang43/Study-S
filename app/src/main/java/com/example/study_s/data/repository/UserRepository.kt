@@ -22,31 +22,50 @@ class UserRepository {
     private fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
     }
-    /**
-     * "Upsert" (Update/Insert) hồ sơ người dùng trên Firestore.
-     * Được dùng cho các lần ĐĂNG NHẬP.
-     * Nếu người dùng chưa có hồ sơ, tạo mới. Nếu đã có, bỏ qua.
-     * @param user Đối tượng FirebaseUser lấy được sau khi đăng nhập thành công.
-     * @return Result<Unit> cho biết thành công hay thất bại.
-     */
-    suspend fun upsertUserProfile(user: FirebaseUser): Result<Unit> {
+    // ================================================================
+    suspend fun upsertUserProfile(firebaseUser: FirebaseUser): Result<Unit> {
         return try {
-            val userDocRef = usersCollection.document(user.uid)
-            val document = userDocRef.get().await()
+            val userRef = usersCollection.document(firebaseUser.uid)
+            val snapshot = userRef.get().await()
 
-            // Chỉ tạo mới nếu hồ sơ chưa tồn tại
-            if (!document.exists()) {
+            if (snapshot.exists()) {
+                // NẾU TÀI LIỆU ĐÃ TỒN TẠI -> KIỂM TRA VÀ CẬP NHẬT
+                val existingUser = snapshot.toObject(User::class.java)
+                val updates = mutableMapOf<String, Any>()
+
+                // 1. Chỉ cập nhật TÊN nếu tên trong Firestore rỗng hoặc là tên mặc định
+                //    VÀ tên từ Google có giá trị.
+                if ((existingUser?.name.isNullOrEmpty() || existingUser?.name == "New User") && !firebaseUser.displayName.isNullOrEmpty()) {
+                    updates["name"] = firebaseUser.displayName!!
+                }
+
+                // 2. Chỉ cập nhật ẢNH ĐẠI DIỆN nếu ảnh trong Firestore rỗng
+                //    VÀ ảnh từ Google có giá trị.
+                if (existingUser?.avatarUrl.isNullOrEmpty() && firebaseUser.photoUrl != null) {
+                    updates["avatarUrl"] = firebaseUser.photoUrl.toString()
+                }
+
+                // 3. Cập nhật EMAIL để đảm bảo luôn đúng
+                if (existingUser?.email != firebaseUser.email && !firebaseUser.email.isNullOrEmpty()) {
+                    updates["email"] = firebaseUser.email!!
+                }
+
+                // Nếu có bất kỳ thông tin nào cần cập nhật thì mới gọi lệnh update
+                if (updates.isNotEmpty()) {
+                    userRef.update(updates).await()
+                }
+            } else {
+                // NẾU TÀI LIỆU CHƯA TỒN TẠI -> TẠO MỚI
                 val newUser = User(
-                    userId = user.uid,
-                    name = user.displayName ?: "New User", // Lấy tên từ Google hoặc đặt tên mặc định
-                    email = user.email ?: "",              // Lấy email
-                    avatarUrl = user.photoUrl?.toString(),  // Lấy ảnh đại diện từ Google nếu có
-                    bio = "Chào mừng đến với StudyS!",
-                    createdAt = Date() // Thêm ngày tạo
+                    userId = firebaseUser.uid,
+                    name = firebaseUser.displayName ?: "New User",
+                    email = firebaseUser.email ?: "",
+                    avatarUrl = firebaseUser.photoUrl?.toString(),
+                    createdAt = Date(),
+                    bio = "Chào mừng đến với StudyS!"
                 )
-                userDocRef.set(newUser).await()
+                userRef.set(newUser).await()
             }
-            // Nếu đã tồn tại, không cần làm gì cả.
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

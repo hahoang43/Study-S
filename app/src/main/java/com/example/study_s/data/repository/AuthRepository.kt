@@ -1,5 +1,6 @@
 package com.example.study_s.data.repository
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -51,24 +52,23 @@ class AuthRepository(
             Result.failure(e)
         }
     }
-
-    /** Đăng xuất Firebase */
-    fun signOut() = auth.signOut()
-    /**
-     * Gửi email đặt lại mật khẩu đến địa chỉ email của người dùng hiện tại.
-     */
-    suspend fun sendPasswordResetEmail(): Result<Unit> {
+    // ===== BẮT ĐẦU THÊM HÀM MỚI =====
+    suspend fun linkPassword(password: String): Result<FirebaseUser> {
         return try {
             val user = auth.currentUser
-            if (user != null && user.email != null) {
-                auth.sendPasswordResetEmail(user.email!!).await()
-                Result.success(Unit)
-            } else {
-                // Ném ra lỗi nếu không tìm thấy người dùng hoặc email
-                throw IllegalStateException("Không tìm thấy người dùng hoặc email để gửi yêu cầu.")
+            if (user == null) {
+                return Result.failure(Exception("Không có người dùng nào đang đăng nhập."))
             }
+            // Tạo chứng thực mật khẩu mới
+            val credential = EmailAuthProvider.getCredential(user.email!!, password)
+            // Liên kết chứng thực này với tài khoản hiện tại
+            auth.currentUser!!.linkWithCredential(credential).await()
+            Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+    /** Đăng xuất Firebase */
+    fun signOut() = auth.signOut()
+
 }

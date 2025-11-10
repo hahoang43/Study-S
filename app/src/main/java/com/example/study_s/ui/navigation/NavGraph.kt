@@ -1,14 +1,6 @@
 package com.example.study_s.ui.navigation
 
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -17,7 +9,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.study_s.ui.screens.FilePreviewScreen
 import com.example.study_s.ui.screens.auth.ForgotPasswordScreen
-import com.example.study_s.ui.screens.auth.GoogleAuthUiClient
 import com.example.study_s.ui.screens.auth.LoginScreen
 import com.example.study_s.ui.screens.auth.RegisterScreen
 import com.example.study_s.ui.screens.auth.VerifyCodeScreen
@@ -38,16 +29,15 @@ import com.example.study_s.ui.screens.search.SearchScreen
 import com.example.study_s.ui.screens.settings.PolicyScreen
 import com.example.study_s.ui.screens.settings.SupportScreen
 import com.example.study_s.ui.screens.splash.SplashScreen
-import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
 import com.example.study_s.viewmodel.AuthViewModelFactory
-import kotlinx.coroutines.launch
 import java.net.URLDecoder
-import android.widget.Toast
-import androidx.compose.runtime.remember
 
 @Composable
 fun NavGraph(navController: NavHostController) {
+    // AuthViewModel sẽ được chia sẻ cho các màn hình Auth nếu cần
+    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
+
     NavHost(
         navController = navController,
         startDestination = Routes.Splash
@@ -59,80 +49,57 @@ fun NavGraph(navController: NavHostController) {
         }
 
         // 🔐 Auth Flow: Login
+        // ====================================================================
+        // SỬA LẠI KHỐI LOGIN: TRỞ NÊN CỰC KỲ ĐƠN GIẢN
+        // ====================================================================
         composable(Routes.Login) {
-
-            val viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
-            val authState by viewModel.state.collectAsState()
-            val context = LocalContext.current
-            val googleAuthUiClient = remember { GoogleAuthUiClient(context) }
-            val scope = rememberCoroutineScope()
-            val launcher = rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.StartActivityForResult()
-            ) { result ->
-                if (result.resultCode == Activity.RESULT_OK) {
-                    scope.launch {
-                        val signInResult = googleAuthUiClient.getSignInResultFromIntent(result.data)
-                        signInResult.idToken?.let { token ->
-                            viewModel.signInWithGoogle(token)
-                        }
-                    }
-                }
-            }
-
-            // SỬA LẠI LAUNCHEDEFFECT NÀY
-            LaunchedEffect(authState) {
-                if (authState is AuthState.Success) {
-                    // Khi ViewModel báo thành công -> thực hiện điều hướng
-                    Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
-                    navController.navigate(Routes.Home) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                    // QUAN TRỌNG: Dọn dẹp trạng thái sau khi đã xử lý xong
-                    viewModel.resetState()
-                }
-            }
-
-            // GỌI LoginScreen MỘT LẦN DUY NHẤT VỚI LOGIC ĐÚNG
+            // LoginScreen mới đã tự chứa tất cả logic.
+            // Chúng ta chỉ cần gọi nó và truyền NavController + ViewModel vào.
             LoginScreen(
-                authState = authState,
-                onNavigateToRegister = { navController.navigate(Routes.Register) },
-                onForgotPasswordClick = { navController.navigate(Routes.ForgotPassword) },
-                onLoginClick = { email, password ->
-                    viewModel.signInWithEmail(email, password)
-                },
-                onGoogleSignInClick = {
-                    scope.launch {
-                        // LUÔN ĐĂNG XUẤT KHỎI PHIÊN GOOGLE CŨ TRƯỚC
-                        googleAuthUiClient.signOut()
-                        launcher.launch(googleAuthUiClient.getSignInIntent())
-                    }
-                }
+                navController = navController,
+                authViewModel = authViewModel
             )
-            // XÓA BỎ HOÀN TOÀN LỜI GỌI LoginScreen THỨ HAI BỊ LẶP LẠI
         }
 
+        // ====================================================================
+        // SỬA LẠI KHỐI REGISTER: ĐỂ NHẬN DỮ LIỆU TỪ GOOGLE
+        // ====================================================================
         composable(
             route = "${Routes.Register}?name={name}&email={email}",
             arguments = listOf(
-                navArgument("name") { defaultValue = "" },
-                navArgument("email") { defaultValue = "" }
+                navArgument("name") {
+                    type = NavType.StringType
+                    defaultValue = "" // Giá trị mặc định khi không có dữ liệu truyền vào
+                },
+                navArgument("email") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
             )
         ) { backStackEntry ->
             val name = backStackEntry.arguments?.getString("name") ?: ""
             val email = backStackEntry.arguments?.getString("email") ?: ""
+            // Giải mã URL để lấy lại các ký tự đặc biệt (dấu cách, @, ...)
+            val decodedName = URLDecoder.decode(name, "UTF-8")
+            val decodedEmail = URLDecoder.decode(email, "UTF-8")
+
             RegisterScreen(
-                navController=navController,
-                name=name,
-                email=email
+                navController = navController,
+                authViewModel = authViewModel,
+                nameFromGoogle = decodedName,  // Truyền tên đã giải mã
+                emailFromGoogle = decodedEmail // Truyền email đã giải mã
             )
         }
-        composable(Routes.ForgotPassword) { ForgotPasswordScreen(
-            onBackToLogin = { navController.popBackStack() },
-            onResetPassword = { _ -> navController.navigate(Routes.VerifyCode) }
-        ) }
+
+        composable(Routes.ForgotPassword) {
+            ForgotPasswordScreen(
+                onBackToLogin = { navController.popBackStack() },
+                onResetPassword = { _ -> navController.navigate(Routes.VerifyCode) }
+            )
+        }
         composable(Routes.VerifyCode) { VerifyCodeScreen(navController) }
 
-        // 🏠 Main Flow
+        // 🏠 Main Flow (Giữ nguyên không thay đổi)
         composable(Routes.Home) { HomeScreen(navController) }
 
         // Post
@@ -145,7 +112,7 @@ fun NavGraph(navController: NavHostController) {
             PostDetailScreen(postId = postId, navController = navController)
         }
 
-        // 📎 File Preview (Handles both upload and preview)
+        // 📎 File Preview
         composable(
             route = "${Routes.FilePreview}?fileUrl={fileUrl}&fileName={fileName}",
             arguments = listOf(
@@ -157,7 +124,6 @@ fun NavGraph(navController: NavHostController) {
                 URLDecoder.decode(it, "UTF-8")
             }
             val fileName = backStackEntry.arguments?.getString("fileName")
-
             FilePreviewScreen(navController, fileUrl, fileName)
         }
 
@@ -166,19 +132,15 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.EditProfile) { EditProfileScreen(navController) }
         composable(
             route = "${Routes.OtherProfile}/{userId}",
-            arguments = listOf(
-                navArgument("userId") {
-                    type = NavType.StringType
-                }
-            )
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
             if (userId != null) {
                 StragerScreen(navController = navController, userId = userId)
-            } else {
             }
         }
-            // Group
+
+        // Group
         composable(Routes.GroupList) { GroupScreen(navController) }
         composable(
             route = "${Routes.GroupChat}/{groupId}",
@@ -188,7 +150,6 @@ fun NavGraph(navController: NavHostController) {
             ChatGroupScreen(navController = navController, groupId = groupId)
         }
         composable(Routes.GroupCreate) { GroupCreateScreen(navController) }
-
 
         // Message
         composable(Routes.Message) { MessageListScreen() }

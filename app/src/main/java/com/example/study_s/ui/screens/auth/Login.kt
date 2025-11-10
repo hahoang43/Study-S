@@ -1,108 +1,124 @@
+// XÓA HẾT CÁC DÒNG IMPORT CŨ VÀ THAY BẰNG KHỐI NÀY
 package com.example.study_s.ui.screens.auth
 
+import android.app.Activity
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.example.study_s.R
+import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
+import com.example.study_s.viewmodel.AuthViewModelFactory
+import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.auth.api.identity.Identity
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await // Rất quan trọng cho lỗi 'await'
+import java.net.URLEncoder
 
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
+// PHẦN CODE CÒN LẠI CỦA BẠN BẮT ĐẦU TỪ ĐÂY
+// @Composable
+// fun LoginScreen(...) { ... }
+
 
 @Composable
 fun LoginScreen(
-    authState: AuthState,
-    onNavigateToRegister: () -> Unit,
-    onForgotPasswordClick: () -> Unit,
-    onLoginClick: (String, String) -> Unit,
-    onGoogleSignInClick: () -> Unit,
-
+    navController: NavController,
+    authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
 ) {
+
+    // === PHẦN 1: KHAI BÁO STATE VÀ LOGIC ===
+
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var passwordVisible by remember { mutableStateOf(false) }
 
+    val authState by authViewModel.state.collectAsState()
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
-    // Hiển thị thông báo lỗi từ ViewModel
-    if (authState is AuthState.Error) {
-        // ... Đoạn code này giờ sẽ hoạt động vì 'context' đã tồn tại
-        LaunchedEffect(authState) {
-            Toast.makeText(context, authState.message, Toast.LENGTH_LONG).show()
+    // Google Sign-In Launcher
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            coroutineScope.launch {
+                try {
+                    val credentials = Identity.getSignInClient(context)
+                        .getSignInCredentialFromIntent(result.data)
+                    authViewModel.signInWithGoogle(credentials.googleIdToken ?: "")
+                } catch (e: Exception) {
+                    Toast.makeText(context, "Lỗi lấy thông tin Google: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
-    LoginScreenContent(
-        email = email,
-        password = password,
-        onEmailChange = { email = it },
-        onPasswordChange = { password = it },
-        onLoginClick = {
-            onLoginClick(email, password)
-        },
-        onForgotPasswordClick = onForgotPasswordClick,
-        onFacebookLoginClick = { /* TODO: Facebook login */ },
-        onGoogleLoginClick = onGoogleSignInClick,
-        onNavigateToRegister = onNavigateToRegister,
-        isLoading = authState is AuthState.Loading
-    )
-}
 
-@Composable
-private fun LoginScreenContent(
-    email: String,
-    password: String,
-    onEmailChange: (String) -> Unit,
-    onPasswordChange: (String) -> Unit,
-    onLoginClick: () -> Unit,
-    onForgotPasswordClick: () -> Unit,
-    onFacebookLoginClick: () -> Unit,
-    onGoogleLoginClick: () -> Unit,
-    onNavigateToRegister: () -> Unit,
-    isLoading: Boolean
-) {
-    var passwordVisible by remember { mutableStateOf(false) }
+    // LaunchedEffect để xử lý kết quả đăng nhập và điều hướng
+    LaunchedEffect(authState) {
+        when (val state = authState) {
+            is AuthState.Success -> {
+                // ĐĂNG NHẬP THÀNH CÔNG
+                Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+
+                // KIỂM TRA XEM NGƯỜI DÙNG CÓ MẬT KHẨU HAY CHƯA
+                val user = FirebaseAuth.getInstance().currentUser
+                val hasPasswordProvider = user?.providerData?.any { it.providerId == "password" } == true
+
+                if (hasPasswordProvider) {
+                    // Nếu đã có mật khẩu, vào thẳng Home
+                    navController.navigate(Routes.Home) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                } else {
+                    // Nếu chưa có mật khẩu (đăng nhập Google lần đầu),
+                    // chuyển đến màn hình Register và truyền thông tin
+                    val name = user?.displayName ?: ""
+                    val email = user?.email ?: ""
+                    val encodedName = URLEncoder.encode(name, "UTF-8")
+                    val encodedEmail = URLEncoder.encode(email, "UTF-8")
+                    navController.navigate("${Routes.Register}?name=$encodedName&email=$encodedEmail") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+                // Quan trọng: Reset lại state để không bị lặp lại hiệu ứng
+                authViewModel.resetState()
+            }
+            is AuthState.Error -> {
+                Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
+                authViewModel.resetState()
+            }
+            else -> { /* Không làm gì với Idle và Loading */ }
+        }
+    }
+
+    // === PHẦN 2: GIAO DIỆN (LẤY TỪ LoginScreenContent) ===
 
     Surface(
         modifier = Modifier
@@ -132,7 +148,7 @@ private fun LoginScreenContent(
             // Email input
             OutlinedTextField(
                 value = email,
-                onValueChange = onEmailChange,
+                onValueChange = { email = it },
                 label = { Text("Nhập tên đăng nhập hoặc email") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
@@ -144,7 +160,7 @@ private fun LoginScreenContent(
             // Password input
             OutlinedTextField(
                 value = password,
-                onValueChange = onPasswordChange,
+                onValueChange = { password = it },
                 label = { Text("Nhập mật khẩu") },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -165,7 +181,7 @@ private fun LoginScreenContent(
             Spacer(modifier = Modifier.height(4.dp))
 
             TextButton(
-                onClick = onForgotPasswordClick,
+                onClick = { /* TODO: Điều hướng đến màn hình quên mật khẩu */ },
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text("Quên mật khẩu", fontSize = 14.sp)
@@ -174,7 +190,7 @@ private fun LoginScreenContent(
 
             // Login button
             OutlinedButton(
-                onClick = onLoginClick,
+                onClick = { authViewModel.signInWithEmail(email, password) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -185,7 +201,7 @@ private fun LoginScreenContent(
                 Text("Đăng nhập", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             }
 
-            if (isLoading) {
+            if (authState is AuthState.Loading) {
                 Spacer(modifier = Modifier.height(16.dp))
                 CircularProgressIndicator(modifier = Modifier.size(32.dp))
             }
@@ -194,7 +210,26 @@ private fun LoginScreenContent(
 
             // Google Login Button
             OutlinedButton(
-                onClick = onGoogleLoginClick,
+                onClick = {
+                    coroutineScope.launch {
+                        try {
+                            val googleSignInRequest = com.google.android.gms.auth.api.identity.BeginSignInRequest.builder()
+                                .setGoogleIdTokenRequestOptions(
+                                    com.google.android.gms.auth.api.identity.BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
+                                        .setSupported(true)
+                                        .setServerClientId(context.getString(R.string.default_web_client_id))
+                                        .setFilterByAuthorizedAccounts(false)
+                                        .build()
+                                )
+                                .setAutoSelectEnabled(true)
+                                .build()
+                            val signInIntent = Identity.getSignInClient(context).beginSignIn(googleSignInRequest).await()
+                            launcher.launch(IntentSenderRequest.Builder(signInIntent.pendingIntent.intentSender).build())
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Lỗi cấu hình Google Sign-In: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -220,7 +255,7 @@ private fun LoginScreenContent(
 
             // Facebook button
             OutlinedButton(
-                onClick = onFacebookLoginClick,
+                onClick = { /* TODO */ },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
@@ -238,7 +273,7 @@ private fun LoginScreenContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("Chưa có tài khoản?", fontSize = 14.sp)
-                TextButton(onClick = onNavigateToRegister) {
+                TextButton(onClick = { navController.navigate(Routes.Register) }) {
                     Text("Đăng ký ngay")
                 }
             }

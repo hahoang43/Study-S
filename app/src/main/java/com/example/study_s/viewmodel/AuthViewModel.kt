@@ -94,6 +94,22 @@ class AuthViewModel(
         _state.value = AuthState.Idle
     }
 
+    fun linkPasswordToCurrentUser(password: String) {
+        viewModelScope.launch {
+            _state.value = AuthState.Loading
+            // Gọi hàm linkPassword từ AuthRepository
+            val result = repo.linkPassword(password)
+            result.fold(
+                onSuccess = {
+                    // Liên kết thành công, hồ sơ đã tồn tại, chỉ cần báo thành công
+                    _state.value = AuthState.Success
+                },
+                onFailure = { error ->
+                    _state.value = AuthState.Error(error.message ?: "Không thể liên kết mật khẩu.")
+                }
+            )
+        }
+    }
     /**
      * Đăng ký tài khoản mới.
      * Logic này cần đảm bảo `createUserProfile` được gọi.
