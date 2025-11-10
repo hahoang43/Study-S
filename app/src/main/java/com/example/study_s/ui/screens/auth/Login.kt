@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,19 +49,30 @@ import com.example.study_s.R
 import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
 
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+
 @Composable
 fun LoginScreen(
-    onNavigateToHome: () -> Unit,
+    authState: AuthState,
     onNavigateToRegister: () -> Unit,
     onForgotPasswordClick: () -> Unit,
     onLoginClick: (String, String) -> Unit,
     onGoogleSignInClick: () -> Unit,
-    viewModel: AuthViewModel
+
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    val state by viewModel.state.collectAsState()
 
+    val context = LocalContext.current
+
+    // Hiển thị thông báo lỗi từ ViewModel
+    if (authState is AuthState.Error) {
+        // ... Đoạn code này giờ sẽ hoạt động vì 'context' đã tồn tại
+        LaunchedEffect(authState) {
+            Toast.makeText(context, authState.message, Toast.LENGTH_LONG).show()
+        }
+    }
     LoginScreenContent(
         email = email,
         password = password,
@@ -73,7 +85,7 @@ fun LoginScreen(
         onFacebookLoginClick = { /* TODO: Facebook login */ },
         onGoogleLoginClick = onGoogleSignInClick,
         onNavigateToRegister = onNavigateToRegister,
-        isLoading = state is AuthState.Loading
+        isLoading = authState is AuthState.Loading
     )
 }
 

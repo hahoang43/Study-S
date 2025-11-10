@@ -43,6 +43,8 @@ import com.example.study_s.viewmodel.AuthViewModel
 import com.example.study_s.viewmodel.AuthViewModelFactory
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
+import android.widget.Toast
+import androidx.compose.runtime.remember
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -56,58 +58,59 @@ fun NavGraph(navController: NavHostController) {
             SplashScreen(navController)
         }
 
-        // 🔐 Auth Flow
+        // 🔐 Auth Flow: Login
         composable(Routes.Login) {
+
             val viewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
-
-            val state by viewModel.state.collectAsState()
+            val authState by viewModel.state.collectAsState()
             val context = LocalContext.current
-            val googleAuthUiClient by lazy { GoogleAuthUiClient(context) }
+            val googleAuthUiClient = remember { GoogleAuthUiClient(context) }
             val scope = rememberCoroutineScope()
-
             val launcher = rememberLauncherForActivityResult(
                 contract = ActivityResultContracts.StartActivityForResult()
             ) { result ->
                 if (result.resultCode == Activity.RESULT_OK) {
                     scope.launch {
                         val signInResult = googleAuthUiClient.getSignInResultFromIntent(result.data)
-                        if (signInResult.idToken != null) {
-                            viewModel.signInWithGoogle(signInResult.idToken)
+                        signInResult.idToken?.let { token ->
+                            viewModel.signInWithGoogle(token)
                         }
                     }
                 }
             }
 
-            LaunchedEffect(state) {
-                if (state is AuthState.Success) {
-                    val signedInUser = googleAuthUiClient.getSignedInUser()
-                    val name = signedInUser?.displayName ?: ""
-                    val email = signedInUser?.email ?: ""
-                    navController.navigate(
-                        "${Routes.Register}?name=$name&email=$email"
-                    ) {
-                        popUpTo(Routes.Login) { inclusive = true }
+            // SỬA LẠI LAUNCHEDEFFECT NÀY
+            LaunchedEffect(authState) {
+                if (authState is AuthState.Success) {
+                    // Khi ViewModel báo thành công -> thực hiện điều hướng
+                    Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                    navController.navigate(Routes.Home) {
+                        popUpTo(0) { inclusive = true }
                     }
+                    // QUAN TRỌNG: Dọn dẹp trạng thái sau khi đã xử lý xong
+                    viewModel.resetState()
                 }
             }
 
+            // GỌI LoginScreen MỘT LẦN DUY NHẤT VỚI LOGIC ĐÚNG
             LoginScreen(
-                onNavigateToHome = { navController.navigate(Routes.Home) },
+                authState = authState,
                 onNavigateToRegister = { navController.navigate(Routes.Register) },
                 onForgotPasswordClick = { navController.navigate(Routes.ForgotPassword) },
                 onLoginClick = { email, password ->
-                    // TODO: Implement email/password login
-                    navController.navigate(Routes.Home)
+                    viewModel.signInWithEmail(email, password)
                 },
                 onGoogleSignInClick = {
                     scope.launch {
-                        googleAuthUiClient.signOut() // Đăng xuất trước
+                        // LUÔN ĐĂNG XUẤT KHỎI PHIÊN GOOGLE CŨ TRƯỚC
+                        googleAuthUiClient.signOut()
                         launcher.launch(googleAuthUiClient.getSignInIntent())
                     }
-                },
-                viewModel = viewModel
+                }
             )
+            // XÓA BỎ HOÀN TOÀN LỜI GỌI LoginScreen THỨ HAI BỊ LẶP LẠI
         }
+
         composable(
             route = "${Routes.Register}?name={name}&email={email}",
             arguments = listOf(

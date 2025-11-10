@@ -8,14 +8,29 @@ import kotlinx.coroutines.tasks.await
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
-    val currentUser get() = auth.currentUser
+    val currentUser: FirebaseUser?
+        get() = auth.currentUser
+    /**
+     * Đăng nhập bằng email và mật khẩu.
+     * Trả về `Result<FirebaseUser>` để ViewModel có thể lấy thông tin người dùng.
+     */
+    suspend fun signIn(email: String, pass: String): Result<FirebaseUser> {
+        return try {
+            val authResult = auth.signInWithEmailAndPassword(email, pass).await()
+            val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after sign in")
+            Result.success(firebaseUser)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
     /** Đăng nhập Firebase bằng Google ID Token */
-    suspend fun signInWithGoogle(idToken: String): Result<Unit> {
+    suspend fun signInWithGoogle(idToken: String): Result<FirebaseUser> {
         return try {
             val credential = GoogleAuthProvider.getCredential(idToken, null)
-            auth.signInWithCredential(credential).await()
-            Result.success(Unit)
+            val authResult = auth.signInWithCredential(credential).await()
+            val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after Google sign in")
+            Result.success(firebaseUser)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -39,4 +54,21 @@ class AuthRepository(
 
     /** Đăng xuất Firebase */
     fun signOut() = auth.signOut()
+    /**
+     * Gửi email đặt lại mật khẩu đến địa chỉ email của người dùng hiện tại.
+     */
+    suspend fun sendPasswordResetEmail(): Result<Unit> {
+        return try {
+            val user = auth.currentUser
+            if (user != null && user.email != null) {
+                auth.sendPasswordResetEmail(user.email!!).await()
+                Result.success(Unit)
+            } else {
+                // Ném ra lỗi nếu không tìm thấy người dùng hoặc email
+                throw IllegalStateException("Không tìm thấy người dùng hoặc email để gửi yêu cầu.")
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

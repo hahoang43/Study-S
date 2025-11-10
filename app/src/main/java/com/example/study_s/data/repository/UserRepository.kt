@@ -4,6 +4,7 @@ package com.example.study_s.data.repository
 import android.net.Uri
 import com.example.study_s.data.model.User
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
@@ -21,7 +22,36 @@ class UserRepository {
     private fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
     }
+    /**
+     * "Upsert" (Update/Insert) hồ sơ người dùng trên Firestore.
+     * Được dùng cho các lần ĐĂNG NHẬP.
+     * Nếu người dùng chưa có hồ sơ, tạo mới. Nếu đã có, bỏ qua.
+     * @param user Đối tượng FirebaseUser lấy được sau khi đăng nhập thành công.
+     * @return Result<Unit> cho biết thành công hay thất bại.
+     */
+    suspend fun upsertUserProfile(user: FirebaseUser): Result<Unit> {
+        return try {
+            val userDocRef = usersCollection.document(user.uid)
+            val document = userDocRef.get().await()
 
+            // Chỉ tạo mới nếu hồ sơ chưa tồn tại
+            if (!document.exists()) {
+                val newUser = User(
+                    userId = user.uid,
+                    name = user.displayName ?: "New User", // Lấy tên từ Google hoặc đặt tên mặc định
+                    email = user.email ?: "",              // Lấy email
+                    avatarUrl = user.photoUrl?.toString(),  // Lấy ảnh đại diện từ Google nếu có
+                    bio = "Chào mừng đến với StudyS!",
+                    createdAt = Date() // Thêm ngày tạo
+                )
+                userDocRef.set(newUser).await()
+            }
+            // Nếu đã tồn tại, không cần làm gì cả.
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
     /**
      * Tạo một document hồ sơ mới trên Firestore cho người dùng vừa đăng ký.
      * @param userId ID của người dùng mới.

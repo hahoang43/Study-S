@@ -5,6 +5,7 @@ package com.example.study_s.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.study_s.data.repository.UserRepository
+import com.example.study_s.data.repository.AuthRepository
 
 /**
  * Đây là "nhà máy" sản xuất ProfileViewModel.
@@ -22,7 +23,9 @@ class ProfileViewModelFactory : ViewModelProvider.Factory {
 
             // Dùng repository đó để tạo ra ProfileViewModel
             @Suppress("UNCHECKED_CAST")
-            return ProfileViewModel(userRepository) as T
+            return ProfileViewModel(
+                userRepository= UserRepository(),
+                authRepository= AuthRepository()) as T
         }
 
         // Nếu lớp được yêu cầu không phải là ProfileViewModel, báo lỗi
