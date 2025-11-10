@@ -158,7 +158,7 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.Library) { LibraryScreen(navController) }
 
         // Schedule
-        composable(Routes.Schedule) { ScheduleScreen() }
+        composable(Routes.Schedule) { ScheduleScreen(navController) }
 
         // Notification
         composable(Routes.Notification) { NotificationScreen() }

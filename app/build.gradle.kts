@@ -43,6 +43,8 @@ android {
 
 dependencies {
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.0")
+
 
     // Thư viện Coil để tải ảnh
     implementation("io.coil-kt:coil-compose:2.5.0")
