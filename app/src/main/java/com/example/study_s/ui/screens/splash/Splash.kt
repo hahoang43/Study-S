@@ -19,41 +19,42 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.study_s.R
+import com.example.study_s.ui.navigation.Routes
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(navController: NavController) {
     LaunchedEffect(Unit) {
-        delay(2000)
-        navController.navigate("login") {
+        delay(1000)
+        // Kiểm tra trạng thái đăng nhập của người dùng
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        val destination = if (currentUser != null) {
+            // Nếu đã đăng nhập, đi tới màn hình chính (ví dụ: danh sách nhóm)
+            Routes.Home
+        } else {
+            // Nếu chưa, đi tới màn hình đăng nhập
+            Routes.Login
+        }
+        navController.navigate(destination) {
+            // Xóa màn hình splash khỏi back stack để không thể quay lại
             popUpTo("splash") { inclusive = true }
         }
     }
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFBFD6FF)),
+            .background(Color(0xFFCBDDF8)), // Cân nhắc sử dụng màu từ Theme
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(
-                painter = painterResource(id = R.drawable.avatar),
+                painter = painterResource(id = R.drawable.logo_study),
                 contentDescription = "Logo App",
-                modifier = Modifier.size(180.dp)
-            )
-            Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "Study-S",
-                fontWeight = FontWeight.Bold,
-                fontSize = 28.sp,
-                color = Color(0xFF001C64),
-                style = MaterialTheme.typography.titleLarge
+                modifier = Modifier.size(300.dp)
             )
         }
     }
-
-
-
 }
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
@@ -63,6 +64,3 @@ fun SplashPreview() {
         SplashScreen(navController = navController)
     }
 }
-
-
-

@@ -37,14 +37,16 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.GroupViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupCreateScreen(
     navController: NavHostController,
-    userId: String = "temp_user_id",
     groupViewModel: GroupViewModel = viewModel()
 ) {
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+
     val isCreating by groupViewModel.isCreating.collectAsState()
     val createSuccess by groupViewModel.createSuccess.collectAsState()
 
@@ -122,14 +124,14 @@ fun GroupCreateScreen(
 
             Button(
                 onClick = {
-                    if (groupName.isNotBlank() && description.isNotBlank() && subject.isNotBlank()) {
+                    if (currentUserId != null && groupName.isNotBlank() && description.isNotBlank() && subject.isNotBlank()) {
                         val groupTypeInEnglish = if (selectedGroupType == "Công khai") "Public" else "Private"
                         groupViewModel.createGroup(
                             groupName = groupName,
                             description = description,
                             subject = subject,
                             groupType = groupTypeInEnglish,
-                            creatorId = userId
+                            creatorId = currentUserId
                         )
                     }
                 },

@@ -26,12 +26,11 @@ class GroupRepository(
     }
 
     suspend fun joinGroup(groupId: String, userId: String) {
-        // --- BẮT ĐẦU SỬA LỖI ---
-        // Thêm kiểm tra để đảm bảo groupId không rỗng    if (groupId.isEmpty()) {
-        // Ghi lại lỗi hoặc trả về một trạng thái lỗi để ViewModel xử lý
-        Log.e("GroupRepository", "Attempted to join group with an empty groupId.")
-        // Có thể throw một Exception tường minh hơn hoặc trả về một Result.Failure
-        throw IllegalArgumentException("Group ID cannot be empty.")
+        if (groupId.isEmpty()) {
+            Log.e("GroupRepository", "Attempted to join group with an empty groupId.")
+            throw IllegalArgumentException("Group ID cannot be empty.")
+        }
+        groupsRef.document(groupId).update("members", FieldValue.arrayUnion(userId)).await()
     }
 
     suspend fun leaveGroup(groupId: String, userId: String) {

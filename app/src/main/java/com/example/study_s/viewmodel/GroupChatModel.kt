@@ -1,53 +1,43 @@
 package com.example.study_s.viewmodel
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.study_s.data.model.Group
-import com.example.study_s.data.model.Message
+import com.example.study_s.data.model.MessageModel
 import com.example.study_s.data.repository.GroupChatRepository
-import com.example.study_s.data.repository.GroupRepository
-import com.google.firebase.firestore.ListenerRegistration
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 
-class ChatViewModel(
-    private val groupRepository: GroupRepository = GroupRepository(),
-    private val chatRepository: GroupChatRepository = GroupChatRepository()
-) : ViewModel() {
+class ChatViewModel : ViewModel() {
 
-    private val _groups = MutableStateFlow<List<Group>>(emptyList())
-    val groups = _groups.asStateFlow()
+    private val chatRepository = GroupChatRepository()
 
-    private val _messages = MutableStateFlow<List<Message>>(emptyList())
-    val messages = _messages.asStateFlow()
-
-    private var listenerRegistration: ListenerRegistration? = null
-
-    fun loadUserGroups(userId: String) {
-        viewModelScope.launch {
-            _groups.value = groupRepository.getUserGroups(userId)
-        }
-    }
+    private val _messages = MutableStateFlow<List<MessageModel>>(emptyList())
+    val messages: StateFlow<List<MessageModel>> = _messages
 
     fun listenToGroupMessages(groupId: String) {
-        listenerRegistration?.remove()
-        listenerRegistration = chatRepository.listenForMessages(groupId) { newMessages ->
-            _messages.value = newMessages
+        viewModelScope.launch {
+            callbackFlow {
+                val listener = chatRepository.getGroupMessages(groupId) { messages ->
+                    trySend(messages)
+                }
+                awaitClose { listener.remove() }
+            }.collect { newMessages ->
+                _messages.value = newMessages
+            }
         }
     }
 
-    fun sendMessage(groupId: String, senderId: String, content: String) {
+    fun sendMessage(groupId: String, senderId: String, content: String, senderName: String) {
         viewModelScope.launch {
-            val message = Message(
+            val message = MessageModel(
                 senderId = senderId,
-                content = content
+                content = content,
+                senderName = senderName
             )
             chatRepository.sendMessage(groupId, message)
         }
-    }
-
-    override fun onCleared() {
-        listenerRegistration?.remove()
-        super.onCleared()
     }
 }

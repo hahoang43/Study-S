@@ -1,29 +1,64 @@
 package com.example.study_s.ui.screens.library
 
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.DismissDirection
-import androidx.compose.material.DismissValue
-import androidx.compose.material.ExperimentalMaterialApi
-import androidx.compose.material.SwipeToDismiss
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.rememberDismissState
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Slideshow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.runtime.*
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -37,11 +72,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.study_s.data.model.LibraryFile
-import com.example.study_s.ui.navigation.Routes // Đảm bảo bạn có Routes.UploadFile và Routes.FilePreview
+import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.viewmodel.LibraryViewModel
 import com.google.firebase.auth.FirebaseAuth
-import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,8 +90,6 @@ fun LibraryScreen(
     val firebaseAuth = FirebaseAuth.getInstance()
     var currentUserId by remember { mutableStateOf(firebaseAuth.currentUser?.uid) }
 
-    // State để quản lý tệp đang được chọn để tải xuống
-    var fileToDownload by remember { mutableStateOf<LibraryFile?>(null) }
     val context = LocalContext.current
 
     DisposableEffect(Unit) {
@@ -81,20 +113,6 @@ fun LibraryScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Hiển thị dialog xác nhận tải xuống nếu có tệp được chọn
-    fileToDownload?.let { file ->
-        DownloadConfirmationDialog(
-            onConfirm = {
-                val encodedUrl = URLEncoder.encode(file.fileUrl, "UTF-8")
-                navController.navigate("${Routes.FilePreview}?fileUrl=${encodedUrl}&fileName=${file.fileName}")
-                fileToDownload = null // Đóng dialog sau khi xác nhận
-            },
-            onDismiss = {
-                fileToDownload = null // Đóng dialog khi hủy
-            }
-        )
-    }
-
     Scaffold(
         bottomBar = {
             if (currentRoute != null) {
@@ -102,7 +120,6 @@ fun LibraryScreen(
             }
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
-        // FloatingActionButton được di chuyển lên trên
     ) { paddingValues ->
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -117,10 +134,8 @@ fun LibraryScreen(
                     .background(color = Color.White)
                     .padding(horizontal = 16.dp)
             ) {
-                // TopBar tùy chỉnh mới
                 LibraryTopBar(
-                    // SỬA Ở ĐÂY: Điều hướng đến màn hình TẢI LÊN TỆP
-                    onAddClick = { navController.navigate(Routes.FilePreview) }
+                    onAddClick = { navController.navigate(Routes.UploadFile) }
                 )
 
                 OutlinedTextField(
@@ -158,17 +173,33 @@ fun LibraryScreen(
                         files = filteredFiles.filter { it.uploaderId == currentUserId },
                         viewModel = libraryViewModel,
                         currentUserId = currentUserId,
-                        onFileClick = { file -> fileToDownload = file } // Cập nhật state khi click
+                        onFileClick = { file -> downloadFile(context, file.fileUrl, file.fileName) }
                     )
                     1 -> DiscoverContent(
                         files = filteredFiles,
-                        onFileClick = { file -> fileToDownload = file } // Cập nhật state khi click
+                        onFileClick = { file -> downloadFile(context, file.fileUrl, file.fileName) }
                     )
                 }
             }
         }
     }
 }
+
+fun downloadFile(context: Context, url: String, fileName: String) {
+    try {
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val request = DownloadManager.Request(Uri.parse(url))
+            .setTitle(fileName)
+            .setDescription("Đang tải xuống...")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+        downloadManager.enqueue(request)
+        Toast.makeText(context, "Bắt đầu tải xuống $fileName", Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "Lỗi tải xuống: ${e.message}", Toast.LENGTH_LONG).show()
+    }
+}
+
 
 @Composable
 fun LibraryTopBar(onAddClick: () -> Unit) {
@@ -185,32 +216,29 @@ fun LibraryTopBar(onAddClick: () -> Unit) {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        // Thay đổi tại đây
         IconButton(
             onClick = onAddClick,
-            modifier = Modifier.size(40.dp), // Bỏ .background()
-            colors = IconButtonDefaults.iconButtonColors( // Thêm thuộc tính colors
-                containerColor = MaterialTheme.colorScheme.primary, // Màu nền của nút
-                contentColor = Color.White // Màu của icon bên trong
+            modifier = Modifier.size(40.dp),
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = Color.White
             )
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = "Add File"
-                // Không cần tint ở đây vì đã có contentColor
             )
         }
     }
 }
 
-// ... (Các composable còn lại không thay đổi)
-@OptIn(ExperimentalMaterialApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyFilesContent(
     files: List<LibraryFile>,
     viewModel: LibraryViewModel,
     currentUserId: String?,
-    onFileClick: (LibraryFile) -> Unit // Truyền lambda vào
+    onFileClick: (LibraryFile) -> Unit
 ) {
     var showDialog by remember { mutableStateOf<LibraryFile?>(null) }
 
@@ -228,23 +256,26 @@ fun MyFilesContent(
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items = files, key = { it.id }) { file ->
-            val dismissState = rememberDismissState(
-                confirmStateChange = {
-                    if (it == DismissValue.DismissedToStart) {
+            val dismissState = rememberSwipeToDismissBoxState(
+                confirmValueChange = {
+                    if (it == SwipeToDismissBoxValue.EndToStart) {
                         if (file.uploaderId == currentUserId) {
                             showDialog = file
                         }
+                        false // Do not dismiss automatically
+                    } else {
                         false
-                    } else false
+                    }
                 }
             )
 
-            SwipeToDismiss(
+            SwipeToDismissBox(
                 state = dismissState,
-                directions = setOf(DismissDirection.EndToStart),
-                background = {
+                enableDismissFromEndToStart = true,
+                enableDismissFromStartToEnd = false,
+                backgroundContent = {
                     val color = when (dismissState.targetValue) {
-                        DismissValue.DismissedToStart -> Color.Red.copy(alpha = 0.8f)
+                        SwipeToDismissBoxValue.EndToStart -> Color.Red.copy(alpha = 0.8f)
                         else -> Color.Transparent
                     }
                     Box(
@@ -256,11 +287,10 @@ fun MyFilesContent(
                     ) {
                         Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
                     }
-                },
-                dismissContent = {
-                    FileListItem(file = file, onFileClick = onFileClick) // Truyền lambda xuống
                 }
-            )
+            ) {
+                 FileListItem(file = file, onFileClick = onFileClick)
+            }
         }
     }
 }
@@ -269,7 +299,7 @@ fun MyFilesContent(
 fun DiscoverContent(files: List<LibraryFile>, onFileClick: (LibraryFile) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(files) { file ->
-            FileListItem(file = file, onFileClick = onFileClick) // Truyền lambda xuống
+            FileListItem(file = file, onFileClick = onFileClick)
         }
     }
 }
@@ -292,26 +322,6 @@ fun DeleteConfirmationDialog(
     )
 }
 
-// Dialog xác nhận tải tệp
-@Composable
-fun DownloadConfirmationDialog(
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Xác nhận") },
-        text = { Text("Bạn có chắc chắn muốn tải tệp này?") },
-        confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Tải") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Hủy") }
-        }
-    )
-}
-
-
 @Composable
 fun FileListItem(file: LibraryFile, onFileClick: (LibraryFile) -> Unit) {
     Row(
@@ -320,7 +330,7 @@ fun FileListItem(file: LibraryFile, onFileClick: (LibraryFile) -> Unit) {
             .padding(bottom = 12.dp)
             .border(1.dp, Color(0xFFB8C7E0), RoundedCornerShape(12.dp))
             .padding(16.dp)
-            .clickable { onFileClick(file) }, // Gọi lambda được truyền vào
+            .clickable { onFileClick(file) },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -344,7 +354,7 @@ fun FileListItem(file: LibraryFile, onFileClick: (LibraryFile) -> Unit) {
             }
         }
         Icon(
-            imageVector = Icons.Default.Download, // Thay đổi icon cho phù hợp
+            imageVector = Icons.Default.Download,
             contentDescription = "Download",
             modifier = Modifier.size(24.dp),
             tint = Color(0xFF1A73E8)
@@ -391,11 +401,12 @@ fun PreviewLibraryScreen() {
 @Composable
 fun PreviewFileListItem() {
     val file = LibraryFile(
+        id = "1",
         fileName = "Bài tập giải tích.pdf",
         fileUrl = "https://example.com/file.pdf",
         mimeType = "application/pdf",
-        uploaderName = "Nguyễn Văn A"
+        uploaderName = "Nguyễn Văn A",
+        uploaderId = "123"
     )
     FileListItem(file = file, onFileClick = {})
 }
-

@@ -30,6 +30,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,15 +53,16 @@ import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.GroupViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GroupScreen(
     navController: NavHostController,
-    groupViewModel: GroupViewModel = viewModel(),
-    currentUserId: String = "temp_user_id"
+    groupViewModel: GroupViewModel = viewModel()
 ) {
     val allGroups by groupViewModel.groups.collectAsState()
+    val userGroups by groupViewModel.userGroups.collectAsState()
     val isRefreshing by groupViewModel.isRefreshing.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRouteFromNav = navBackStackEntry?.destination?.route
@@ -70,19 +72,20 @@ fun GroupScreen(
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabs = listOf("Đã tham gia", "Khám phá")
 
-    val (joinedGroups, discoverGroups) = allGroups.partition { it.members.contains(currentUserId) }
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
-    val filteredJoined = joinedGroups.filter { it.groupName.contains(searchQuery, ignoreCase = true) }
+    LaunchedEffect(currentUserId) {
+        if (currentUserId != null) {
+            groupViewModel.loadUserGroups(currentUserId)
+        }
+    }
+
+    val discoverGroups = allGroups.filter { group -> userGroups.none { it.groupId == group.groupId } }
+
+    val filteredJoined = userGroups.filter { it.groupName.contains(searchQuery, ignoreCase = true) }
     val filteredDiscover = discoverGroups.filter { it.groupName.contains(searchQuery, ignoreCase = true) }
 
     Scaffold(
-        topBar = {
-            TopBar(
-                onNavIconClick = { /* TODO: Open drawer */ },
-                onNotificationClick = { /* TODO: Handle notification click */ },
-                onSearchClick = { navController.navigate(Routes.Search) }
-            )
-        },
         bottomBar = {
             if (currentRoute != null) {
                 BottomNavBar(navController = navController, currentRoute = currentRoute)
@@ -96,11 +99,17 @@ fun GroupScreen(
     ) { paddingValues ->
         PullToRefreshBox(
             isRefreshing = isRefreshing,
-            onRefresh = { groupViewModel.loadAllGroups() },
+            onRefresh = { 
+                groupViewModel.loadAllGroups()
+                if (currentUserId != null) {
+                    groupViewModel.loadUserGroups(currentUserId)
+                }
+            },
             modifier = Modifier.fillMaxSize().padding(paddingValues)
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
+
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                     Spacer(modifier = Modifier.height(8.dp))
@@ -152,7 +161,6 @@ fun GroupScreen(
                     items(groupsToShow) { group ->
                         GroupItem(
                             group = group,
-                            currentUserId = currentUserId,
                             navController = navController,
                             groupViewModel = groupViewModel
                         )
@@ -166,11 +174,11 @@ fun GroupScreen(
 @Composable
 fun GroupItem(
     group: Group,
-    currentUserId: String,
     navController: NavHostController,
     groupViewModel: GroupViewModel
 ) {
-    val isMember = group.members.contains(currentUserId)
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val isMember = group.members.contains(currentUserId) || group.createdBy == currentUserId
 
     Box(
         modifier = Modifier

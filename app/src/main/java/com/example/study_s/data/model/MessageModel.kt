@@ -1,6 +1,6 @@
 package com.example.study_s.data.model
 
-data class Message(
+data class MessageModel(
     val messageId: String = "",
     val senderId: String = "",
     val senderName: String = "",

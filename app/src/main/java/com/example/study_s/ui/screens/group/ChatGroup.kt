@@ -23,9 +23,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import com.example.study_s.data.model.Message
+import com.example.study_s.data.model.MessageModel
 import com.example.study_s.viewmodel.ChatViewModel
 import com.example.study_s.viewmodel.GroupViewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,9 +34,10 @@ fun ChatGroupScreen(
     navController: NavHostController,
     groupId: String,
     groupViewModel: GroupViewModel = viewModel(),
-    chatViewModel: ChatViewModel = viewModel(),
-    currentUserId: String = "temp_user_id"
+    chatViewModel: ChatViewModel = viewModel()
 ) {
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+
     val group by groupViewModel.group.collectAsState()
     val messages by chatViewModel.messages.collectAsState()
 
@@ -153,7 +155,14 @@ fun ChatGroupScreen(
             )
         },
         bottomBar = {
-            MessageInput(onSendMessage = { message -> chatViewModel.sendMessage(groupId, currentUserId, message) })
+            MessageInput(onSendMessage = { message ->
+                chatViewModel.sendMessage(
+                    groupId = groupId,
+                    senderId = currentUserId,
+                    content = message,
+                    senderName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Unknown"
+                )
+            })
         }
     ) { paddingValues ->
         LazyColumn(
@@ -169,7 +178,7 @@ fun ChatGroupScreen(
 }
 
 @Composable
-fun MessageItem(message: Message, currentUserId: String) {
+fun MessageItem(message: MessageModel, currentUserId: String) {
     val isCurrentUser = message.senderId == currentUserId
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),

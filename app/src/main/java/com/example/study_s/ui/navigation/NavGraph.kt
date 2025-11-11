@@ -144,6 +144,7 @@ fun NavGraph(navController: NavHostController) {
 
         // 📚 Library
         composable(Routes.Library) { LibraryScreen(navController) }
+        composable(Routes.UploadFile) { UploadFileScreen(navController = navController, fileUrl = null, fileName = null) }
 
         // 📅 Schedule
         composable(Routes.Schedule) { ScheduleScreen(navController) }

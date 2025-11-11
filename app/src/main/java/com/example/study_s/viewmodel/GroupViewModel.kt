@@ -9,12 +9,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.joinAll
 
 // Giả sử GroupRepository có thể được cung cấp qua DI hoặc mặc định
 class GroupViewModel(private val groupRepository: GroupRepository = GroupRepository()) : ViewModel() {
 
     private val _groups = MutableStateFlow<List<Group>>(emptyList())
     val groups: StateFlow<List<Group>> = _groups.asStateFlow()
+
+    private val _userGroups = MutableStateFlow<List<Group>>(emptyList())
+    val userGroups: StateFlow<List<Group>> = _userGroups.asStateFlow()
 
     private val _group = MutableStateFlow<Group?>(null)
     val group: StateFlow<Group?> = _group.asStateFlow()
@@ -57,6 +61,21 @@ class GroupViewModel(private val groupRepository: GroupRepository = GroupReposit
         }
     }
 
+    fun loadUserGroups(userId: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            _error.value = null // Xóa lỗi cũ
+            try {
+                _userGroups.value = groupRepository.getUserGroups(userId)
+            } catch (e: Exception) {
+                _error.value = "Không thể tải các nhóm đã tham gia: ${e.message}"
+                println("Error loading user groups: ${e.message}")
+            } finally {
+                _isRefreshing.value = false
+            }
+        }
+    }
+
     fun getGroupById(groupId: String) {
         viewModelScope.launch {
             _group.value = groupRepository.getGroupById(groupId)
@@ -86,7 +105,11 @@ class GroupViewModel(private val groupRepository: GroupRepository = GroupReposit
                 )
                 groupRepository.createGroup(newGroup)
                 _createSuccess.value = newGroupId
-                loadAllGroups() // Tải lại danh sách sau khi tạo thành công
+                
+                val job1 = launch { loadAllGroups() }
+                val job2 = launch { loadUserGroups(creatorId) }
+                joinAll(job1, job2)
+
             } catch (e: Exception) {
                 // Xử lý lỗi tạo nhóm
                 _error.value = "Lỗi tạo nhóm: ${e.message}"
@@ -99,14 +122,18 @@ class GroupViewModel(private val groupRepository: GroupRepository = GroupReposit
     fun joinGroup(groupId: String, userId: String) {
         viewModelScope.launch {
             groupRepository.joinGroup(groupId, userId)
-            loadAllGroups()
+            val job1 = launch { loadAllGroups() }
+            val job2 = launch { loadUserGroups(userId) }
+            joinAll(job1, job2)
         }
     }
 
     fun leaveGroup(groupId: String, userId: String) {
         viewModelScope.launch {
             groupRepository.leaveGroup(groupId, userId)
-            loadAllGroups()
+            val job1 = launch { loadAllGroups() }
+            val job2 = launch { loadUserGroups(userId) }
+            joinAll(job1, job2)
         }
     }
 
