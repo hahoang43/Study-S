@@ -46,18 +46,11 @@ object Routes {
 
     // Search
     const val Search = "search"
+    //Drawer Menu
 
     // Settings
     const val Settings = "settings"
     const val Policy = "policy"
     const val Support = "support"
 
-    // Admin
-    const val AdminDashboard = "admin_dashboard"
-    const val AdminUserList = "admin_user_list"
-    const val AdminUserDetail = "admin_user_detail"
-    const val AdminPostList = "admin_post_list"
-    const val AdminPostDetail = "admin_post_detail"
-    const val AdminReportList = "admin_report_list"
-    const val AdminReportDetail = "admin_report_detail"
 }

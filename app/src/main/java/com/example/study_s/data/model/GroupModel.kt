@@ -7,6 +7,5 @@ data class Group(
     val members: List<String> = emptyList(),
     val createdBy: String = "",
     val createdAt: Long = System.currentTimeMillis(),
-    val subject: String = "",
-    val groupType: String = "Public" // Default to Public
+    val subject: String = ""
 )

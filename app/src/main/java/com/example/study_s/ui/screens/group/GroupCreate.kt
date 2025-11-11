@@ -16,7 +16,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -53,8 +52,6 @@ fun GroupCreateScreen(
     var groupName by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var subject by remember { mutableStateOf("") }
-    val groupTypes = listOf("Công khai", "Riêng tư")
-    var selectedGroupType by remember { mutableStateOf(groupTypes[0]) }
 
     LaunchedEffect(createSuccess) {
         if (createSuccess != null) {
@@ -103,34 +100,15 @@ fun GroupCreateScreen(
                 label = { Text("Chủ đề/Môn học") },
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("Loại nhóm:")
-            Row(Modifier.fillMaxWidth()) {
-                groupTypes.forEach { groupType ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(end = 16.dp)
-                    ) {
-                        RadioButton(
-                            selected = (groupType == selectedGroupType),
-                            onClick = { selectedGroupType = groupType }
-                        )
-                        Text(text = groupType)
-                    }
-                }
-            }
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
                 onClick = {
                     if (currentUserId != null && groupName.isNotBlank() && description.isNotBlank() && subject.isNotBlank()) {
-                        val groupTypeInEnglish = if (selectedGroupType == "Công khai") "Public" else "Private"
                         groupViewModel.createGroup(
                             groupName = groupName,
                             description = description,
                             subject = subject,
-                            groupType = groupTypeInEnglish,
                             creatorId = currentUserId
                         )
                     }

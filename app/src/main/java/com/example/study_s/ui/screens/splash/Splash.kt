@@ -26,7 +26,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun SplashScreen(navController: NavController) {
     LaunchedEffect(Unit) {
-        delay(1000)
+        delay(500)
         // Kiểm tra trạng thái đăng nhập của người dùng
         val currentUser = FirebaseAuth.getInstance().currentUser
         val destination = if (currentUser != null) {
@@ -44,7 +44,7 @@ fun SplashScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFCBDDF8)), // Cân nhắc sử dụng màu từ Theme
+            .background(Color(0xFFE7F0F8)),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {

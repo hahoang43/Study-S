@@ -11,9 +11,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.study_s.ui.navigation.Routes
+import com.example.study_s.ui.theme.Study_STheme
 
 // Lớp dữ liệu để định nghĩa một mục trên Bottom NavBar, liên kết trực tiếp với Routes
 private data class BottomNavItem(
@@ -36,7 +38,7 @@ fun BottomNavBar(
         BottomNavItem("Hồ sơ", Icons.Default.Person, Routes.Profile)
     )
 
-    NavigationBar(containerColor = Color.White) {
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
         items.forEach { item ->
             // Trạng thái "selected" được quyết định bằng cách so sánh route của item với route hiện tại
             val isSelected = currentRoute == item.route
@@ -44,7 +46,6 @@ fun BottomNavBar(
             NavigationBarItem(
                 selected = isSelected,
                 onClick = {
-                    // Chỉ điều hướng khi người dùng bấm vào một mục chưa được chọn
                     if (item.route == Routes.Home && isSelected) {
                         navController.navigate(item.route) {
                             popUpTo(navController.graph.startDestinationId) {
@@ -54,8 +55,6 @@ fun BottomNavBar(
                             restoreState = true
                         }
                     } else if (!isSelected) {
-                        // 2. NGƯỜI DÙNG NHẤN VÀO MỘT TAB KHÁC
-                        // Logic điều hướng bình thường
                         navController.navigate(item.route) {
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
@@ -68,32 +67,29 @@ fun BottomNavBar(
                 icon = {
                     Icon(
                         imageVector = item.icon,
-                        contentDescription = item.label,
-                        // Thay đổi màu sắc dựa trên trạng thái isSelected
-                        tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray
+                        contentDescription = item.label
                     )
                 },
-                label = {
-                    Text(
-                        text = item.label,
-                        // Thay đổi màu sắc dựa trên trạng thái isSelected
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray
-                    )
-                },
-                // Tùy chỉnh màu sắc để trông đẹp hơn
+                label = { Text(text = item.label) },
                 colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color.Transparent // Tắt màu nền của mục được chọn
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = MaterialTheme.colorScheme.surfaceColorAtElevation(LocalAbsoluteTonalElevation.current + 3.dp)
                 )
             )
         }
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, name = "Light Mode")
+@Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
 fun BottomNavBarPreview() {
-    // Giả lập NavController và route để preview
-    val navController = rememberNavController()
-    // Để xem trước trạng thái "selected", hãy thay đổi route ở đây, ví dụ: Routes.Profile
-    BottomNavBar(navController = navController, currentRoute = Routes.Home)
+    Study_STheme {
+        Surface {
+            BottomNavBar(navController = rememberNavController(), currentRoute = Routes.Home)
+        }
+    }
 }

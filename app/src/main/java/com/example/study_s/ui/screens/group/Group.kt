@@ -1,7 +1,7 @@
 package com.example.study_s.ui.screens.group
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,8 +22,10 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Tab
@@ -51,7 +54,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.study_s.data.model.Group
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
-import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.GroupViewModel
 import com.google.firebase.auth.FirebaseAuth
 
@@ -90,11 +92,6 @@ fun GroupScreen(
             if (currentRoute != null) {
                 BottomNavBar(navController = navController, currentRoute = currentRoute)
             }
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate(Routes.GroupCreate) }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Group")
-            }
         }
     ) { paddingValues ->
         PullToRefreshBox(
@@ -109,26 +106,31 @@ fun GroupScreen(
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
-
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFF1A73E8), RoundedCornerShape(8.dp))
-                            .background(Color(0xFFEAF1FD), RoundedCornerShape(8.dp))
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(top = 16.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "NHÓM HỌC TẬP",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color(0xFF1A73E8)
+                            text = "Nhóm học tập",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
                         )
+                        IconButton(
+                            onClick = { navController.navigate(Routes.GroupCreate) },
+                            modifier = Modifier.size(40.dp),
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Tạo nhóm mới")
+                        }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
@@ -184,7 +186,7 @@ fun GroupItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 12.dp)
-            .border(1.dp, Color(0xFFB8C7E0), RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
         Row(
@@ -210,7 +212,7 @@ fun GroupItem(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isMember) Color(0xFF4CAF50) else Color(0xFF1A73E8),
+                    containerColor = if (isMember) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
                     contentColor = Color.White
                 ),
                 shape = RoundedCornerShape(50),

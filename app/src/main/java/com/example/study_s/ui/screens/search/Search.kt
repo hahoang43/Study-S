@@ -42,7 +42,6 @@ fun SearchScreen() {
     Scaffold(
         topBar = {
             TopBar(
-                onNavIconClick = {  },
                 onNotificationClick = {  },
                 onSearchClick = {  }
             )

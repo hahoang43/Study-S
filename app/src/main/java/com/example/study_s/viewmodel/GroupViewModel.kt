@@ -86,7 +86,6 @@ class GroupViewModel(private val groupRepository: GroupRepository = GroupReposit
         groupName: String,
         description: String,
         subject: String,
-        groupType: String,
         creatorId: String
     ) {
         viewModelScope.launch {
@@ -98,7 +97,6 @@ class GroupViewModel(private val groupRepository: GroupRepository = GroupReposit
                     groupName = groupName,
                     description = description,
                     subject = subject,
-                    groupType = groupType,
                     members = listOf(creatorId),
                     createdBy = creatorId,
                     createdAt = System.currentTimeMillis()

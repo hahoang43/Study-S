@@ -101,7 +101,6 @@ fun HomeScreen(
     Scaffold(
         topBar = {
             TopBar(
-                onNavIconClick = { },
                 onNotificationClick = { navController.navigate(Routes.Notification) },
                 onSearchClick = { navController.navigate(Routes.Search) }
             )
