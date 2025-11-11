@@ -33,4 +33,17 @@ class LibraryViewModel(private val repository: LibraryRepository = LibraryReposi
                 }
         }
     }
+
+    fun deleteFile(file: LibraryFile) {
+        viewModelScope.launch {
+            try {
+                repository.deleteFile(file)
+                // Refresh the file list after deletion
+                loadAllFiles()
+            } catch (e: Exception) {
+                // Handle error
+                println("Error deleting file: ${e.message}")
+            }
+        }
+    }
 }

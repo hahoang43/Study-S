@@ -7,7 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.study_s.ui.screens.FilePreviewScreen
+import com.example.study_s.ui.screens.library.UploadFileScreen
 import com.example.study_s.ui.screens.auth.ForgotPasswordScreen
 import com.example.study_s.ui.screens.auth.LoginScreen
 import com.example.study_s.ui.screens.auth.RegisterScreen
@@ -110,7 +110,7 @@ fun NavGraph(navController: NavHostController) {
                 URLDecoder.decode(it, "UTF-8")
             }
             val fileName = backStackEntry.arguments?.getString("fileName")
-            FilePreviewScreen(navController, fileUrl, fileName)
+            UploadFileScreen(navController, fileUrl, fileName)
         }
 
         // 👤 Profile cá nhân

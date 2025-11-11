@@ -35,6 +35,7 @@ object Routes {
 
     // Library
     const val Library = "library"
+    const val UploadFile = "upload_file"
     const val FilePreview = "file_preview"
 
     // Schedule
