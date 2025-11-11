@@ -26,6 +26,9 @@ object Routes {
     const val GroupList = "group_list"
     const val GroupChat = "group_chat"
     const val GroupCreate = "group_create"
+    //mypost
+    const val MyPosts = "my_posts"
+
 
     // Message
     const val Message = "message"

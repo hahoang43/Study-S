@@ -1,4 +1,3 @@
-// File: com/example/study_s/ui/screens/profiles/StrangerScreen.kt
 package com.example.study_s.ui.screens.profiles
 
 import androidx.compose.foundation.background
@@ -12,138 +11,165 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.study_s.R
 import com.example.study_s.data.model.User
-import com.example.study_s.viewmodel.ProfileUiState
-import com.example.study_s.viewmodel.ProfileViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import androidx.compose.ui.tooling.preview.Preview
 import java.util.*
-import com.example.study_s.viewmodel.ProfileViewModelFactory
-// =========================================================================
-// HÀM 1: MÀN HÌNH CHÍNH
-// =========================================================================
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StragerScreen(
     navController: NavController,
-    userId: String, // Nhận userId từ NavHost
-    viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory())
+    userId: String
 ) {
-    // Tải hồ sơ người lạ khi Composable được khởi tạo hoặc khi userId thay đổi.
+    val db = FirebaseFirestore.getInstance()
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+    var userProfile by remember { mutableStateOf<User?>(null) }
+    var userPosts by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
+    var isFollowing by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(true) }
+
     LaunchedEffect(userId) {
-        viewModel.loadStragerProfile(userId)
+        loading = true
+        db.collection("users").document(userId).get()
+            .addOnSuccessListener { doc -> userProfile = doc.toObject(User::class.java) }
+
+        db.collection("posts").whereEqualTo("authorId", userId).get()
+            .addOnSuccessListener { snap -> userPosts = snap.documents.mapNotNull { it.data } }
+
+        if (currentUserId != null && currentUserId != userId) {
+            db.collection("users").document(userId)
+                .collection("followers").document(currentUserId)
+                .get()
+                .addOnSuccessListener { doc -> isFollowing = doc.exists() }
+        }
+        loading = false
     }
 
-    val uiState = viewModel.stragerProfileUiState
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { /* Để trống hoặc hiển thị tên người dùng khi đã tải xong */ },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Quay lại"
-                        )
-                    }
-                }
-            )
+    if (loading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
         }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.Center
-        ) {
-            when (uiState) {
-                is ProfileUiState.Loading -> {
-                    CircularProgressIndicator()
-                }
-                is ProfileUiState.Error -> {
-                    Text(
-                        text = uiState.message,
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
-                is ProfileUiState.Success -> {
-                    // Khi thành công, hiển thị giao diện chi tiết
-                    StragerContent(user = uiState.user)
+    } else if (userProfile != null) {
+        StragerContent(
+            navController = navController,
+            user = userProfile!!,
+            posts = userPosts,
+            isFollowing = isFollowing,
+            onToggleFollow = {
+                val fRef = db.collection("users").document(userId)
+                    .collection("followers").document(currentUserId!!)
+                if (isFollowing) {
+                    fRef.delete()
+                    isFollowing = false
+                } else {
+                    fRef.set(mapOf("since" to System.currentTimeMillis()))
+                    isFollowing = true
                 }
             }
+        )
+    } else {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Không tìm thấy người dùng.")
         }
     }
 }
 
-// =========================================================================
-// HÀM 2: GIAO DIỆN NỘI DUNG
-// =========================================================================
 @Composable
-private fun StragerContent(user: User) {
-    // Dùng LazyColumn để toàn bộ màn hình có thể cuộn
+private fun StragerContent(
+    navController: NavController,
+    user: User,
+    posts: List<Map<String, Any>> ,
+    isFollowing: Boolean,
+    onToggleFollow: () -> Unit
+) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // PHẦN HEADER VÀ THÔNG TIN CÁ NHÂN
+        // ================= HEADER =================
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
-                    .background(Color(0xFFB3E5FC)) // Màu nền header
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .offset(y = (-50).dp), // Đẩy lên để chồng lên header
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .height(180.dp)
+                    .background(Color(0xFFB3E5FC))
             ) {
-                AsyncImage(
-                    model = user.avatarUrl ?: R.drawable.profile_placeholder,
-                    contentDescription = "Avatar",
+                // Nút quay lại
+                IconButton(
+                    onClick = { navController.popBackStack() },
                     modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .border(3.dp, Color.White, CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(user.name, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Button(onClick = { /* TODO: Logic theo dõi */ }) {
-                        Text("Theo dõi")
-                    }
-                    Button(onClick = { /* TODO: Logic nhắn tin */ }) {
-                        Text("Nhắn tin")
+                        .padding(16.dp)
+                        .offset(y = 24.dp)
+                        .align(Alignment.TopStart)
+                        .background(Color.White.copy(alpha = 0.8f), CircleShape)
+                        .size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Quay lại",
+                        tint = Color.Black
+                    )
+                }
+
+                // Avatar + tên + nút
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .offset(y = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    AsyncImage(
+                        model = user.avatarUrl ?: R.drawable.profile_placeholder,
+                        contentDescription = "Avatar",
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .border(3.dp, Color.White, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        user.name ?: "Người dùng",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF212121)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Button(onClick = onToggleFollow) {
+                            Text(if (isFollowing) "Đang theo dõi" else "Theo dõi")
+                        }
+                        OutlinedButton(onClick = { /* TODO: Nhắn tin */ }) {
+                            Text("Nhắn tin")
+                        }
                     }
                 }
             }
+            Spacer(Modifier.height(60.dp))
         }
 
-        // PHẦN DANH SÁCH BÀI VIẾT
+        // ================= BÀI VIẾT =================
         item {
             Text(
                 "Bài viết",
@@ -155,77 +181,107 @@ private fun StragerContent(user: User) {
             )
         }
 
-        // TODO: Thay thế danh sách giả này bằng dữ liệu bài viết thật
-        items(listOf("2 giờ trước", "1 ngày trước")) { time ->
-            PostItem(time = time, user = user)
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-    }
-}
+        items(posts) { post ->
+            val date = (post["timestamp"] as? com.google.firebase.Timestamp)?.toDate()
+            val formattedDate = if (date != null) {
+                java.text.SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(date)
+            } else "Vừa xong"
 
-// =========================================================================
-// HÀM 3: ITEM BÀI VIẾT
-// =========================================================================
-@Composable
-private fun PostItem(time: String, user: User) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .background(Color(0xFFE3F2FD), RoundedCornerShape(12.dp))
-            .padding(12.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(
-                model = user.avatarUrl ?: R.drawable.profile_placeholder,
-                contentDescription = null,
+            Card(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                Text(user.name, fontWeight = FontWeight.Bold)
-                Text(time, fontSize = 12.sp, color = Color.Gray)
-            }
-        }
-        Spacer(modifier = Modifier.height(10.dp))
-        Text("Đây là nội dung của một bài viết mẫu.")
-        Spacer(modifier = Modifier.height(10.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.FavoriteBorder, contentDescription = "Thích")
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("23")
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Share, contentDescription = "Chia sẻ")
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("10")
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    // ==== Header: Avatar + Tên + Thời gian
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AsyncImage(
+                            model = user.avatarUrl ?: R.drawable.profile_placeholder,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                user.name ?: "Người dùng",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp
+                            )
+                            Text(formattedDate, fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // ==== Nội dung bài viết
+                    Text(
+                        text = post["content"] as? String ?: "",
+                        fontSize = 16.sp,
+                        color = Color(0xFF333333)
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+                    Divider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+
+                    // ==== Hàng icon Like - Comment - Share
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // ❤️ Like
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.FavoriteBorder, contentDescription = "Thích", tint = Color.Gray)
+                            Spacer(Modifier.width(4.dp))
+                            Text(((post["likesCount"] as? Long) ?: 0).toString(), color = Color.Black)
+                        }
+
+                        // 💬 Comment
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "Bình luận", tint = Color.Gray)
+                            Spacer(Modifier.width(4.dp))
+                            Text(((post["commentsCount"] as? Long) ?: 0).toString(), color = Color.Black)
+                        }
+
+                        // 🔗 Share
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Share, contentDescription = "Chia sẻ", tint = Color.Gray)
+                            Spacer(Modifier.width(4.dp))
+                            Text(((post["sharesCount"] as? Long) ?: 0).toString(), color = Color.Black)
+                        }
+                    }
+                }
             }
         }
     }
 }
 
-// =========================================================================
-// HÀM 4: PREVIEW
-// =========================================================================
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun StragerScreenPreview() {
     val fakeUser = User(
         userId = "fakeUserId",
-        name = "Nhật Long (Preview)",
-        email = "nhatlong@example.com",
+        name = "Đoàn Thị Yến",
+        email = "yen@example.com",
         avatarUrl = null,
-        bio = "Đây là bio preview.",
+        bio = "Bio mẫu preview",
         createdAt = Date()
     )
+    val navController = rememberNavController()
     MaterialTheme {
-        // Gọi thẳng StrangerContent để xem giao diện khi đã có dữ liệu
-        StragerContent(user = fakeUser)
+        StragerContent(
+            navController = navController,
+            user = fakeUser,
+            posts = emptyList(),
+            isFollowing = false,
+            onToggleFollow = {}
+        )
     }
 }

@@ -220,7 +220,7 @@ private fun ProfileContent(
 
         // Nút "Các bài viết"
         Button(
-            onClick = { /* TODO */ },
+            onClick = { navController.navigate(Routes.MyPosts) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp),
@@ -228,6 +228,7 @@ private fun ProfileContent(
         ) {
             Text("Các bài viết")
         }
+
 
         Spacer(modifier = Modifier.height(16.dp))
 

@@ -2,13 +2,14 @@ package com.example.study_s.ui.screens.post
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Send
@@ -29,10 +30,10 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User // <-- 1. IMPORT USER MODEL
+import com.example.study_s.data.model.User
+import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -43,7 +44,7 @@ fun PostDetailScreen(
     viewModel: PostViewModel = viewModel(),
     navController: NavController
 ) {
-
+    // tải post + cmt
     LaunchedEffect(postId) {
         viewModel.selectPostAndLoadComments(postId)
     }
@@ -60,16 +61,11 @@ fun PostDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Quay lại"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
-                )
+                }
             )
         },
         bottomBar = {
@@ -89,25 +85,29 @@ fun PostDetailScreen(
                 .fillMaxSize()
                 .background(Color(0xFFF8F9FA))
         ) {
-            // Phần chi tiết bài đăng
+            // phần post
             item {
                 post?.let { postData ->
                     PostDetailContent(
                         post = postData,
                         currentUserId = currentUserId,
                         onLikeToggle = { viewModel.toggleLike(postData.postId) },
-                        viewModel = viewModel // <-- 2. TRUYỀN VIEWMODEL XUỐNG
+                        viewModel = viewModel,
+                        navController = navController
                     )
                 } ?: run {
-                    Box(modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(20.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator()
                     }
                 }
             }
 
-            // Phần tiêu đề bình luận
+            // tiêu đề cmt
             item {
                 Text(
                     "Bình luận (${comments.size})",
@@ -117,93 +117,111 @@ fun PostDetailScreen(
                 )
             }
 
-            // Danh sách bình luận
+            // list cmt
             items(comments) { comment ->
                 CommentItem(
                     comment = comment,
-                    viewModel = viewModel, // <-- 3. TRUYỀN VIEWMODEL XUỐNG
+                    viewModel = viewModel,
+                    navController = navController,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
         }
     }
 }
 
-// Composable riêng cho nội dung chi tiết bài đăng
+/* ======================= NỘI DUNG POST ======================= */
 @Composable
 fun PostDetailContent(
     post: PostModel,
     currentUserId: String?,
     onLikeToggle: () -> Unit,
-    viewModel: PostViewModel // <-- 4. NHẬN VIEWMODEL
+    viewModel: PostViewModel,
+    navController: NavController
 ) {
     val isLiked = remember(post.likedBy) {
         currentUserId?.let { post.likedBy.contains(it) } ?: false
     }
 
-    // --- 5. LẤY THÔNG TIN TÁC GIẢ TỪ CACHE ---
+    // lấy info tác giả từ cache
     val userCache by viewModel.userCache.collectAsState()
-    val author = userCache[post.authorId] ?: User(name = "Đang tải...") // Dùng User model
+    val author = userCache[post.authorId] ?: User(name = "Đang tải...")
 
-    // Trigger fetch nếu chưa có trong cache
+    // nếu cache chưa có thì gọi fetch
     LaunchedEffect(post.authorId) {
         if (post.authorId.isNotBlank()) {
             viewModel.fetchUser(post.authorId)
         }
     }
-    // --- HẾT PHẦN LẤY THÔNG TIN TÁC GIẢ ---
 
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .background(Color.White)
-        .padding(horizontal = 16.dp, vertical = 12.dp)) {
+    // bài này có phải của mình không
+    val isMyPost = currentUserId != null && currentUserId == post.authorId
 
-        // --- 6. HIỂN THỊ THÔNG TIN TÁC GIẢ ---
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // avatar
             Image(
                 painter = rememberAsyncImagePainter(
-                    model = author.avatarUrl, // Dùng author.avatarUrl
+                    model = author.avatarUrl,
                     fallback = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=5")
                 ),
-                contentDescription = "Avatar của ${author.name}", // Dùng author.name
+                contentDescription = "Avatar của ${author.name}",
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color.LightGray),
+                    .background(Color.LightGray)
+                    .clickable {
+                        if (isMyPost) {
+                            navController.navigate(Routes.Profile)
+                        } else {
+                            navController.navigate("strager/${post.authorId}")
+                        }
+                    },
                 contentScale = ContentScale.Crop
             )
+
             Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = author.name, // Dùng author.name
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp
-                )
+
+            // tên + time
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        if (isMyPost) {
+                            navController.navigate(Routes.Profile)
+                        } else {
+                            navController.navigate("strager/${post.authorId}")
+                        }
+                    }
+            ) {
+                Text(author.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 post.timestamp?.toDate()?.let {
-                    val formattedDate = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
-                    Text(text = formattedDate, fontSize = 12.sp, color = Color.Gray)
+                    val formatted = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
+                    Text(formatted, fontSize = 12.sp, color = Color.Gray)
                 }
             }
         }
+
         Spacer(modifier = Modifier.height(12.dp))
-        // --- HẾT PHẦN HIỂN THỊ TÁC GIẢ ---
-
         Text(post.content, fontSize = 20.sp)
-        Spacer(Modifier.height(8.dp))
-        // Đã chuyển phần timestamp lên trên cùng tác giả
-//        post.timestamp?.toDate()?.let { ... }
-
         Spacer(Modifier.height(16.dp))
 
-        // ... (Phần hiển thị ảnh/file giữ nguyên) ...
-        if (post.imageUrl != null && (post.fileName == null || post.fileName.endsWith(".png") || post.fileName.endsWith(".jpg"))) {
+        // ảnh
+        if (post.imageUrl != null &&
+            (post.fileName == null ||
+                    post.fileName.endsWith(".png") ||
+                    post.fileName.endsWith(".jpg"))
+        ) {
             Image(
                 painter = rememberAsyncImagePainter(post.imageUrl),
                 contentDescription = "Ảnh đính kèm",
@@ -216,9 +234,7 @@ fun PostDetailContent(
             Spacer(Modifier.height(16.dp))
         }
 
-        // TODO: Hiển thị tệp (nếu là tệp, tương tự Home.kt)
-
-        // Hàng Like/Comment
+        // like + cmt
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onLikeToggle) {
                 Icon(
@@ -238,17 +254,14 @@ fun PostDetailContent(
     }
 }
 
-// ... (BottomCommentBar giữ nguyên, không cần sửa) ...
+/* ======================= BOTTOM COMMENT BAR ======================= */
 @Composable
 fun BottomCommentBar(
     commentText: String,
     onCommentChanged: (String) -> Unit,
     onSendClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shadowElevation = 8.dp
-    ) {
+    Surface(modifier = Modifier.fillMaxWidth(), shadowElevation = 8.dp) {
         Row(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -271,57 +284,71 @@ fun BottomCommentBar(
                 Icon(
                     imageVector = Icons.Default.Send,
                     contentDescription = "Gửi bình luận",
-                    tint = if (commentText.isNotBlank()) MaterialTheme.colorScheme.primary else Color.Gray
+                    tint = if (commentText.isNotBlank())
+                        MaterialTheme.colorScheme.primary else Color.Gray
                 )
             }
         }
     }
 }
 
-
-// Composable riêng cho 1 item bình luận
+/* ======================= COMMENT ITEM ======================= */
 @Composable
 fun CommentItem(
     comment: CommentModel,
-    viewModel: PostViewModel, // <-- 7. NHẬN VIEWMODEL
+    viewModel: PostViewModel,
+    navController: NavController,
     modifier: Modifier = Modifier
 ) {
-
-    // --- 8. LẤY THÔNG TIN NGƯỜI BÌNH LUẬN TỪ CACHE ---
-    // XÓA BỎ LaunchedEffect cũ
     val userCache by viewModel.userCache.collectAsState()
-    val author = userCache[comment.authorId] ?: User(name = "Đang tải...") // Dùng User model
+    val author = userCache[comment.authorId] ?: User(name = "Đang tải...")
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isMyComment = currentUserId != null && currentUserId == comment.authorId
 
-    // Trigger fetch
     LaunchedEffect(comment.authorId) {
         if (comment.authorId.isNotBlank()) {
             viewModel.fetchUser(comment.authorId)
         }
     }
-    // --- HẾT PHẦN LẤY THÔNG TIN ---
 
     Row(modifier = modifier.fillMaxWidth()) {
         Image(
             painter = rememberAsyncImagePainter(
-                model = author.avatarUrl, // <-- 9. DÙNG author.avatarUrl
+                model = author.avatarUrl,
                 fallback = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=3")
             ),
             contentDescription = "Avatar",
             modifier = Modifier
                 .size(36.dp)
-                .clip(CircleShape),
+                .clip(CircleShape)
+                .clickable {
+                    if (isMyComment) {
+                        navController.navigate(Routes.Profile)
+                    } else {
+                        navController.navigate("strager/${comment.authorId}")
+                    }
+                },
             contentScale = ContentScale.Crop
         )
+
         Spacer(Modifier.width(12.dp))
+
         Column(
             modifier = Modifier
                 .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Text(
-                text = author.name, // <-- 10. DÙNG author.name
+                text = author.name,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp
+                fontSize = 14.sp,
+                modifier = Modifier.clickable {
+                    if (isMyComment) {
+                        navController.navigate(Routes.Profile)
+                    } else {
+                        navController.navigate("strager/${comment.authorId}")
+                    }
+                }
             )
             Spacer(Modifier.height(4.dp))
             Text(comment.content, fontSize = 15.sp)
@@ -329,10 +356,9 @@ fun CommentItem(
     }
 }
 
-
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewPostDetailScreen() {
-    val navController = rememberNavController()
-    PostDetailScreen(postId = "1", navController = navController)
+    val nav = rememberNavController()
+    PostDetailScreen(postId = "1", navController = nav)
 }

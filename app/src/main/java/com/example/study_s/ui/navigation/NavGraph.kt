@@ -31,63 +31,47 @@ import com.example.study_s.ui.screens.settings.SupportScreen
 import com.example.study_s.ui.screens.splash.SplashScreen
 import com.example.study_s.viewmodel.AuthViewModel
 import com.example.study_s.viewmodel.AuthViewModelFactory
+import com.example.study_s.ui.screens.post.MyPostsScreen
 import java.net.URLDecoder
 
 @Composable
 fun NavGraph(navController: NavHostController) {
-    // AuthViewModel sẽ được chia sẻ cho các màn hình Auth nếu cần
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
 
     NavHost(
         navController = navController,
         startDestination = Routes.Splash
     ) {
+        composable(Routes.MyPosts) {
+            MyPostsScreen(navController)
+        }
 
         // 🌀 Splash
         composable(Routes.Splash) {
             SplashScreen(navController)
         }
 
-        // 🔐 Auth Flow: Login
-        // ====================================================================
-        // SỬA LẠI KHỐI LOGIN: TRỞ NÊN CỰC KỲ ĐƠN GIẢN
-        // ====================================================================
+        // 🔐 Auth
         composable(Routes.Login) {
-            // LoginScreen mới đã tự chứa tất cả logic.
-            // Chúng ta chỉ cần gọi nó và truyền NavController + ViewModel vào.
-            LoginScreen(
-                navController = navController,
-                authViewModel = authViewModel
-            )
+            LoginScreen(navController = navController, authViewModel = authViewModel)
         }
 
-        // ====================================================================
-        // SỬA LẠI KHỐI REGISTER: ĐỂ NHẬN DỮ LIỆU TỪ GOOGLE
-        // ====================================================================
         composable(
             route = "${Routes.Register}?name={name}&email={email}",
             arguments = listOf(
-                navArgument("name") {
-                    type = NavType.StringType
-                    defaultValue = "" // Giá trị mặc định khi không có dữ liệu truyền vào
-                },
-                navArgument("email") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                }
+                navArgument("name") { type = NavType.StringType; defaultValue = "" },
+                navArgument("email") { type = NavType.StringType; defaultValue = "" }
             )
         ) { backStackEntry ->
             val name = backStackEntry.arguments?.getString("name") ?: ""
             val email = backStackEntry.arguments?.getString("email") ?: ""
-            // Giải mã URL để lấy lại các ký tự đặc biệt (dấu cách, @, ...)
             val decodedName = URLDecoder.decode(name, "UTF-8")
             val decodedEmail = URLDecoder.decode(email, "UTF-8")
-
             RegisterScreen(
                 navController = navController,
                 authViewModel = authViewModel,
-                nameFromGoogle = decodedName,  // Truyền tên đã giải mã
-                emailFromGoogle = decodedEmail // Truyền email đã giải mã
+                nameFromGoogle = decodedName,
+                emailFromGoogle = decodedEmail
             )
         }
 
@@ -97,13 +81,15 @@ fun NavGraph(navController: NavHostController) {
                 onResetPassword = { _ -> navController.navigate(Routes.VerifyCode) }
             )
         }
+
         composable(Routes.VerifyCode) { VerifyCodeScreen(navController) }
 
-        // 🏠 Main Flow (Giữ nguyên không thay đổi)
+        // 🏠 Home
         composable(Routes.Home) { HomeScreen(navController) }
 
-        // Post
+        // 📝 Post
         composable(Routes.NewPost) { NewPostScreen(navController) }
+
         composable(
             route = "${Routes.PostDetail}/{postId}",
             arguments = listOf(navArgument("postId") { type = NavType.StringType })
@@ -127,21 +113,22 @@ fun NavGraph(navController: NavHostController) {
             FilePreviewScreen(navController, fileUrl, fileName)
         }
 
-        // Profile
+        // 👤 Profile cá nhân
         composable(Routes.Profile) { ProfileScreen(navController) }
         composable(Routes.EditProfile) { EditProfileScreen(navController) }
+
+        // ✅ 👇 THÊM ROUTE XEM HỒ SƠ NGƯỜI KHÁC (STRANGER SCREEN)
         composable(
-            route = "${Routes.OtherProfile}/{userId}",
+            route = "strager/{userId}",
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId")
-            if (userId != null) {
-                StragerScreen(navController = navController, userId = userId)
-            }
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            StragerScreen(navController = navController, userId = userId)
         }
 
-        // Group
+        // 👥 Group
         composable(Routes.GroupList) { GroupScreen(navController) }
+
         composable(
             route = "${Routes.GroupChat}/{groupId}",
             arguments = listOf(navArgument("groupId") { type = NavType.StringType })
@@ -149,24 +136,25 @@ fun NavGraph(navController: NavHostController) {
             val groupId = backStackEntry.arguments?.getString("groupId") ?: ""
             ChatGroupScreen(navController = navController, groupId = groupId)
         }
+
         composable(Routes.GroupCreate) { GroupCreateScreen(navController) }
 
-        // Message
+        // 💬 Message
         composable(Routes.Message) { MessageListScreen() }
 
-        // Library
+        // 📚 Library
         composable(Routes.Library) { LibraryScreen(navController) }
 
-        // Schedule
+        // 📅 Schedule
         composable(Routes.Schedule) { ScheduleScreen(navController) }
 
-        // Notification
+        // 🔔 Notification
         composable(Routes.Notification) { NotificationScreen() }
 
-        // Search
+        // 🔍 Search
         composable(Routes.Search) { SearchScreen() }
 
-        // Settings
+        // ⚙️ Settings
         composable(Routes.Policy) { PolicyScreen(navController) }
         composable(Routes.Support) { SupportScreen(navController) }
     }
