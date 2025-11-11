@@ -54,32 +54,28 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.widget.Toast
 import kotlinx.coroutines.launch // <-- 3. IMPORT
+import android.util.Log // <-- THÊM IMPORT NÀY
 // Hàm downloadFile (Giữ nguyên, không thay đổi)
-private fun downloadFile(context: Context, url: String, fileName: String) {
-    // ... (nội dung hàm giữ nguyên)
+fun downloadFile(context: Context, url: String, fileName: String) {
+    // Log URL để kiểm tra xem nó là gs:// hay https://
+    Log.d("DownloadDebug", "Đang thử tải URL: $url")
+
     try {
-        val downloadManager = context.getSystemService(DownloadManager::class.java)
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val request = DownloadManager.Request(Uri.parse(url))
             .setTitle(fileName)
             .setDescription("Đang tải xuống...")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setAllowedOverMetered(true)
-            .setAllowedOverRoaming(true)
-
-        val destinationUri = Uri.parse("file://" +
-                context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.absolutePath +
-                "/$fileName"
-        )
-        request.setDestinationUri(destinationUri)
-
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
         downloadManager.enqueue(request)
-        Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "Bắt đầu tải xuống $fileName", Toast.LENGTH_SHORT).show()
     } catch (e: Exception) {
-        Toast.makeText(context, "Không thể tải xuống: ${e.message}", Toast.LENGTH_LONG).show()
-        e.printStackTrace()
+        // ✅ THÊM DÒNG NÀY ĐỂ XEM LỖI TRONG LOGCAT
+        Log.e("DownloadDebug", "Lỗi DownloadManager: ${e.message}", e)
+
+        Toast.makeText(context, "Lỗi tải xuống: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }
-
 
 @Composable
 fun HomeScreen(

@@ -31,6 +31,8 @@ import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Locale
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.compose.rememberNavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -200,3 +202,8 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
         }
     }
 }
+@Preview(showBackground = true)
+@Composable
+fun MyPostsScreenPreview() {
+    MyPostsScreen(navController = rememberNavController())}
+

@@ -35,18 +35,14 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
-import com.cloudinary.android.MediaManager
-import com.cloudinary.android.callback.ErrorInfo
-import com.cloudinary.android.callback.UploadCallback
 import com.example.study_s.R
 import com.example.study_s.data.model.PostModel
+import com.example.study_s.data.repository.LibraryRepository
 import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
 
-// Hàm hỗ trợ để lấy tên tệp từ Uri
+// Hàm hỗ trợ để lấy tên tệp từ Uri (Giữ nguyên)
 fun getFileName(uri: Uri, context: Context): String? {
     var result: String? = null
     if (uri.scheme == "content") {
@@ -74,33 +70,6 @@ fun getFileName(uri: Uri, context: Context): String? {
     return result
 }
 
-// Hàm tải lên Cloudinary sử dụng suspendCoroutine để tích hợp với coroutine
-private suspend fun uploadToCloudinary(uri: Uri): Pair<String, String?>? = suspendCoroutine { continuation ->
-    val request = MediaManager.get().upload(uri)
-        .unsigned("ml_default") // <-- THAY BẰNG UPLOAD PRESET CỦA BẠN
-        .callback(object : UploadCallback {
-            override fun onStart(requestId: String) {}
-            override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
-
-            override fun onSuccess(requestId: String, resultData: Map<*, *>) {
-                val url = resultData["secure_url"] as? String
-                val resourceType = resultData["resource_type"] as? String
-                if (url != null) {
-                    continuation.resume(Pair(url, resourceType))
-                } else {
-                    continuation.resume(null)
-                }
-            }
-
-            override fun onError(requestId: String, error: ErrorInfo) {
-                continuation.resume(null) // Trả về null khi có lỗi
-            }
-
-            override fun onReschedule(requestId: String, error: ErrorInfo) {}
-        })
-    request.dispatch()
-}
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,7 +83,10 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
     var selectedFileName by remember { mutableStateOf<String?>(null) }
 
     var isLoading by remember { mutableStateOf(false) }
+    var uploadProgress by remember { mutableStateOf(0f) }
     val coroutineScope = rememberCoroutineScope()
+
+    val libraryRepository = remember { LibraryRepository() }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -148,7 +120,7 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
                     .padding(16.dp)
                     .fillMaxSize()
             ) {
-                // Header thông tin người dùng (giữ nguyên)
+                // ... (Phần UI header, textfield, preview không thay đổi) ...
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
                         painter = painterResource(id = R.drawable.avatar1), // TODO: Thay bằng avatar thật
@@ -214,43 +186,59 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
                 }
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // Nút Đăng - Cập nhật logic tải lên Cloudinary
+                // Nút Đăng - Cập nhật logic tải lên Firebase
                 Button(
                     onClick = {
                         if (currentUser != null) {
                             coroutineScope.launch {
                                 isLoading = true
+                                uploadProgress = 0f // Reset tiến trình
                                 try {
                                     var attachmentUrl: String? = null
-                                    var attachmentType: String? = null
                                     var attachmentFileName: String? = null
 
                                     // Xác định URI cần tải lên
                                     val uriToUpload = imageUri ?: fileUri
 
-                                    // Tải lên Cloudinary nếu có tệp đính kèm
+                                    // Tải lên nếu có tệp đính kèm
                                     if (uriToUpload != null) {
-                                        val uploadResult = uploadToCloudinary(uriToUpload)
-                                        if (uploadResult != null) {
-                                            attachmentUrl = uploadResult.first
-                                            attachmentType = uploadResult.second
-                                            attachmentFileName = if (fileUri != null) selectedFileName else null
-                                        } else {
-                                            // Xử lý lỗi tải lên
-                                            Toast.makeText(context, "Tải lên tệp thất bại", Toast.LENGTH_SHORT).show()
-                                            isLoading = false
-                                            return@launch // Dừng thực thi nếu tải lên lỗi
-                                        }
+
+                                        // ✅ BẮT ĐẦU THAY ĐỔI
+                                        val fileName = selectedFileName ?: getFileName(uriToUpload, context) ?: "file"
+                                        val mimeType = context.contentResolver.getType(uriToUpload) ?: "*/*"
+
+                                        // Lấy thông tin người dùng
+                                        val uploaderId = currentUser.uid
+                                        val uploaderName = currentUser.displayName?.takeIf { it.isNotBlank() }
+                                            ?: currentUser.email
+                                            ?: "Người dùng"
+
+                                        // Gọi hàm 'uploadFile' (hàm gốc)
+                                        // Hàm này sẽ tự động lưu metadata vào 'libraryFiles'
+                                        val uploadResultUrl = libraryRepository.uploadFile(
+                                            context = context,
+                                            fileUri = uriToUpload,
+                                            fileName = fileName,
+                                            mimeType = mimeType,
+                                            uploaderId = uploaderId,
+                                            uploaderName = uploaderName,
+                                            onProgress = { progressInt ->
+                                                uploadProgress = progressInt / 100f
+                                            }
+                                        )
+                                        // ✅ KẾT THÚC THAY ĐỔI
+
+                                        // 'uploadFile' sẽ ném Exception nếu lỗi,
+                                        // nên nếu code chạy đến đây, 'uploadResultUrl' chắc chắn có giá trị
+                                        attachmentUrl = uploadResultUrl
+                                        attachmentFileName = if (fileUri != null) selectedFileName else null
                                     }
 
-                                    // Tạo đối tượng PostModel với URL từ Cloudinary
+                                    // Tạo đối tượng PostModel
                                     val newPost = PostModel(
                                         authorId = currentUser.uid,
                                         content = postContent,
-                                        // Lưu chung vào imageUrl, và thêm type để phân biệt
                                         imageUrl = attachmentUrl,
-                                        // Có thể thêm 1 trường 'attachmentType' vào PostModel
-                                        // ví dụ: attachmentType = "image" hoặc "raw" (cho tệp)
                                         fileName = attachmentFileName
                                     )
 
@@ -258,7 +246,8 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
                                     navController.popBackStack()
 
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Có lỗi xảy ra: ${e.message}", Toast.LENGTH_LONG).show()
+                                    // Bắt lỗi từ hàm uploadFile
+                                    Toast.makeText(context, "Tải lên thất bại: ${e.message}", Toast.LENGTH_LONG).show()
                                     e.printStackTrace()
                                 } finally {
                                     isLoading = false
@@ -274,13 +263,22 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
                 }
             }
 
-            // Màn hình chờ (giữ nguyên)
+            // Màn hình chờ (Cập nhật để hiển thị tiến trình)
             if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).clickable(enabled = false, onClick = {}),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color.White)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = Color.White)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        if (uploadProgress > 0f) {
+                            LinearProgressIndicator(
+                                progress = { uploadProgress },
+                                modifier = Modifier.width(200.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
