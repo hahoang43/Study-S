@@ -164,12 +164,7 @@ fun CreatePostTrigger(navController: NavController, modifier: Modifier = Modifie
             // Chữ mờ
             Text("Bạn đang nghĩ gì?", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
             Spacer(modifier = Modifier.weight(1f))
-            // Icon ảnh cho trực quan
-            Icon(
-                imageVector = Icons.Default.PhotoLibrary,
-                contentDescription = "Thêm ảnh",
-                tint = MaterialTheme.colorScheme.primary
-            )
+
         }
     }
 }
