@@ -1,15 +1,20 @@
 package com.example.study_s.data.repository
 
+import android.net.Uri
 import android.util.Log
 import com.example.study_s.data.model.Group
+import com.example.study_s.data.model.User
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.tasks.await
 
 class GroupRepository(
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
 ) {
     private val groupsRef = db.collection("groups")
+    private val usersRef = db.collection("users")
 
     suspend fun createGroup(group: Group) {
         groupsRef.document(group.groupId).set(group).await()
@@ -30,6 +35,10 @@ class GroupRepository(
             Log.e("GroupRepository", "Attempted to join group with an empty groupId.")
             throw IllegalArgumentException("Group ID cannot be empty.")
         }
+        val group = getGroupById(groupId)
+        if (group?.bannedUsers?.contains(userId) == true) {
+            throw Exception("Bạn đã bị chặn khỏi nhóm này và không thể tham gia")
+        }
         groupsRef.document(groupId).update("members", FieldValue.arrayUnion(userId)).await()
     }
 
@@ -47,5 +56,25 @@ class GroupRepository(
             .get()
             .await()
         return snapshot.toObjects(Group::class.java)
+    }
+
+    suspend fun getMemberDetails(memberIds: List<String>): List<User> {
+        if (memberIds.isEmpty()) return emptyList()
+        val snapshot = usersRef.whereIn("userId", memberIds).get().await()
+        return snapshot.toObjects(User::class.java)
+    }
+
+    suspend fun removeMemberFromGroup(groupId: String, userId: String) {
+        groupsRef.document(groupId).update("members", FieldValue.arrayRemove(userId)).await()
+        usersRef.document(userId).update("joinedGroups", FieldValue.arrayRemove(groupId)).await()
+    }
+
+    suspend fun banUser(groupId: String, userId: String) {
+        groupsRef.document(groupId).update("members", FieldValue.arrayRemove(userId)).await()
+        groupsRef.document(groupId).update("bannedUsers", FieldValue.arrayUnion(userId)).await()
+    }
+
+    suspend fun unbanUser(groupId: String, userId: String) {
+        groupsRef.document(groupId).update("bannedUsers", FieldValue.arrayRemove(userId)).await()
     }
 }

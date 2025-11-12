@@ -1,5 +1,7 @@
 package com.example.study_s.ui.screens.components
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Groups
@@ -8,6 +10,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,47 +41,51 @@ fun BottomNavBar(
         BottomNavItem("Hồ sơ", Icons.Default.Person, Routes.Profile)
     )
 
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-        items.forEach { item ->
-            // Trạng thái "selected" được quyết định bằng cách so sánh route của item với route hiện tại
-            val isSelected = currentRoute == item.route
+    Column {
+        Divider(thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+            items.forEach { item ->
+                // Trạng thái "selected" được quyết định bằng cách so sánh route của item với route hiện tại
+                val isSelected = currentRoute == item.route
 
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = {
-                    if (item.route == Routes.Home && isSelected) {
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = {
+                        if (item.route == Routes.Home && isSelected) {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    } else if (!isSelected) {
-                        navController.navigate(item.route) {
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
+                        } else if (!isSelected) {
+                            navController.navigate(item.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
                         }
-                    }
-                },
-                icon = {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.label
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.label,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    },
+                    label = { Text(text = item.label) },
+                    colors = NavigationBarItemDefaults.colors(
+                        selectedIconColor = MaterialTheme.colorScheme.primary,
+                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        indicatorColor = MaterialTheme.colorScheme.surfaceColorAtElevation(LocalAbsoluteTonalElevation.current + 3.dp)
                     )
-                },
-                label = { Text(text = item.label) },
-                colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = MaterialTheme.colorScheme.primary,
-                    selectedTextColor = MaterialTheme.colorScheme.primary,
-                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    indicatorColor = MaterialTheme.colorScheme.surfaceColorAtElevation(LocalAbsoluteTonalElevation.current + 3.dp)
                 )
-            )
+            }
         }
     }
 }

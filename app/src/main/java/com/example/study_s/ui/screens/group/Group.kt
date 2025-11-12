@@ -1,5 +1,6 @@
 package com.example.study_s.ui.screens.group
 
+import android.widget.Toast
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,6 +68,9 @@ fun GroupScreen(
     val allGroups by groupViewModel.groups.collectAsState()
     val userGroups by groupViewModel.userGroups.collectAsState()
     val isRefreshing by groupViewModel.isRefreshing.collectAsState()
+    val error by groupViewModel.error.collectAsState()
+    val context = LocalContext.current
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRouteFromNav = navBackStackEntry?.destination?.route
     val currentRoute = if (LocalInspectionMode.current) "group_screen" else currentRouteFromNav
@@ -79,6 +84,13 @@ fun GroupScreen(
     LaunchedEffect(currentUserId) {
         if (currentUserId != null) {
             groupViewModel.loadUserGroups(currentUserId)
+        }
+    }
+
+    LaunchedEffect(error) {
+        error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            groupViewModel.clearError()
         }
     }
 

@@ -4,28 +4,24 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.model.MessageModel
 import com.example.study_s.data.repository.GroupChatRepository
-import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 
-class ChatViewModel : ViewModel() {
-
-    private val chatRepository = GroupChatRepository()
+class GroupChatViewModel(private val groupChatRepository: GroupChatRepository = GroupChatRepository()) : ViewModel() {
 
     private val _messages = MutableStateFlow<List<MessageModel>>(emptyList())
     val messages: StateFlow<List<MessageModel>> = _messages
 
+    private val _userRemoved = MutableSharedFlow<Unit>()
+    val userRemoved = _userRemoved.asSharedFlow()
+
     fun listenToGroupMessages(groupId: String) {
         viewModelScope.launch {
-            callbackFlow {
-                val listener = chatRepository.getGroupMessages(groupId) { messages ->
-                    trySend(messages)
-                }
-                awaitClose { listener.remove() }
-            }.collect { newMessages ->
-                _messages.value = newMessages
+            groupChatRepository.getGroupMessages(groupId).collect {
+                _messages.value = it
             }
         }
     }
@@ -35,9 +31,16 @@ class ChatViewModel : ViewModel() {
             val message = MessageModel(
                 senderId = senderId,
                 content = content,
+                timestamp = System.currentTimeMillis(),
                 senderName = senderName
             )
-            chatRepository.sendMessage(groupId, message)
+            groupChatRepository.sendGroupMessage(groupId, message)
+        }
+    }
+
+    fun notifyUserRemoved() {
+        viewModelScope.launch {
+            _userRemoved.emit(Unit)
         }
     }
 }

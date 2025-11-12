@@ -2,27 +2,33 @@ package com.example.study_s.data.repository
 
 import com.example.study_s.data.model.MessageModel
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
-class GroupChatRepository(
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
-) {
-    private fun messagesRef(groupId: String) =
-        db.collection("groups").document(groupId).collection("messages")
+class GroupChatRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
 
-    suspend fun sendMessage(groupId: String, message: MessageModel) {
-        messagesRef(groupId).add(message).await()
+    fun getGroupMessages(groupId: String): Flow<List<MessageModel>> = callbackFlow {
+        val messagesRef = db.collection("groups").document(groupId).collection("messages")
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+
+        val listener = messagesRef.addSnapshotListener { snapshot, e ->
+            if (e != null) {
+                close(e)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val messages = snapshot.toObjects(MessageModel::class.java)
+                trySend(messages).isSuccess
+            }
+        }
+        awaitClose { listener.remove() }
     }
 
-    fun getGroupMessages(groupId: String, onMessagesChanged: (List<MessageModel>) -> Unit): ListenerRegistration {
-        return messagesRef(groupId)
-            .orderBy("timestamp")
-            .addSnapshotListener { snapshot, _ ->
-                if (snapshot != null) {
-                    val messages = snapshot.toObjects(MessageModel::class.java)
-                    onMessagesChanged(messages)
-                }
-            }
+    suspend fun sendGroupMessage(groupId: String, message: MessageModel) {
+        val messagesRef = db.collection("groups").document(groupId).collection("messages")
+        messagesRef.add(message).await()
     }
 }
