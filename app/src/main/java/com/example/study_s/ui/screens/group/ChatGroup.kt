@@ -65,7 +65,7 @@ fun ChatGroupScreen(
                         navController.popBackStack()
                     }
                 ) {
-                    Text("Rời nhóm", color = Color.Red)
+                    Text("Rời nhóm", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -89,7 +89,7 @@ fun ChatGroupScreen(
                         navController.popBackStack()
                     }
                 ) {
-                    Text("Xóa", color = Color.Red)
+                    Text("Xóa", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
@@ -108,12 +108,12 @@ fun ChatGroupScreen(
                         Icon(
                             imageVector = Icons.Default.Group,
                             contentDescription = "Group Icon",
-                            modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray).padding(8.dp)
+                            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant).padding(8.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
-                            Text(text = group?.groupName ?: "Loading...", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = Color.Black)
-                            Text(text = "${group?.members?.size ?: 0} thành viên", fontSize = 14.sp, color = Color.Gray)
+                            Text(text = group?.groupName ?: "Loading...", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Text(text = "${group?.members?.size ?: 0} thành viên", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 },
@@ -133,7 +133,7 @@ fun ChatGroupScreen(
                         ) {
                             if (isAdmin) {
                                 DropdownMenuItem(
-                                    text = { Text("Xóa nhóm", color = Color.Red) },
+                                    text = { Text("Xóa nhóm", color = MaterialTheme.colorScheme.error) },
                                     onClick = {
                                         showDeleteDialog = true
                                         showMenu = false
@@ -141,7 +141,7 @@ fun ChatGroupScreen(
                                 )
                             } else {
                                 DropdownMenuItem(
-                                    text = { Text("Rời nhóm", color = Color.Red) },
+                                    text = { Text("Rời nhóm", color = MaterialTheme.colorScheme.error) },
                                     onClick = {
                                         showLeaveDialog = true
                                         showMenu = false
@@ -151,7 +151,7 @@ fun ChatGroupScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
         bottomBar = {
@@ -166,7 +166,7 @@ fun ChatGroupScreen(
         }
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).background(Color(0xFFF5F5F5)).padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxSize().padding(paddingValues).background(MaterialTheme.colorScheme.background).padding(horizontal = 8.dp),
             reverseLayout = true,
             verticalArrangement = Arrangement.Bottom
         ) {
@@ -186,7 +186,7 @@ fun MessageItem(message: MessageModel, currentUserId: String) {
     ) {
         Box(
             modifier = Modifier.widthIn(max = 300.dp).background(
-                color = if (isCurrentUser) Color(0xFF1A73E8) else Color.White,
+                color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(16.dp)
             ).padding(12.dp)
         ) {
@@ -195,7 +195,7 @@ fun MessageItem(message: MessageModel, currentUserId: String) {
                     Text(text = message.senderName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(4.dp))
                 }
-                Text(text = message.content, fontSize = 16.sp, color = if (isCurrentUser) Color.White else Color.Black)
+                Text(text = message.content, fontSize = 16.sp, color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -205,11 +205,11 @@ fun MessageItem(message: MessageModel, currentUserId: String) {
 fun MessageInput(onSendMessage: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
     Row(
-        modifier = Modifier.fillMaxWidth().background(Color.White).padding(8.dp),
+        modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = { /* TODO: Handle attachment click */ }) {
-            Icon(Icons.Default.Attachment, contentDescription = "Attach File")
+            Icon(Icons.Default.Attachment, contentDescription = "Attach File", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         OutlinedTextField(
             value = text,
@@ -226,9 +226,9 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
                     text = ""
                 }
             },
-            modifier = Modifier.size(48.dp).background(Color(0xFF1A73E8), CircleShape)
+            modifier = Modifier.size(48.dp).background(MaterialTheme.colorScheme.primary, CircleShape)
         ) {
-            Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Send Message", tint = Color.White)
+            Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Send Message", tint = MaterialTheme.colorScheme.onPrimary)
         }
     }
 }

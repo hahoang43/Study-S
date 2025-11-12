@@ -87,8 +87,7 @@ fun UploadFileScreen(
     )
 
     Scaffold(
-        // Đã FIX: Đặt màu nền là Trắng để tránh màu cam của Theme
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = { TopBar(navController = navController, title = "Tải lên tệp") },
         bottomBar = {
             if (fileItems.isNotEmpty()) {
@@ -169,15 +168,13 @@ fun UploadFileScreen(
 
 @Composable
 fun AddFileButton(onClick: () -> Unit) {
-    // FIX: Sử dụng màu xanh dương đậm để thống nhất và tránh màu cam
-    val buttonColor = Color(0xFF1A73E8)
+    val buttonColor = MaterialTheme.colorScheme.primary
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(100.dp)
             .clickable(onClick = onClick)
-            // Đã FIX: Đổi viền thành màu xanh dương
             .border(BorderStroke(2.dp, buttonColor), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
@@ -202,7 +199,7 @@ fun FileCard(fileInfo: FileUploadInfo, onRemove: () -> Unit, onNameChange: (Stri
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(8.dp))
             .padding(8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -221,7 +218,7 @@ fun FileCard(fileInfo: FileUploadInfo, onRemove: () -> Unit, onNameChange: (Stri
                 } else {
                     Text(fileInfo.displayName, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Text(formatFileSize(fileInfo.size), style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(formatFileSize(fileInfo.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = { isEditing = !isEditing }, enabled = !isUploading) {
                 Icon(Icons.Default.Edit, contentDescription = "Đổi tên")
@@ -263,13 +260,11 @@ fun UploadActionBar(fileCount: Int, totalSize: Long, isUploading: Boolean, onUpl
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            // Đã FIX: Đặt màu nền là Trắng và thêm đường kẻ để phân biệt rõ ràng
-            .background(Color.White)
-            .border(1.dp, Color.LightGray.copy(alpha = 0.5f))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
             .padding(16.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            // Đã FIX: In đậm chữ "Đã chọn"
             Text("Đã chọn: $fileCount tệp", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             Text(formatFileSize(totalSize), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
         }
@@ -282,9 +277,9 @@ fun UploadActionBar(fileCount: Int, totalSize: Long, isUploading: Boolean, onUpl
             onClick = onUploadClick,
             enabled = !isUploading,
             modifier = Modifier.fillMaxWidth().height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A73E8))
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
-            Text(if (isUploading) "ĐANG TẢI LÊN..." else "TẢI LÊN", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(if (isUploading) "ĐANG TẢI LÊN..." else "TẢI LÊN", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -294,12 +289,10 @@ fun UploadActionBar(fileCount: Int, totalSize: Long, isUploading: Boolean, onUpl
 fun TopBar(navController: NavController, title: String) {
     TopAppBar(
         title = {
-            // Đã FIX: In đậm tiêu đề
             Text(text = title, fontWeight = FontWeight.Bold)
         },
-        // Đã FIX: Đặt màu nền Trắng và màu nội dung (chữ/icon) là màu onSurface
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             titleContentColor = MaterialTheme.colorScheme.onSurface,
             navigationIconContentColor = MaterialTheme.colorScheme.onSurface
         ),
@@ -308,7 +301,6 @@ fun TopBar(navController: NavController, title: String) {
                 Icon(
                     Icons.Default.ArrowBack,
                     contentDescription = "Back",
-                    // Icon Material mặc định đã đẹp, chỉ cần đảm bảo màu sắc đúng
                 )
             }
         }

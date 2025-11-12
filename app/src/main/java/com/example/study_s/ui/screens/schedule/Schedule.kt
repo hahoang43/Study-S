@@ -113,8 +113,8 @@ fun ScheduleScreen(navController: NavHostController) {
                     actions = {
                         IconButton(onClick = { }) {
                             BadgedBox(badge = {
-                                Badge(containerColor = Color.Red) {
-                                    Text("5", color = Color.White, fontSize = 10.sp)
+                                Badge(containerColor = MaterialTheme.colorScheme.error) {
+                                    Text("5", color = MaterialTheme.colorScheme.onError, fontSize = 10.sp)
                                 }
                             }) {
                                 Icon(Icons.Default.Notifications, contentDescription = "Notifications")
@@ -133,7 +133,7 @@ fun ScheduleScreen(navController: NavHostController) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0x2C8E8E93))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(vertical = 15.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
@@ -151,7 +151,7 @@ fun ScheduleScreen(navController: NavHostController) {
                         text = "Tháng ${currentMonth + 1} năm $currentYear",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF141515),
+                        color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
@@ -172,9 +172,9 @@ fun ScheduleScreen(navController: NavHostController) {
                     if (selectedDay != null) showDialog = true
                     else Toast.makeText(context, "Hãy chọn ngày trước khi thêm chú thích!", Toast.LENGTH_SHORT).show()
                 },
-                containerColor = Color(0xFF1976D2)
+                containerColor = MaterialTheme.colorScheme.primary
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add note", tint = Color.White)
+                Icon(Icons.Default.Add, contentDescription = "Add note", tint = MaterialTheme.colorScheme.onPrimary)
             }
         },
         bottomBar = { BottomNavBar(navController = navController, currentRoute = Routes.Schedule) } // ✅ Giữ thanh dưới
@@ -183,7 +183,7 @@ fun ScheduleScreen(navController: NavHostController) {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 20.dp)
         ) {
             CalendarView(
@@ -201,12 +201,12 @@ fun ScheduleScreen(navController: NavHostController) {
                 items(events) { event ->
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD))
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             Text("Ngày ${event.day}/${event.month}/${event.year}", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                             Text(event.subject, fontSize = 14.sp)
-                            Text("${event.timeStart} - ${event.timeEnd}", color = Color.Gray, fontSize = 13.sp)
+                            Text("${event.timeStart} - ${event.timeEnd}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                         }
                     }
                 }
@@ -329,9 +329,9 @@ fun CalendarView(
                                 .weight(1f)
                                 .aspectRatio(1f)
                                 .clip(CircleShape)
-                                .background(if (isSelected) Color(0xFF1976D2) else Color.Transparent)
+                                .background(if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
                                 .then(
-                                    if (isToday) Modifier.border(2.dp, Color(0xFF9E9E9E), CircleShape)
+                                    if (isToday) Modifier.border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
                                     else Modifier
                                 )
                                 .clickable(
@@ -340,13 +340,13 @@ fun CalendarView(
                                 ) { onDaySelected(day) },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(day.toString(), color = if (isSelected) Color.White else Color.Black)
+                            Text(day.toString(), color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
                             if (hasNote) {
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
                                         .size(6.dp)
-                                        .background(Color.Red, CircleShape)
+                                        .background(MaterialTheme.colorScheme.error, CircleShape)
                                 )
                             }
                         }

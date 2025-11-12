@@ -64,8 +64,8 @@ fun MyPostsScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = Color.White,
-                    navigationIconContentColor = Color.White
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
                 )
             )
         }
@@ -77,14 +77,14 @@ fun MyPostsScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Bạn chưa có bài viết nào.", color = Color.Gray)
+                Text("Bạn chưa có bài viết nào.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize()
-                    .background(Color(0xFFF8F9FA)),
+                    .background(MaterialTheme.colorScheme.background),
                 contentPadding = PaddingValues(16.dp)
             ) {
                 items(myPosts) { post ->
@@ -113,7 +113,7 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -130,7 +130,7 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
                 Spacer(Modifier.width(8.dp))
                 Column {
                     Text(author.name ?: "Bạn", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(formattedDate, fontSize = 12.sp, color = Color.Gray)
+                    Text(formattedDate, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -155,7 +155,7 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
             }
 
             Spacer(Modifier.height(12.dp))
-            Divider(color = Color(0xFFE0E0E0))
+            Divider(color = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.height(8.dp))
 
 // Like - Comment - Share (Facebook style)
@@ -171,7 +171,7 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Thích",
-                        tint = if (isLiked) Color.Red else Color.Gray
+                        tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.width(4.dp))
                     Text("${post.likesCount}", fontWeight = FontWeight.Medium)
@@ -182,7 +182,7 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
                     Icon(
                         imageVector = Icons.Default.ChatBubbleOutline,
                         contentDescription = "Bình luận",
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.width(4.dp))
                     Text("${post.commentsCount}", fontWeight = FontWeight.Medium)
@@ -193,7 +193,7 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
                     Icon(
                         imageVector = Icons.Default.Share,
                         contentDescription = "Chia sẻ",
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.width(4.dp))
                     Text("0", fontWeight = FontWeight.Medium)
@@ -206,4 +206,3 @@ fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
 @Composable
 fun MyPostsScreenPreview() {
     MyPostsScreen(navController = rememberNavController())}
-

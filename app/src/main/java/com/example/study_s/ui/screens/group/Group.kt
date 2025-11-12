@@ -125,7 +125,7 @@ fun GroupScreen(
                             modifier = Modifier.size(40.dp),
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = Color.White
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
                             Icon(Icons.Default.Add, contentDescription = "Tạo nhóm mới")
@@ -194,11 +194,11 @@ fun GroupItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = group.groupName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Black)
+                Text(text = group.groupName, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(text = group.description, fontSize = 14.sp, color = Color.Gray)
+                Text(text = group.description, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "${group.members.size} thành viên", fontSize = 14.sp, color = Color.Gray)
+                Text(text = "${group.members.size} thành viên", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(modifier = Modifier.width(16.dp))
             Button(
@@ -212,8 +212,8 @@ fun GroupItem(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isMember) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
-                    contentColor = Color.White
+                    containerColor = if (isMember) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                    contentColor = if (isMember) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
                 ),
                 shape = RoundedCornerShape(50),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)

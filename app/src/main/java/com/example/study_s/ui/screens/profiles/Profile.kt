@@ -1,6 +1,7 @@
 package com.example.study_s.ui.screens.profiles
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -196,8 +197,12 @@ private fun ProfileContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     ProfileStat(count = "0", label = "bài viết")
-                    ProfileStat(count = "148", label = "người theo dõi")
-                    ProfileStat(count = "225", label = "đang theo dõi")
+                    ProfileStat(count = user.followerCount.toString(), label = "người theo dõi") {
+                        navController.navigate("${Routes.FollowList}/${user.userId}/followers")
+                    }
+                    ProfileStat(count = user.followingCount.toString(), label = "đang theo dõi") {
+                        navController.navigate("${Routes.FollowList}/${user.userId}/following")
+                    }
                 }
             }
         }
@@ -218,8 +223,11 @@ private fun ProfileContent(
 }
 
 @Composable
-fun ProfileStat(count: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun ProfileStat(count: String, label: String, onClick: () -> Unit = {}) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
         Text(
             text = count,
             fontWeight = FontWeight.Bold,

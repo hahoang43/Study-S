@@ -21,6 +21,7 @@ object Routes {
     const val Profile = "profile"
     const val EditProfile = "edit_profile"
     const val OtherProfile = "other_profile"
+    const val FollowList = "follow_list"
 
     // Group
     const val GroupList = "group_list"

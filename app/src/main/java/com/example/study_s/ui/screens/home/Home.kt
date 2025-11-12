@@ -114,7 +114,7 @@ fun HomeScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF0F2F5)),
+                .background(MaterialTheme.colorScheme.background),
             state = lazyListState,
             contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp) // <-- 4. Thêm khoảng cách giữa các item
@@ -153,7 +153,7 @@ fun CreatePostTrigger(navController: NavController, modifier: Modifier = Modifie
             .fillMaxWidth()
             .clickable { navController.navigate(Routes.NewPost) }, // Nhấn vào đây để đi đến trang tạo bài
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
@@ -172,18 +172,18 @@ fun CreatePostTrigger(navController: NavController, modifier: Modifier = Modifie
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color.LightGray),
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentScale = ContentScale.Crop
             )
             Spacer(modifier = Modifier.width(12.dp))
             // Chữ mờ
-            Text("Bạn đang nghĩ gì?", color = Color.Gray, fontSize = 16.sp)
+            Text("Bạn đang nghĩ gì?", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
             Spacer(modifier = Modifier.weight(1f))
             // Icon ảnh cho trực quan
             Icon(
                 imageVector = Icons.Default.PhotoLibrary,
                 contentDescription = "Thêm ảnh",
-                tint = Color(0xFF4CAF50) // Màu xanh lá
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -217,7 +217,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                 navController.navigate("${Routes.PostDetail}/${post.postId}")
             },
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ){
         Column(modifier = Modifier.padding(12.dp)) {
@@ -232,7 +232,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray),
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentScale = ContentScale.Crop
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -245,10 +245,10 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                     val formattedDate = post.timestamp?.toDate()?.let {
                         SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
                     } ?: "Không rõ thời gian"
-                    Text(text = formattedDate, fontSize = 12.sp, color = Color.Gray)
+                    Text(text = formattedDate, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 IconButton(onClick = { /* TODO: Menu */ }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
+                    Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -357,7 +357,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Thích",
-                        tint = if (isLiked) Color.Red else Color.Gray
+                        tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(text = "${post.likesCount}") // Tự động cập nhật
@@ -366,7 +366,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                 IconButton(onClick = {
                     navController.navigate("${Routes.PostDetail}/${post.postId}")
                 }) {
-                    Icon(Icons.Default.Send, contentDescription = "Bình luận")
+                    Icon(Icons.Default.Send, contentDescription = "Bình luận", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(text = "${post.commentsCount}") // Tự động cập nhật
             }

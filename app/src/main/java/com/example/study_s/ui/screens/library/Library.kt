@@ -131,7 +131,7 @@ fun LibraryScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(color = Color.White)
+                    .background(color = MaterialTheme.colorScheme.background)
                     .padding(horizontal = 16.dp)
             ) {
                 LibraryTopBar(
@@ -221,7 +221,7 @@ fun LibraryTopBar(onAddClick: () -> Unit) {
             modifier = Modifier.size(40.dp),
             colors = IconButtonDefaults.iconButtonColors(
                 containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
+                contentColor = MaterialTheme.colorScheme.onPrimary
             )
         ) {
             Icon(
@@ -275,7 +275,7 @@ fun MyFilesContent(
                 enableDismissFromStartToEnd = false,
                 backgroundContent = {
                     val color = when (dismissState.targetValue) {
-                        SwipeToDismissBoxValue.EndToStart -> Color.Red.copy(alpha = 0.8f)
+                        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
                         else -> Color.Transparent
                     }
                     Box(
@@ -285,7 +285,7 @@ fun MyFilesContent(
                             .padding(horizontal = 20.dp),
                         contentAlignment = Alignment.CenterEnd
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onErrorContainer)
                     }
                 }
             ) {
@@ -328,7 +328,7 @@ fun FileListItem(file: LibraryFile, onFileClick: (LibraryFile) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 12.dp)
-            .border(1.dp, Color(0xFFB8C7E0), RoundedCornerShape(12.dp))
+            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
             .padding(16.dp)
             .clickable { onFileClick(file) },
         verticalAlignment = Alignment.CenterVertically,
@@ -349,7 +349,7 @@ fun FileListItem(file: LibraryFile, onFileClick: (LibraryFile) -> Unit) {
                 Text(
                     text = "Tải lên bởi: ${file.uploaderName}",
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -357,7 +357,7 @@ fun FileListItem(file: LibraryFile, onFileClick: (LibraryFile) -> Unit) {
             imageVector = Icons.Default.Download,
             contentDescription = "Download",
             modifier = Modifier.size(24.dp),
-            tint = Color(0xFF1A73E8)
+            tint = MaterialTheme.colorScheme.primary
         )
     }
 }
@@ -367,7 +367,7 @@ fun FileIcon(mimeType: String, fileUrl: String) {
     Box(
         modifier = Modifier
             .size(48.dp)
-            .background(Color(0xFFE0E0E0), RoundedCornerShape(8.dp)),
+            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp)),
         contentAlignment = Alignment.Center
     ) {
         if (mimeType.startsWith("image/")) {

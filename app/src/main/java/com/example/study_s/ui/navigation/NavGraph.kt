@@ -21,7 +21,8 @@ import com.example.study_s.ui.screens.message.MessageListScreen
 import com.example.study_s.ui.screens.notification.NotificationScreen
 import com.example.study_s.ui.screens.post.NewPostScreen
 import com.example.study_s.ui.screens.post.PostDetailScreen
-import com.example.study_s.ui.screens.profiles.StragerScreen
+import com.example.study_s.ui.screens.profiles.FollowListScreen
+import com.example.study_s.ui.screens.profiles.StragerProfileScreen
 import com.example.study_s.ui.screens.profiles.EditProfileScreen
 import com.example.study_s.ui.screens.profiles.ProfileScreen
 import com.example.study_s.ui.screens.schedule.ScheduleScreen
@@ -124,7 +125,7 @@ fun NavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
-            StragerScreen(navController = navController, userId = userId)
+            StragerProfileScreen(navController = navController, userId = userId)
         }
 
         // 👥 Group
@@ -161,5 +162,17 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.Policy) { PolicyScreen(navController) }
         composable(Routes.Support) { SupportScreen(navController) }
 
+        // Thêm điểm đến mới cho FollowListScreen
+        composable(
+            route = "${Routes.FollowList}/{userId}/{listType}",
+            arguments = listOf(
+                navArgument("userId") { type = NavType.StringType },
+                navArgument("listType") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            val listType = backStackEntry.arguments?.getString("listType") ?: ""
+            FollowListScreen(navController = navController, userId = userId, listType = listType)
+        }
     }
 }
