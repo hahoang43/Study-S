@@ -48,4 +48,17 @@ class LibraryViewModel(private val repository: LibraryRepository = LibraryReposi
             }
         }
     }
+
+    fun updateFileName(fileId: String, newName: String) {
+        viewModelScope.launch {
+            try {
+                repository.updateFileName(fileId, newName)
+                // Refresh the file list after update
+                loadAllFiles()
+            } catch (e: Exception) {
+                // Handle error
+                println("Error updating file name: ${e.message}")
+            }
+        }
+    }
 }

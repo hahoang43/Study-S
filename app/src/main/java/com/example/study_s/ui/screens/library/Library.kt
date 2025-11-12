@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,10 +28,14 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Slideshow
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,14 +45,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -232,7 +236,6 @@ fun LibraryTopBar(onAddClick: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyFilesContent(
     files: List<LibraryFile>,
@@ -240,57 +243,39 @@ fun MyFilesContent(
     currentUserId: String?,
     onFileClick: (LibraryFile) -> Unit
 ) {
-    var showDialog by remember { mutableStateOf<LibraryFile?>(null) }
+    var fileToDelete by remember { mutableStateOf<LibraryFile?>(null) }
+    var fileToEdit by remember { mutableStateOf<LibraryFile?>(null) }
 
-    showDialog?.let { fileToDelete ->
+    fileToDelete?.let { file ->
         DeleteConfirmationDialog(
             onConfirm = {
-                viewModel.deleteFile(fileToDelete)
-                showDialog = null
+                viewModel.deleteFile(file)
+                fileToDelete = null
             },
-            onDismiss = {
-                showDialog = null
-            }
+            onDismiss = { fileToDelete = null }
+        )
+    }
+
+    fileToEdit?.let { file ->
+        EditFileNameDialog(
+            file = file,
+            onConfirm = { newName ->
+                viewModel.updateFileName(file.id, newName)
+                fileToEdit = null
+            },
+            onDismiss = { fileToEdit = null }
         )
     }
 
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(items = files, key = { it.id }) { file ->
-            val dismissState = rememberSwipeToDismissBoxState(
-                confirmValueChange = {
-                    if (it == SwipeToDismissBoxValue.EndToStart) {
-                        if (file.uploaderId == currentUserId) {
-                            showDialog = file
-                        }
-                        false // Do not dismiss automatically
-                    } else {
-                        false
-                    }
-                }
+            FileListItem(
+                file = file,
+                onFileClick = onFileClick,
+                isUploader = file.uploaderId == currentUserId,
+                onEditClick = { fileToEdit = file },
+                onDeleteClick = { fileToDelete = file }
             )
-
-            SwipeToDismissBox(
-                state = dismissState,
-                enableDismissFromEndToStart = true,
-                enableDismissFromStartToEnd = false,
-                backgroundContent = {
-                    val color = when (dismissState.targetValue) {
-                        SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                        else -> Color.Transparent
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(color, shape = RoundedCornerShape(12.dp))
-                            .padding(horizontal = 20.dp),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onErrorContainer)
-                    }
-                }
-            ) {
-                 FileListItem(file = file, onFileClick = onFileClick)
-            }
         }
     }
 }
@@ -299,7 +284,13 @@ fun MyFilesContent(
 fun DiscoverContent(files: List<LibraryFile>, onFileClick: (LibraryFile) -> Unit) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         items(files) { file ->
-            FileListItem(file = file, onFileClick = onFileClick)
+            FileListItem(
+                file = file, 
+                onFileClick = onFileClick,
+                isUploader = false, // Cannot edit/delete in discover
+                onEditClick = {}, 
+                onDeleteClick = {}
+            )
         }
     }
 }
@@ -323,42 +314,114 @@ fun DeleteConfirmationDialog(
 }
 
 @Composable
-fun FileListItem(file: LibraryFile, onFileClick: (LibraryFile) -> Unit) {
-    Row(
+fun EditFileNameDialog(
+    file: LibraryFile,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var newName by remember(file.fileName) { mutableStateOf(file.fileName) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Chỉnh sửa tên tệp") },
+        text = {
+            TextField(
+                value = newName,
+                onValueChange = { newName = it },
+                label = { Text("Tên tệp mới") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(newName) },
+                enabled = newName.isNotBlank()
+            ) {
+                Text("Lưu")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Hủy") }
+        }
+    )
+}
+
+@Composable
+fun FileListItem(
+    file: LibraryFile,
+    onFileClick: (LibraryFile) -> Unit,
+    isUploader: Boolean,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    var showMenu by remember { mutableStateOf(false) }
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp)
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
-            .padding(16.dp)
-            .clickable { onFileClick(file) },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(bottom = 12.dp),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+        onClick = { onFileClick(file) }
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-            FileIcon(mimeType = file.mimeType, fileUrl = file.fileUrl)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = file.fileName,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Tải lên bởi: ${file.uploaderName}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                FileIcon(mimeType = file.mimeType, fileUrl = file.fileUrl)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = file.fileName,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Tải lên bởi: ${file.uploaderName}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            if (isUploader) {
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Chỉnh sửa") },
+                            onClick = {
+                                onEditClick()
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "Chỉnh sửa") }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Xóa") },
+                            onClick = {
+                                onDeleteClick()
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = "Xóa") }
+                        )
+                    }
+                }
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Download,
+                    contentDescription = "Download",
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
         }
-        Icon(
-            imageVector = Icons.Default.Download,
-            contentDescription = "Download",
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
     }
 }
 
@@ -408,5 +471,5 @@ fun PreviewFileListItem() {
         uploaderName = "Nguyễn Văn A",
         uploaderId = "123"
     )
-    FileListItem(file = file, onFileClick = {})
+    FileListItem(file = file, onFileClick = {}, isUploader = true, onEditClick = {}, onDeleteClick = {})
 }

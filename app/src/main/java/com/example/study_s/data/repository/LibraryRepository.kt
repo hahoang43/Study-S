@@ -98,6 +98,14 @@ class LibraryRepository {
         }
     }
 
+    suspend fun updateFileName(fileId: String, newName: String) {
+        if (fileId.isNotBlank()) {
+            filesCollection.document(fileId).update("fileName", newName).await()
+        } else {
+            println("Lỗi: ID tệp không hợp lệ, không thể cập nhật.")
+        }
+    }
+
     private fun saveFileMetadata(file: LibraryFile) {
         filesCollection.document().set(file).addOnFailureListener { e ->
             println("Lỗi lưu metadata vào Firestore: ${e.message}")
