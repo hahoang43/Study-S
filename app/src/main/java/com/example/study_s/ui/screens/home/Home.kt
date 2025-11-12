@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Bookmark // <-- 1. IMPORT MỚI
+import androidx.compose.material.icons.filled.BookmarkBorder // <-- 2. IMPORT MỚI
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
@@ -48,7 +50,10 @@ import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.PostViewModel
+import com.example.study_s.ui.screens.components.PostItem
 import com.google.firebase.auth.FirebaseAuth
+import androidx.compose.material.icons.filled.Favorite
+import com.example.study_s.ui.screens.components.PostItem
 import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.*
@@ -56,26 +61,6 @@ import android.widget.Toast
 import kotlinx.coroutines.launch // <-- 3. IMPORT
 import android.util.Log // <-- THÊM IMPORT NÀY
 // Hàm downloadFile (Giữ nguyên, không thay đổi)
-fun downloadFile(context: Context, url: String, fileName: String) {
-    // Log URL để kiểm tra xem nó là gs:// hay https://
-    Log.d("DownloadDebug", "Đang thử tải URL: $url")
-
-    try {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle(fileName)
-            .setDescription("Đang tải xuống...")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-        downloadManager.enqueue(request)
-        Toast.makeText(context, "Bắt đầu tải xuống $fileName", Toast.LENGTH_SHORT).show()
-    } catch (e: Exception) {
-        // ✅ THÊM DÒNG NÀY ĐỂ XEM LỖI TRONG LOGCAT
-        Log.e("DownloadDebug", "Lỗi DownloadManager: ${e.message}", e)
-
-        Toast.makeText(context, "Lỗi tải xuống: ${e.message}", Toast.LENGTH_LONG).show()
-    }
-}
 
 @Composable
 fun HomeScreen(
@@ -190,189 +175,6 @@ fun CreatePostTrigger(navController: NavController, modifier: Modifier = Modifie
 }
 
 
-@Composable
-fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewModel, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-
-    val userCache by viewModel.userCache.collectAsState()
-    val author = userCache[post.authorId] ?: User(name = "Đang tải...")
-    // ✅ Lấy thông tin người đăng bài từ Firestore
-    LaunchedEffect(post.authorId) {
-        if (post.authorId.isNotBlank()) {
-            viewModel.fetchUser(post.authorId)
-        }
-    }
-    val authorName = author.name
-    val authorAvatar = author.avatarUrl
-    // 3. Lấy thông tin like
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-    val isLiked = remember(post.likedBy) { // Re-check khi post.likedBy thay đổi
-        currentUserId?.let { post.likedBy.contains(it) } ?: false
-    }
-
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable { // 4. Click cả card để vào chi tiết
-                navController.navigate("${Routes.PostDetail}/${post.postId}")
-            },
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ){
-        Column(modifier = Modifier.padding(12.dp)) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Image(
-                    painter = rememberAsyncImagePainter(authorAvatar ?: "https://i.pravatar.cc/150?img=5"),
-                    contentDescription = "Avatar của ${authorName }",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = authorName ,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    val formattedDate = post.timestamp?.toDate()?.let {
-                        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
-                    } ?: "Không rõ thời gian"
-                    Text(text = formattedDate, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                IconButton(onClick = { /* TODO: Menu */ }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Nội dung bài viết
-            if (post.content.isNotBlank()) {
-                Text(
-                    text = post.content,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
-
-            // ✅ Hiển thị file hoặc ảnh đính kèm (Giữ nguyên)
-            if (post.imageUrl != null) {
-                val isImage = post.fileName?.let {
-                    it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) || it.endsWith(".png", true)
-                } ?: true
-
-                if (isImage) {
-                    // Ảnh
-                    Image(
-                        painter = rememberAsyncImagePainter(post.imageUrl),
-                        contentDescription = "Ảnh đính kèm",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 300.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    // Tệp
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Icon xem tệp
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                .clickable {
-                                    val encodedUrl = Uri.encode(post.imageUrl)
-                                    val encodedName = Uri.encode(post.fileName ?: "Tệp đính kèm")
-// Dòng mới
-                                    navController.navigate("${Routes.FilePreview}?fileUrl=$encodedUrl&fileName=$encodedName")
-                                           },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Description,
-                                contentDescription = "File Icon",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(16.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = post.fileName ?: "Tệp đính kèm",
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = "Nhấn biểu tượng để xem hoặc tải xuống",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        // Nút tải xuống
-                        IconButton(onClick = {
-                            downloadFile(context, post.imageUrl, post.fileName ?: "downloaded_file")
-                        }) {
-                            Icon(
-                                imageVector = Icons.Filled.AttachFile,
-                                contentDescription = "Tải xuống",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Footer (Giữ nguyên)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                // 5. Nút Like được cập nhật
-                IconButton(onClick = {
-                    viewModel.toggleLike(post.postId)
-                }) {
-                    Icon(
-                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                        contentDescription = "Thích",
-                        tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Text(text = "${post.likesCount}") // Tự động cập nhật
-                Spacer(modifier = Modifier.width(16.dp))
-                // 6. Nút bình luận (click vào sẽ đi đến chi tiết)
-                IconButton(onClick = {
-                    navController.navigate("${Routes.PostDetail}/${post.postId}")
-                }) {
-                    Icon(Icons.Default.Send, contentDescription = "Bình luận", tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text(text = "${post.commentsCount}") // Tự động cập nhật
-            }
-        }
-    }
-}
 
 @Preview(showBackground = true)
 @Composable

@@ -1,13 +1,13 @@
 package com.example.study_s.data.repository
-import com.example.study_s.data.model.CommentModel // <-- THÊM
+import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
-import com.google.firebase.firestore.FieldValue // <-- THÊM
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
 
 class PostRepository(
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance() // Sửa thành private val
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
     private val postCollection = firestore.collection("posts")
 
@@ -86,5 +86,41 @@ class PostRepository(
             .update(postRef, "commentsCount", FieldValue.increment(1))
             .commit()
             .await()
+    }
+
+    // ✅ HÀM MỚI: LƯU / BỎ LƯU BÀI VIẾT
+    suspend fun toggleSavePost(postId: String, userId: String) {
+        val postRef = postCollection.document(postId)
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(postRef)
+            val post = snapshot.toObject(PostModel::class.java)
+                ?: throw Exception("Post not found")
+
+            val savedBy = post.savedBy.toMutableList()
+            val isSaved = savedBy.contains(userId)
+
+            if (isSaved) {
+                // Đã lưu -> Bỏ lưu
+                savedBy.remove(userId)
+                transaction.update(postRef, "savedBy", savedBy)
+            } else {
+                // Chưa lưu -> Lưu
+                savedBy.add(userId)
+                transaction.update(postRef, "savedBy", savedBy)
+            }
+            null
+        }.await()
+    }
+
+    // ✅ HÀM MỚI: LẤY DANH SÁCH BÀI VIẾT ĐÃ LƯU CỦA USER
+    suspend fun getSavedPosts(userId: String): List<PostModel> {
+        val snapshot = postCollection
+            .whereArrayContains("savedBy", userId) // Tìm tất cả post có userId trong mảng 'savedBy'
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .get()
+            .await()
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
+        }
     }
 }

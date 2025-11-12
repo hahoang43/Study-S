@@ -53,5 +53,7 @@ object Routes {
     const val Settings = "settings"
     const val Policy = "policy"
     const val Support = "support"
+    const val SavedPosts = "saved_posts"
+
 
 }

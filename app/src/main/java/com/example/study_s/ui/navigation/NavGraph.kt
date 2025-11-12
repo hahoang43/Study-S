@@ -35,6 +35,7 @@ import com.example.study_s.viewmodel.AuthViewModelFactory
 import com.example.study_s.ui.screens.post.MyPostsScreen
 import java.net.URLDecoder
 import com.example.study_s.ui.screens.settings.SettingScreen
+import com.example.study_s.ui.screens.post.SavedPostsScreen
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -161,6 +162,9 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.Settings) {SettingScreen(navController)}
         composable(Routes.Policy) { PolicyScreen(navController) }
         composable(Routes.Support) { SupportScreen(navController) }
+        composable(Routes.SavedPosts) {
+            SavedPostsScreen(navController = navController)
+        }
 
         // Thêm điểm đến mới cho FollowListScreen
         composable(

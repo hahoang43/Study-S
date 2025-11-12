@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.ColorLens
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -71,6 +72,8 @@ import com.example.study_s.viewmodel.ProfileViewModel
 import com.example.study_s.viewmodel.ProfileViewModelFactory
 import com.example.study_s.viewmodel.SettingsViewModel
 import com.example.study_s.viewmodel.SettingsViewModelFactory
+import androidx.compose.material.icons.filled.BookmarkBorder
+
 
 @Composable
 fun SettingScreen(
@@ -151,6 +154,12 @@ fun SettingScreen(
                     icon = Icons.Default.Lock,
                     title = "Đổi mật khẩu",
                     onClick = { showChangePasswordDialog = true }
+                )
+                HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp)
+                SettingsItem(
+                    icon = Icons.Default.BookmarkBorder, // Icon mới
+                    title = "Bài viết đã lưu",
+                    onClick = { navController.navigate(Routes.SavedPosts) } // Điều hướng
                 )
             }
 

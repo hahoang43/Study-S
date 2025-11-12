@@ -34,6 +34,9 @@ class PostViewModel(
         get() = FirebaseAuth.getInstance().currentUser?.uid
     private val _userCache = MutableStateFlow<Map<String, User>>(emptyMap())
     val userCache = _userCache.asStateFlow()
+    // ✅ BIẾN MỚI: DANH SÁCH BÀI VIẾT ĐÃ LƯU
+    private val _savedPosts = MutableStateFlow<List<PostModel>>(emptyList())
+    val savedPosts = _savedPosts.asStateFlow()
     // Tải danh sách bài đăng từ Firestore
     fun loadPosts() {
         viewModelScope.launch {
@@ -169,6 +172,32 @@ class PostViewModel(
                 _userCache.update { currentCache ->
                     currentCache + (userId to User(userId = userId, name = "Lỗi tải tên"))
                 }
+            }
+        }
+    }
+    // ✅ HÀM MỚI: LƯU / BỎ LƯU
+    fun toggleSavePost(postId: String) {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            try {
+                repository.toggleSavePost(postId, userId)
+                // Cập nhật lại state của post
+                reloadStates(postId) // Dùng lại hàm helper để refresh
+                loadSavedPosts() // Tải lại danh sách đã lưu (nếu cần)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    // ✅ HÀM MỚI: TẢI DANH SÁCH BÀI VIẾT ĐÃ LƯU
+    fun loadSavedPosts() {
+        val userId = currentUserId ?: return
+        viewModelScope.launch {
+            try {
+                _savedPosts.value = repository.getSavedPosts(userId)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
