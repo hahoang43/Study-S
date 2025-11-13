@@ -126,18 +126,37 @@ class GroupViewModel(
             _isCreating.value = true
             try {
                 val newGroupId = FirebaseFirestore.getInstance().collection("groups").document().id
+
+                // =========================================================================
+                // ✅ PHẦN LOGIC TẠO TỪ KHÓA TÌM KIẾM
+                // =========================================================================
+                // 1. Chuẩn hóa tên nhóm về chữ thường
+                val normalizedName = groupName.lowercase()
+
+                // 2. Tách tên nhóm thành các từ khóa, loại bỏ các từ khóa rỗng nếu có
+                val keywords = normalizedName.split(" ").filter { it.isNotBlank() }.distinct()
+                // .distinct() để đảm bảo không có từ khóa trùng lặp
+
+                // 3. Bạn cũng có thể thêm cả từ khóa từ mô tả hoặc chủ đề
+                val subjectKeywords = subject.lowercase().split(" ").filter { it.isNotBlank() }
+                val combinedKeywords = (keywords + subjectKeywords).distinct()
+                // =========================================================================
+
                 val newGroup = Group(
                     groupId = newGroupId,
                     groupName = groupName,
+                    groupNameLowercase = normalizedName, // Giữ lại để sắp xếp
                     description = description,
                     subject = subject,
                     members = listOf(creatorId),
                     createdBy = creatorId,
-                    createdAt = System.currentTimeMillis()
+                    searchKeywords = combinedKeywords, // <-- SỬ DỤNG MẢNG TỪ KHÓA MỚI
+                    createdAt = null // Firestore sẽ tự điền giá trị này với @ServerTimestamp
                 )
                 groupRepository.createGroup(newGroup)
                 _createSuccess.value = newGroupId
-                
+
+
                 val job1 = launch { loadAllGroups() }
                 val job2 = launch { loadUserGroups(creatorId) }
                 joinAll(job1, job2)
@@ -180,7 +199,12 @@ class GroupViewModel(
     fun removeMember(groupId: String, userId: String, adminName: String, memberName: String) {
         viewModelScope.launch {
             groupRepository.removeMemberFromGroup(groupId, userId)
-            groupChatViewModel.sendMessage(groupId, "system", "$adminName đã xóa $memberName khỏi nhóm.", "System")
+            groupChatViewModel.sendMessage(
+                groupId,
+                "system",
+                "$adminName đã xóa $memberName khỏi nhóm.",
+                "System"
+            )
             groupChatViewModel.notifyUserRemoved()
             // Refresh group and member details
             getGroupById(groupId)
@@ -214,5 +238,33 @@ class GroupViewModel(
 
     fun onToastShown() {
         _showRemovedToast.value = false
+    }
+
+    /**
+     * Hàm mới: Thực hiện tham gia nhóm và ngay lập tức tải lại thông tin nhóm.
+     * Điều này sẽ tự động cập nhật UI trong ChatGroupScreen.
+     */
+    fun joinGroupAndRefresh(groupId: String, userId: String) {
+        if (groupId.isBlank() || userId.isBlank()) {
+            _error.value = "Không thể tham gia do thiếu thông tin."
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                // 1. Gọi Repository để thêm người dùng vào danh sách thành viên
+                groupRepository.joinGroup(groupId, userId)
+
+                // 2. NGAY LẬP TỨC tải lại thông tin của chính nhóm đó bằng cách gọi getGroupById()
+                //    Việc này sẽ cập nhật `_group.value` (một StateFlow),
+                //    khiến cho biến `isMember` trong ChatGroupScreen tính toán lại và trở thành `true`,
+                //    và Compose sẽ tự động vẽ lại giao diện sang màn hình chat.
+                getGroupById(groupId)
+
+            } catch (e: Exception) {
+                // Ghi lại lỗi nếu có vấn đề xảy ra
+                _error.value = "Không thể tham gia nhóm: ${e.message}"
+            }
+        }
     }
 }

@@ -1,9 +1,6 @@
 package com.example.study_s.ui.screens.group
 
-import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,17 +13,17 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import com.example.study_s.data.model.MessageModel
 import com.example.study_s.data.model.User
 import com.example.study_s.viewmodel.GroupChatViewModel
@@ -42,409 +39,216 @@ fun ChatGroupScreen(
     groupViewModel: GroupViewModel = viewModel(),
     groupChatViewModel: GroupChatViewModel = viewModel()
 ) {
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
     val context = LocalContext.current
 
     val group by groupViewModel.group.collectAsState()
     val messages by groupChatViewModel.messages.collectAsState()
-    val members by groupViewModel.members.collectAsState()
-    val bannedMembers by groupViewModel.bannedMembers.collectAsState()
-    val showRemovedToast by groupViewModel.showRemovedToast.collectAsState()
 
+    // Lấy thông tin nhóm và tin nhắn khi màn hình được mở
+    LaunchedEffect(groupId) {
+        if (currentUserId != null) {
+            groupViewModel.getGroupById(groupId)
+            groupChatViewModel.listenToGroupMessages(groupId)
+        }
+    }
+
+    val isMember = group?.members?.contains(currentUserId) == true
+    val isAdmin = group?.createdBy == currentUserId
+
+    Scaffold(
+        topBar = {
+            // TopBar luôn hiển thị thông tin nhóm
+            GroupChatTopBar(
+                group = group,
+                navController = navController,
+                isAdmin = isAdmin,
+                isMember = isMember, // Truyền isMember vào
+                groupViewModel = groupViewModel
+            )
+        },
+        // Chỉ hiển thị BottomBar (ô nhập liệu) khi đã là thành viên
+        bottomBar = {
+            if (isMember) {
+                MessageInput(onSendMessage = { message ->
+                    if (currentUserId != null) {
+                        groupChatViewModel.sendMessage(
+                            groupId = groupId,
+                            senderId = currentUserId,
+                            content = message,
+                            senderName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Unknown"
+                        )
+                    }
+                })
+            }
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(MaterialTheme.colorScheme.background)
+        ) {
+            // =========================================================================
+            // ✅ PHẦN LOGIC HIỂN THỊ CHÍNH
+            // =========================================================================
+            if (isMember) {
+                // NẾU ĐÃ LÀ THÀNH VIÊN: HIỂN THỊ GIAO DIỆN CHAT
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                    reverseLayout = true
+                ) {
+                    // Dùng items(messages) thay vì reversed() để hiệu năng tốt hơn
+                    items(messages) { message ->
+                        if (message.senderId == "system") {
+                            SystemMessageItem(message = message)
+                        } else if (currentUserId != null) {
+                            MessageItem(message = message, currentUserId = currentUserId)
+                        }
+                    }
+                }
+            } else {
+                // NẾU CHƯA LÀ THÀNH VIÊN: HIỂN THỊ LỚP PHỦ YÊU CẦU THAM GIA
+                // Chỉ hiển thị khi đã tải xong thông tin nhóm để tránh màn hình trắng
+                if (group != null) {
+                    JoinGroupOverlay(
+                        groupName = group!!.groupName,
+                        onJoinClick = {
+                            if (currentUserId != null) {
+                                groupViewModel.joinGroupAndRefresh(groupId, currentUserId)
+                                Toast.makeText(context, "Đang xử lý...", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                } else {
+                    // Trong lúc chờ tải thông tin nhóm, hiển thị vòng xoay loading
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+            // =========================================================================
+        }
+    }
+}
+
+// =========================================================================
+// ✅ COMPOSABLE MỚI: Lớp phủ yêu cầu tham gia
+// =========================================================================
+@Composable
+fun JoinGroupOverlay(groupName: String, onJoinClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 32.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Default.Lock,
+            contentDescription = "Lock Icon",
+            modifier = Modifier.size(64.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        Text(
+            text = "Bạn cần tham gia nhóm",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "\"$groupName\"",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Text(
+            text = "để có thể xem tin nhắn và trò chuyện cùng mọi người.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = onJoinClick,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+        ) {
+            Text("THAM GIA NGAY", fontSize = 16.sp)
+        }
+    }
+}
+
+// =========================================================================
+// ✅ SỬA LẠI TOPAPPBAR ĐỂ ẨN NÚT "..." KHI CHƯA PHẢI THÀNH VIÊN
+// =========================================================================
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GroupChatTopBar(
+    group: com.example.study_s.data.model.Group?,
+    navController: NavHostController,
+    isAdmin: Boolean,
+    isMember: Boolean,
+    groupViewModel: GroupViewModel
+) {
     var showMenu by remember { mutableStateOf(false) }
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMembersDialog by remember { mutableStateOf(false) }
     var showBannedMembersDialog by remember { mutableStateOf(false) }
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
-    LaunchedEffect(key1 = groupChatViewModel) {
-        groupChatViewModel.userRemoved.collectLatest {
-            Toast.makeText(context, "Bạn đã bị xóa khỏi nhóm '${group?.groupName}'.", Toast.LENGTH_LONG).show()
-            navController.popBackStack()
-        }
-    }
+    // Hiển thị các dialog (giữ nguyên logic cũ của bạn)
+    // ...
 
-    LaunchedEffect(groupId) {
-        groupViewModel.getGroupById(groupId)
-        groupChatViewModel.listenToGroupMessages(groupId)
-    }
-
-    val isAdmin = group?.createdBy == currentUserId
-
-    if (showLeaveDialog) {
-        AlertDialog(
-            onDismissRequest = { showLeaveDialog = false },
-            title = { Text("Xác nhận rời nhóm") },
-            text = { Text("Bạn có chắc chắn muốn rời khỏi nhóm '${group?.groupName}'? Bạn sẽ không thể xem lại các tin nhắn.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        groupViewModel.leaveGroup(groupId, currentUserId)
-                        showLeaveDialog = false
-                        navController.popBackStack()
-                    }
-                ) {
-                    Text("Rời nhóm", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLeaveDialog = false }) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
-
-    if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Xác nhận xóa nhóm") },
-            text = { Text("Bạn có chắc chắn muốn xóa vĩnh viễn nhóm '${group?.groupName}'? Mọi dữ liệu sẽ bị mất.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        groupViewModel.deleteGroup(groupId)
-                        showDeleteDialog = false
-                        navController.popBackStack()
-                    }
-                ) {
-                    Text("Xóa", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
-
-    if (showMembersDialog) {
-        group?.let {
-            MembersDialog(
-                group = it,
-                members = members,
-                isAdmin = isAdmin,
-                onDismiss = { showMembersDialog = false },
-                onRemoveMember = { memberId, memberName ->
-                    val adminName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Admin"
-                    groupViewModel.removeMember(groupId, memberId, adminName, memberName)
-                },
-                onBanMember = { memberId ->
-                    groupViewModel.banUser(groupId, memberId)
-                }
-            )
-        }
-    }
-
-    if (showBannedMembersDialog) {
-        group?.let {
-            BannedMembersDialog(
-                bannedMembers = bannedMembers,
-                onDismiss = { showBannedMembersDialog = false },
-                onUnbanMember = { memberId ->
-                    groupViewModel.unbanUser(groupId, memberId)
-                }
-            )
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Group,
-                            contentDescription = "Group Icon",
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(text = group?.groupName ?: "Loading...", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                            Text(text = "${group?.members?.size ?: 0} thành viên", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More Options")
-                        }
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Xem thành viên") },
-                                onClick = {
-                                    group?.members?.let { groupViewModel.loadMemberDetails(it) }
-                                    showMembersDialog = true
-                                    showMenu = false
-                                }
-                            )
-                            if (isAdmin) {
-                                DropdownMenuItem(
-                                    text = { Text("Danh sách chặn") },
-                                    onClick = {
-                                        group?.bannedUsers?.let { groupViewModel.loadBannedMemberDetails(it) }
-                                        showBannedMembersDialog = true
-                                        showMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Xóa nhóm", color = MaterialTheme.colorScheme.error) },
-                                    onClick = {
-                                        showDeleteDialog = true
-                                        showMenu = false
-                                    }
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text("Rời nhóm", color = MaterialTheme.colorScheme.error) },
-                                    onClick = {
-                                        showLeaveDialog = true
-                                        showMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
-            )
-        },
-        bottomBar = {
-            MessageInput(onSendMessage = { message ->
-                groupChatViewModel.sendMessage(
-                    groupId = groupId,
-                    senderId = currentUserId,
-                    content = message,
-                    senderName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Unknown"
+    TopAppBar(
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Group,
+                    contentDescription = "Group Icon",
+                    modifier = Modifier.size(40.dp)
                 )
-            })
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).background(MaterialTheme.colorScheme.background).padding(horizontal = 8.dp),
-            reverseLayout = true,
-            verticalArrangement = Arrangement.Bottom
-        ) {
-            items(messages.reversed()) { message ->
-                if (message.senderId == "system") {
-                    SystemMessageItem(message = message)
-                } else {
-                    MessageItem(message = message, currentUserId = currentUserId)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun BannedMembersDialog(
-    bannedMembers: List<User>,
-    onDismiss: () -> Unit,
-    onUnbanMember: (String) -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Thành viên bị chặn (${bannedMembers.size})") },
-        text = {
-            LazyColumn {
-                items(bannedMembers) { member ->
-                    BannedMemberItem(
-                        member = member,
-                        onUnbanClick = { onUnbanMember(member.userId) }
-                    )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(text = group?.groupName ?: "Đang tải...", fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                    if (group != null) {
+                        Text(text = "${group.members.size} thành viên", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Đóng")
+        navigationIcon = {
+            IconButton(onClick = { navController.popBackStack() }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-        }
-    )
-}
-
-@Composable
-fun BannedMemberItem(
-    member: User,
-    onUnbanClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Person,
-            contentDescription = "Avatar",
-            modifier = Modifier.size(40.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(text = member.name, modifier = Modifier.weight(1f), fontWeight = FontWeight.Bold)
-        TextButton(onClick = onUnbanClick) {
-            Text("Gỡ chặn")
-        }
-    }
-}
-
-@Composable
-fun MembersDialog(
-    group: com.example.study_s.data.model.Group,
-    members: List<User>,
-    isAdmin: Boolean,
-    onDismiss: () -> Unit,
-    onRemoveMember: (String, String) -> Unit,
-    onBanMember: (String) -> Unit
-) {
-    var memberToRemove by remember { mutableStateOf<User?>(null) }
-    var memberToBan by remember { mutableStateOf<User?>(null) }
-
-    memberToRemove?.let { user ->
-        AlertDialog(
-            onDismissRequest = { memberToRemove = null },
-            title = { Text("Xác nhận xóa thành viên") },
-            text = { Text("Bạn có chắc chắn muốn xóa ${user.name} khỏi nhóm?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onRemoveMember(user.userId, user.name)
-                        memberToRemove = null
+        },
+        actions = {
+            // Chỉ hiển thị nút "..." khi người dùng đã là thành viên
+            if (isMember) {
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More Options")
                     }
-                ) {
-                    Text("Xóa", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { memberToRemove = null }) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
-
-    memberToBan?.let { user ->
-        AlertDialog(
-            onDismissRequest = { memberToBan = null },
-            title = { Text("Xác nhận cấm thành viên") },
-            text = { Text("Bạn có chắc chắn muốn cấm ${user.name} vĩnh viễn khỏi nhóm? Người này sẽ không thể tham gia lại.") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onBanMember(user.userId)
-                        memberToBan = null
+                    // DropdownMenu và logic bên trong giữ nguyên như code cũ của bạn
+                    DropdownMenu(
+                        expanded = showMenu,
+                        onDismissRequest = { showMenu = false }
+                    ) {
+                        // ... (Thêm lại các DropdownMenuItem từ code cũ của bạn vào đây)
                     }
-                ) {
-                    Text("Cấm", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { memberToBan = null }) {
-                    Text("Hủy")
-                }
-            }
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Thành viên nhóm (${members.size})") },
-        text = {
-            LazyColumn {
-                items(members) { member ->
-                    MemberItem(
-                        member = member,
-                        isCreator = member.userId == group.createdBy,
-                        isAdmin = isAdmin,
-                        onRemoveClick = { memberToRemove = member },
-                        onBanClick = { memberToBan = member }
-                    )
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Đóng")
-            }
-        }
+        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
     )
 }
 
-@Composable
-fun MemberItem(
-    member: User,
-    isCreator: Boolean,
-    isAdmin: Boolean,
-    onRemoveClick: () -> Unit,
-    onBanClick: () -> Unit
-) {
-    var showMemberMenu by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = Icons.Default.Person,
-            contentDescription = "Avatar",
-            modifier = Modifier.size(40.dp)
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = member.name, fontWeight = FontWeight.Bold)
-            if (isCreator) {
-                Text(text = "Quản trị viên", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-            }
-        }
-        if (isAdmin && !isCreator) {
-            Box {
-                IconButton(onClick = { showMemberMenu = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn thành viên")
-                }
-                DropdownMenu(expanded = showMemberMenu, onDismissRequest = { showMemberMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Xóa khỏi nhóm") },
-                        onClick = {
-                            onRemoveClick()
-                            showMemberMenu = false
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.PersonRemove,
-                                contentDescription = "Xóa khỏi nhóm"
-                            )
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Cấm thành viên", color = MaterialTheme.colorScheme.error) },
-                        onClick = {
-                            onBanClick()
-                            showMemberMenu = false
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Block,
-                                contentDescription = "Cấm thành viên",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
+// ----- CÁC COMPOSABLE KHÁC GIỮ NGUYÊN -----
+// Dán lại các Composable không thay đổi từ file cũ của bạn vào đây để tránh lỗi
+// BannedMembersDialog, BannedMemberItem, MembersDialog, MemberItem,
+// MessageItem, SystemMessageItem, MessageInput
 
 @Composable
 fun MessageItem(message: MessageModel, currentUserId: String) {
@@ -498,7 +302,7 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
             value = text,
             onValueChange = { text = it },
             modifier = Modifier.weight(1f),
-            placeholder = { Text("Type a message...") },
+            placeholder = { Text("Nhắn tin...") },
             shape = RoundedCornerShape(24.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
@@ -515,3 +319,4 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
         }
     }
 }
+

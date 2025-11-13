@@ -1,7 +1,7 @@
-// file: data/repository/UserRepository.kt
 package com.example.study_s.data.repository
 
 import android.net.Uri
+import android.util.Log
 import com.example.study_s.data.model.FollowUserData
 import com.example.study_s.data.model.User
 import com.google.firebase.auth.FirebaseAuth
@@ -25,6 +25,9 @@ class UserRepository {
         return auth.currentUser?.uid
     }
 
+    // =======================================================================================
+    // 1. HÀM TẠO/CẬP NHẬT USER (TỪ FILE 2, ĐÃ THÊM nameLowercase)
+    // =======================================================================================
     suspend fun upsertUserProfile(firebaseUser: FirebaseUser): Result<Unit> {
         return try {
             val userRef = usersCollection.document(firebaseUser.uid)
@@ -36,6 +39,8 @@ class UserRepository {
 
                 if ((existingUser?.name.isNullOrEmpty() || existingUser?.name == "New User") && !firebaseUser.displayName.isNullOrEmpty()) {
                     updates["name"] = firebaseUser.displayName!!
+                    // QUAN TRỌNG: Cập nhật bản chữ thường để tìm kiếm
+                    updates["nameLowercase"] = firebaseUser.displayName!!.lowercase()
                 }
 
                 if (existingUser?.avatarUrl.isNullOrEmpty() && firebaseUser.photoUrl != null) {
@@ -50,13 +55,16 @@ class UserRepository {
                     userRef.update(updates).await()
                 }
             } else {
+                val newName = firebaseUser.displayName ?: "New User"
                 val newUser = User(
                     userId = firebaseUser.uid,
-                    name = firebaseUser.displayName ?: "New User",
+                    name = newName,
                     email = firebaseUser.email ?: "",
                     avatarUrl = firebaseUser.photoUrl?.toString(),
                     createdAt = Date(),
-                    bio = "Chào mừng đến với StudyS!"
+                    bio = "Chào mừng đến với StudyS!",
+                    // Thêm trường chữ thường khi tạo user mới
+                    nameLowercase = newName.lowercase()
                 )
                 userRef.set(newUser).await()
             }
@@ -66,6 +74,9 @@ class UserRepository {
         }
     }
 
+    // =======================================================================================
+    // 2. HÀM TẠO PROFILE (TỪ FILE 2, ĐÃ THÊM nameLowercase)
+    // =======================================================================================
     suspend fun createUserProfile(userId: String, name: String, email: String): Result<Unit> {
         return try {
             val newUser = User(
@@ -74,7 +85,9 @@ class UserRepository {
                 email = email,
                 createdAt = Date(),
                 bio = "Chào mừng đến với StudyS!",
-                avatarUrl = null
+                avatarUrl = null,
+                // Thêm trường chữ thường khi tạo user mới
+                nameLowercase = name.lowercase()
             )
             usersCollection.document(userId).set(newUser).await()
             Result.success(Unit)
@@ -83,6 +96,34 @@ class UserRepository {
         }
     }
 
+    // =======================================================================================
+    // 3. HÀM TÌM KIẾM (TỪ FILE 2, SỬ DỤNG nameLowercase)
+    // =======================================================================================
+    suspend fun searchUsers(query: String): List<User> {
+        if (query.isBlank()) {
+            return emptyList()
+        }
+        return try {
+            val searchQuery = query.lowercase()
+            val endQuery = searchQuery + '\uf8ff'
+
+            val querySnapshot = usersCollection
+                .whereGreaterThanOrEqualTo("nameLowercase", searchQuery)
+                .whereLessThan("nameLowercase", endQuery)
+                .limit(15)
+                .get()
+                .await()
+
+            querySnapshot.toObjects(User::class.java)
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error searching users", e)
+            emptyList()
+        }
+    }
+
+    // =======================================================================================
+    // 4. HÀM GET VÀ UPLOAD (TỪ CẢ HAI FILE, GIỮ NGUYÊN)
+    // =======================================================================================
     suspend fun getUserProfile(userId: String): Result<User?> {
         return try {
             val document = usersCollection.document(userId).get().await()
@@ -104,6 +145,9 @@ class UserRepository {
         }
     }
 
+    // =======================================================================================
+    // 5. HÀM CẬP NHẬT PROFILE (TỪ FILE 2, ĐÃ THÊM nameLowercase)
+    // =======================================================================================
     suspend fun updateUserProfile(name: String, bio: String, newAvatarUri: Uri?): Result<Unit> {
         val user = auth.currentUser ?: return Result.failure(Exception("Người dùng chưa đăng nhập"))
         val userId = user.uid
@@ -112,6 +156,8 @@ class UserRepository {
             val updateData = mutableMapOf<String, Any>()
             updateData["name"] = name
             updateData["bio"] = bio
+            // QUAN TRỌNG: Cập nhật cả bản chữ thường khi đổi tên
+            updateData["nameLowercase"] = name.lowercase()
 
             var newAvatarUrl: String? = null
 
@@ -141,6 +187,9 @@ class UserRepository {
         }
     }
 
+    // =======================================================================================
+    // 6. CÁC HÀM FOLLOW/UNFOLLOW/GETTERS (TỪ FILE 1, GIỮ NGUYÊN)
+    // =======================================================================================
     suspend fun followUser(targetUserId: String): Result<Unit> {
         val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not logged in"))
         if (currentUserId == targetUserId) {
@@ -219,6 +268,7 @@ class UserRepository {
             Result.failure(e)
         }
     }
+
     suspend fun getFollowers(userId: String): Result<List<FollowUserData>> {
         return try {
             val snapshot = followsCollection.document(userId).collection("followers").get().await()

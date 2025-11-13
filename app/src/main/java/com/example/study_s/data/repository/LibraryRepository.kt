@@ -105,7 +105,30 @@ class LibraryRepository {
             println("Lỗi: ID tệp không hợp lệ, không thể cập nhật.")
         }
     }
+    suspend fun searchFiles(query: String): List<LibraryFile> {
+        // Luôn kiểm tra query trống để tránh đọc dữ liệu không cần thiết
+        if (query.isBlank()) {
+            return emptyList()
+        }
 
+        return try {
+            // Firestore yêu cầu phải có orderBy khi dùng startAt/endAt
+            // Giả sử bạn muốn tìm kiếm dựa trên trường "fileName"
+            val snapshot = filesCollection
+                .orderBy("fileName")
+                .startAt(query)
+                .endAt(query + '\uf8ff') // Kỹ thuật tìm kiếm theo tiền tố
+                .limit(20) // Giới hạn kết quả để tối ưu
+                .get()
+                .await()
+
+            snapshot.toObjects(LibraryFile::class.java)
+        } catch (e: Exception) {
+            // Ghi lại lỗi để dễ dàng debug
+            android.util.Log.e("LibraryRepository", "Error searching files", e)
+            emptyList() // Trả về danh sách rỗng nếu có lỗi
+        }
+    }
     private fun saveFileMetadata(file: LibraryFile) {
         filesCollection.document().set(file).addOnFailureListener { e ->
             println("Lỗi lưu metadata vào Firestore: ${e.message}")

@@ -1,22 +1,44 @@
 package com.example.study_s.data.repository
+import android.util.Log
 import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
-
+import com.example.study_s.data.model.User // <-- Import model User
+import com.google.firebase.auth.FirebaseAuth
 class PostRepository(
-    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
+    private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
+            private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
     private val postCollection = firestore.collection("posts")
-
+    private val usersCollection = firestore.collection("users")
     // 🟢 Tạo bài đăng mới
+    // PHIÊN BẢN ĐÃ SỬA (ĐÚNG)
     suspend fun createPost(post: PostModel) {
+        // 1. Lấy ID của người dùng đang đăng nhập.
+        val userId = auth.currentUser?.uid ?: throw Exception("User not logged in")
         val newPostRef = postCollection.document()
-        // Sửa: postId được gán trong PostModel, không cần copy
-        newPostRef.set(post).await()
+
+        // 2. Dùng ID đó để lấy toàn bộ thông tin profile của người dùng từ collection 'users'.
+        val userDoc = usersCollection.document(userId).get().await()
+        val currentUser = userDoc.toObject(User::class.java) ?: throw Exception("User profile not found")
+
+        // 3. TẠO RA một đối tượng `finalPost` HOÀN CHỈNH.
+        // Nó lấy thông tin gốc từ 'post' (content, imageUrl) và bổ sung thêm các thông tin còn thiếu.
+        val finalPost = post.copy(
+            postId = newPostRef.id,
+            authorId = userId,
+            authorName = currentUser.name,         // <-- Lấy từ profile
+            authorAvatarUrl = currentUser.avatarUrl, // <-- Lấy từ profile
+            contentLowercase = post.content.lowercase() // <-- Tự tính toán
+        )
+
+        // 4. Lưu đối tượng HOÀN CHỈNH này lên Firestore.
+        newPostRef.set(finalPost).await()
     }
+
 
     // 🟢 Lấy toàn bộ danh sách bài đăng
     suspend fun getAllPosts(): List<PostModel> {
@@ -26,6 +48,33 @@ class PostRepository(
             .await()
         return snapshot.documents.mapNotNull { doc ->
             doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
+        }
+    }
+    /**
+     * HÀM TÌM KIẾM BÀI VIẾT (CHO MÀN HÌNH SEARCH)
+     * Tìm kiếm không phân biệt hoa thường trên trường 'contentLowercase' của bài viết.
+     */
+    suspend fun searchPosts(query: String): List<PostModel> {
+        if (query.isBlank()) {
+            return emptyList()
+        }
+        return try {
+            val searchQuery = query.lowercase()
+            val endQuery = searchQuery + '\uf8ff'
+
+            val querySnapshot = postCollection
+                .whereGreaterThanOrEqualTo("contentLowercase", searchQuery)
+                .whereLessThan("contentLowercase", endQuery)
+                .limit(20)
+                .get()
+                .await()
+
+            querySnapshot.documents.mapNotNull { doc ->
+                doc.toObject(PostModel::class.java)?.apply { postId = doc.id }
+            }
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error searching posts", e)
+            emptyList()
         }
     }
 
