@@ -177,13 +177,6 @@ private fun ProfileContent(
                     }
                 }
 
-
-                Text(
-                    text = user.email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
