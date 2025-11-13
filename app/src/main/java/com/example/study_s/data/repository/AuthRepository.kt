@@ -1,3 +1,4 @@
+// BẮT ĐẦU FILE: data/repository/AuthRepository.kt
 package com.example.study_s.data.repository
 
 import com.google.firebase.auth.EmailAuthProvider
@@ -9,8 +10,33 @@ import kotlinx.coroutines.tasks.await
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
+    // Biến này đã có, giữ nguyên
     val currentUser: FirebaseUser?
         get() = auth.currentUser
+
+    // ======================================================================
+    // ✅ THÊM HÀM CÒN THIẾU VÀO ĐÂY
+    // ======================================================================
+    /**
+     * Tải lại dữ liệu người dùng hiện tại từ máy chủ Firebase.
+     * Rất quan trọng để đảm bảo các màn hình luôn có thông tin mới nhất sau khi cập nhật.
+     * Trả về một Result chứa FirebaseUser đã được làm mới.
+     */
+    suspend fun reloadCurrentUser(): Result<FirebaseUser?> {
+        return try {
+            // Yêu cầu Firebase tải lại dữ liệu của người dùng hiện tại
+            auth.currentUser?.reload()?.await()
+            // Sau khi tải lại, auth.currentUser sẽ chứa thông tin mới nhất
+            Result.success(auth.currentUser)
+        } catch (e: Exception) {
+            // Nếu có lỗi (ví dụ: mất mạng), trả về failure
+            Result.failure(e)
+        }
+    }
+    // ======================================================================
+    // CÁC HÀM CŨ CỦA BẠN ĐƯỢC GIỮ NGUYÊN HOÀN TOÀN
+    // ======================================================================
+
     /**
      * Đăng nhập bằng email và mật khẩu.
      * Trả về `Result<FirebaseUser>` để ViewModel có thể lấy thông tin người dùng.
@@ -37,7 +63,6 @@ class AuthRepository(
         }
     }
 
-    // NOTE: THÊM HÀM CÒN THIẾU NÀY VÀO
     /**
      * Đăng ký người dùng mới bằng email và mật khẩu.
      * Trả về một Result chứa FirebaseUser nếu thành công để ViewModel có thể lấy uid.
@@ -45,30 +70,26 @@ class AuthRepository(
     suspend fun signUp(email: String, pass: String): Result<FirebaseUser> {
         return try {
             val authResult = auth.createUserWithEmailAndPassword(email, pass).await()
-            // Nếu authResult hoặc user là null, ném ra một ngoại lệ để khối catch bắt được
             val firebaseUser = authResult.user ?: throw IllegalStateException("Firebase user is null after sign up")
             Result.success(firebaseUser)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
-    // ===== BẮT ĐẦU THÊM HÀM MỚI =====
+
     suspend fun linkPassword(password: String): Result<FirebaseUser> {
         return try {
             val user = auth.currentUser
-            if (user == null) {
-                return Result.failure(Exception("Không có người dùng nào đang đăng nhập."))
-            }
-            // Tạo chứng thực mật khẩu mới
+                ?: return Result.failure(Exception("Không có người dùng nào đang đăng nhập."))
             val credential = EmailAuthProvider.getCredential(user.email!!, password)
-            // Liên kết chứng thực này với tài khoản hiện tại
             auth.currentUser!!.linkWithCredential(credential).await()
             Result.success(user)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
     /** Đăng xuất Firebase */
     fun signOut() = auth.signOut()
-
 }
+// KẾT THÚC FILE

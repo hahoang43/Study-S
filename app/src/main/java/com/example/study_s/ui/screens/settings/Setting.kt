@@ -73,7 +73,10 @@ import com.example.study_s.viewmodel.ProfileViewModelFactory
 import com.example.study_s.viewmodel.SettingsViewModel
 import com.example.study_s.viewmodel.SettingsViewModelFactory
 import androidx.compose.material.icons.filled.BookmarkBorder
-
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import com.example.study_s.R
 
 @Composable
 fun SettingScreen(
@@ -85,10 +88,15 @@ fun SettingScreen(
     var showChangePasswordDialog by remember { mutableStateOf(false) }
     val actionState = profileViewModel.actionState
     val context = LocalContext.current
+    // ✅ BƯỚC 1: Lắng nghe thông tin người dùng từ AuthViewModel
+    val currentUser by authViewModel.currentUser.collectAsState()
 
     val isDarkTheme by settingsViewModel.isDarkTheme.collectAsState()
 
+    // ✅ BƯỚC 2: Yêu cầu làm mới dữ liệu mỗi khi màn hình được mở
     LaunchedEffect(Unit) {
+        authViewModel.reloadUserData()
+
         authViewModel.event.collect { event ->
             when (event) {
                 is AuthEvent.OnSignOut -> {
@@ -106,6 +114,7 @@ fun SettingScreen(
                 Toast.makeText(context, actionState.message, Toast.LENGTH_LONG).show()
                 showChangePasswordDialog = false
                 profileViewModel.resetActionState()
+                authViewModel.reloadUserData()
             }
             is ProfileActionState.Failure -> {
                 Toast.makeText(context, actionState.message, Toast.LENGTH_LONG).show()
@@ -134,15 +143,16 @@ fun SettingScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
+            // ✅ BƯỚC 3: Truyền dữ liệu động từ `currentUser` vào `UserProfileSection`
             UserProfileSection(
-                username = "An Nguyen",
-                email = "an.nguyen@email.com",
-                avatarUrl = "https://i.pravatar.cc/150?img=1",
-                onProfileClicked = { navController.navigate(Routes.Profile) }
+                username = currentUser?.displayName ?: "Đang tải...",
+                email = currentUser?.email ?: "",
+                avatarUrl = currentUser?.photoUrl?.toString(), // Truyền URL có thể null
+                onProfileClicked = { /* Tạm thời không làm gì khi nhấn vào đây */ }
             )
 
+            // ... (Phần còn lại của code giữ nguyên y như cũ)
             Spacer(modifier = Modifier.height(16.dp))
-
             SettingsGroup(title = "Tài khoản") {
                 SettingsItem(
                     icon = Icons.Default.Person,
@@ -157,9 +167,9 @@ fun SettingScreen(
                 )
                 HorizontalDivider(modifier = Modifier.padding(start = 56.dp), thickness = 0.5.dp)
                 SettingsItem(
-                    icon = Icons.Default.BookmarkBorder, // Icon mới
+                    icon = Icons.Default.BookmarkBorder,
                     title = "Bài viết đã lưu",
-                    onClick = { navController.navigate(Routes.SavedPosts) } // Điều hướng
+                    onClick = { navController.navigate(Routes.SavedPosts) }
                 )
             }
 
@@ -288,7 +298,7 @@ fun ChangePasswordDialog(
 fun UserProfileSection(
     username: String,
     email: String,
-    avatarUrl: String,
+    avatarUrl: String?, // Chấp nhận URL có thể là null
     onProfileClicked: () -> Unit
 ) {
     Row(
@@ -299,11 +309,15 @@ fun UserProfileSection(
             .padding(horizontal = 16.dp, vertical = 24.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
+        AsyncImage(
+            model = avatarUrl,
+            contentDescription = "User Avatar",
             modifier = Modifier
                 .size(64.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .clip(CircleShape),
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = R.drawable.ic_profile),
+            error = painterResource(id = R.drawable.ic_profile)
         )
         Spacer(modifier = Modifier.size(16.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -318,14 +332,10 @@ fun UserProfileSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Icon(
-            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-            contentDescription = "Edit Profile",
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+
     }
 }
+
 
 @Composable
 fun SettingsGroup(

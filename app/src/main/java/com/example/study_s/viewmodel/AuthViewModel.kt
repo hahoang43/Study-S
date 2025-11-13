@@ -10,7 +10,7 @@ import com.example.study_s.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
-
+import android.util.Log
 // Thêm một Sealed Class cho các sự kiện điều hướng một lần
 sealed class AuthEvent {
     object OnSignOut : AuthEvent()
@@ -35,6 +35,25 @@ class AuthViewModel(
     // NOTE 1: Thêm SharedFlow để xử lý sự kiện đăng xuất
     private val _event = MutableSharedFlow<AuthEvent>()
     val event = _event.asSharedFlow()
+    // 1. Tạo StateFlow để cung cấp thông tin người dùng cho các màn hình khác
+    private val _currentUser = MutableStateFlow(repo.currentUser)
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser
+
+    /**
+     * Hàm này được SettingScreen gọi để làm mới thông tin.
+     * Nó yêu cầu AuthRepository tải lại dữ liệu từ server và cập nhật StateFlow.
+     */
+    fun reloadUserData() {
+        viewModelScope.launch {
+            val result = repo.reloadCurrentUser() // Giả định hàm này tồn tại trong Repo
+            result.onSuccess { reloadedUser ->
+                _currentUser.value = reloadedUser
+                Log.d("AuthViewModel", "User data reloaded for ${reloadedUser?.displayName}")
+            }.onFailure { exception ->
+                Log.e("AuthViewModel", "Failed to reload user data", exception)
+            }
+        }
+    }
     /**
      * HÀM CHUNG: Đồng bộ hồ sơ người dùng lên Firestore sau khi Firebase Auth thành công.
      */
