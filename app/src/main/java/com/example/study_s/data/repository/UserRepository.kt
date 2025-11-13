@@ -1,4 +1,5 @@
-package com.example.study_s.data.repository
+// BẮT ĐẦU FILE: data/repository/UserRepository.kt
+package com.example.study_s.data.repository // Đảm bảo đây là package chính xác của bạn
 
 import android.net.Uri
 import android.util.Log
@@ -9,25 +10,29 @@ import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
+// import com.google.firebase.storage.FirebaseStorage // <<-- ❌ KHÔNG DÙNG NỮA
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
 class UserRepository {
 
     private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
+    // private val storage = FirebaseStorage.getInstance() // <<-- ❌ KHÔNG DÙNG NỮA
     private val auth = FirebaseAuth.getInstance()
     private val usersCollection = db.collection("users")
     private val followsCollection = db.collection("follows")
+
+    // ✅ KHỞI TẠO IMAGE REPOSITORY ĐỂ SỬ DỤNG
+    private val imageRepository = ImageRepository()
 
     private fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
     }
 
     // =======================================================================================
-    // 1. CẬP NHẬT HÀM UPSERT USER PROFILE
+    // CÁC HÀM KHÁC GIỮ NGUYÊN (upsert, createUserProfile, searchUsers, getProfile...)
     // =======================================================================================
+
     suspend fun upsertUserProfile(firebaseUser: FirebaseUser): Result<Unit> {
         return try {
             val userRef = usersCollection.document(firebaseUser.uid)
@@ -41,11 +46,9 @@ class UserRepository {
                     val newName = firebaseUser.displayName!!
                     updates["name"] = newName
                     updates["nameLowercase"] = newName.lowercase()
-                    // ✅ Tạo và cập nhật searchKeywords khi có tên mới từ Google/Facebook
                     val keywords = newName.lowercase().split(" ").filter { it.isNotBlank() }.distinct()
                     updates["searchKeywords"] = keywords
                 }
-                // ... (các phần cập nhật avatar, email giữ nguyên)
                 if (existingUser?.avatarUrl.isNullOrEmpty() && firebaseUser.photoUrl != null) {
                     updates["avatarUrl"] = firebaseUser.photoUrl.toString()
                 }
@@ -60,7 +63,6 @@ class UserRepository {
             } else {
                 val newName = firebaseUser.displayName ?: "New User"
                 val nameLowercase = newName.lowercase()
-                // ✅ Tạo searchKeywords khi tạo user mới
                 val keywords = nameLowercase.split(" ").filter { it.isNotBlank() }.distinct()
 
                 val newUser = User(
@@ -71,7 +73,7 @@ class UserRepository {
                     createdAt = Date(),
                     bio = "Chào mừng đến với StudyS!",
                     nameLowercase = nameLowercase,
-                    searchKeywords = keywords // <-- Gán từ khóa
+                    searchKeywords = keywords
                 )
                 userRef.set(newUser).await()
             }
@@ -81,13 +83,9 @@ class UserRepository {
         }
     }
 
-    // =======================================================================================
-    // 2. CẬP NHẬT HÀM CREATE USER PROFILE
-    // =======================================================================================
     suspend fun createUserProfile(userId: String, name: String, email: String): Result<Unit> {
         return try {
             val nameLowercase = name.lowercase()
-            // ✅ Tạo searchKeywords khi tạo profile mới
             val keywords = nameLowercase.split(" ").filter { it.isNotBlank() }.distinct()
 
             val newUser = User(
@@ -98,7 +96,7 @@ class UserRepository {
                 bio = "Chào mừng đến với StudyS!",
                 avatarUrl = null,
                 nameLowercase = nameLowercase,
-                searchKeywords = keywords // <-- Gán từ khóa
+                searchKeywords = keywords
             )
             usersCollection.document(userId).set(newUser).await()
             Result.success(Unit)
@@ -107,22 +105,17 @@ class UserRepository {
         }
     }
 
-    // =======================================================================================
-    // 3. CẬP NHẬT HÀM TÌM KIẾM
-    // =======================================================================================
     suspend fun searchUsers(query: String): List<User> {
         val searchQuery = query.lowercase().trim()
         if (searchQuery.isBlank()) {
             return emptyList()
         }
         return try {
-            // ✅ Thay đổi logic tìm kiếm để sử dụng 'whereArrayContains'
             val querySnapshot = usersCollection
                 .whereArrayContains("searchKeywords", searchQuery)
                 .limit(15)
                 .get()
                 .await()
-
             querySnapshot.toObjects(User::class.java)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error searching users", e)
@@ -130,11 +123,7 @@ class UserRepository {
         }
     }
 
-    // =======================================================================================
-    // 4. HÀM GET VÀ UPLOAD (GIỮ NGUYÊN)
-    // =======================================================================================
     suspend fun getUserProfile(userId: String): Result<User?> {
-        // ... (Giữ nguyên không đổi)
         return try {
             val document = usersCollection.document(userId).get().await()
             val user = document.toObject(User::class.java)
@@ -144,71 +133,65 @@ class UserRepository {
         }
     }
 
-    private suspend fun uploadAvatar(userId: String, imageUri: Uri): Result<String> {
-        // ... (Giữ nguyên không đổi)
-        return try {
-            val storageRef = storage.reference.child("avatars/$userId/profile.jpg")
-            storageRef.putFile(imageUri).await()
-            val downloadUrl = storageRef.downloadUrl.await().toString()
-            Result.success(downloadUrl)
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
+    // private suspend fun uploadAvatar(userId: String, imageUri: Uri): Result<String> { ... }
+    // <<-- ❌ KHÔNG DÙNG HÀM NÀY NỮA, CÓ THỂ XÓA BỎ
 
     // =======================================================================================
-    // 5. CẬP NHẬT HÀM UPDATE USER PROFILE
+    // 5. ✅ HÀM UPDATEUSERPROFILE ĐÃ ĐƯỢC "CẤY GHÉP" LOGIC CLOUDINARY
     // =======================================================================================
     suspend fun updateUserProfile(name: String, bio: String, newAvatarUri: Uri?): Result<Unit> {
         val user = auth.currentUser ?: return Result.failure(Exception("Người dùng chưa đăng nhập"))
         val userId = user.uid
 
         return try {
+            // BƯỚC 1: XỬ LÝ ẢNH MỚI BẰNG CLOUDINARY
+            // Nếu có ảnh mới (newAvatarUri khác null), tải nó lên Cloudinary và lấy URL.
+            // Nếu không, newCloudinaryUrl sẽ là null.
+            val newCloudinaryUrl = if (newAvatarUri != null) {
+                imageRepository.uploadImage(newAvatarUri).getOrThrow()
+            } else {
+                null
+            }
+
+            // BƯỚC 2: CHUẨN BỊ DỮ LIỆU CẬP NHẬT
             val updateData = mutableMapOf<String, Any>()
             updateData["name"] = name
             updateData["bio"] = bio
             val nameLowercase = name.lowercase()
             updateData["nameLowercase"] = nameLowercase
-
-            // ✅ Tạo và cập nhật lại searchKeywords khi người dùng đổi tên
             val keywords = nameLowercase.split(" ").filter { it.isNotBlank() }.distinct()
             updateData["searchKeywords"] = keywords
 
-            var newAvatarUrl: String? = null
-
-            if (newAvatarUri != null) {
-                uploadAvatar(userId, newAvatarUri).onSuccess { downloadUrl ->
-                    updateData["avatarUrl"] = downloadUrl
-                    newAvatarUrl = downloadUrl
-                }.onFailure {
-                    return Result.failure(it)
-                }
+            // Chỉ thêm "avatarUrl" vào map nếu có URL mới từ Cloudinary
+            newCloudinaryUrl?.let { url ->
+                updateData["avatarUrl"] = url
             }
 
+            // BƯỚC 3: CẬP NHẬT DỮ LIỆU LÊN FIRESTORE
             usersCollection.document(userId).update(updateData).await()
 
-            // ... (Phần cập nhật auth profile giữ nguyên)
+            // BƯỚC 4: CẬP NHẬT THÔNG TIN TRÊN FIREBASE AUTH (Tùy chọn nhưng nên có)
             val profileUpdates = UserProfileChangeRequest.Builder()
                 .setDisplayName(name)
                 .apply {
-                    newAvatarUrl?.let { setPhotoUri(Uri.parse(it)) }
+                    // Cập nhật cả PhotoUri trên Auth nếu có
+                    newCloudinaryUrl?.let { setPhotoUri(Uri.parse(it)) }
                 }
                 .build()
-
             user.updateProfile(profileUpdates).await()
 
             Result.success(Unit)
         } catch (e: Exception) {
+            // Bắt lỗi từ Cloudinary hoặc Firestore
             Result.failure(e)
         }
     }
 
+
     // =======================================================================================
     // 6. CÁC HÀM FOLLOW/UNFOLLOW/GETTERS (GIỮ NGUYÊN)
     // =======================================================================================
-    // ... (Toàn bộ code cho follow, unfollow, isFollowing, getFollowers, getFollowing giữ nguyên y như cũ)
-    // ✅ SỬA LẠI HÀM FOLLOW
-// =======================================================================================
+
     suspend fun followUser(targetUserId: String): Result<Unit> {
         val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not logged in"))
         if (currentUserId == targetUserId) {
@@ -216,7 +199,6 @@ class UserRepository {
         }
 
         return try {
-            // Lấy thông tin user trước khi thực hiện batch
             val currentUserDoc = usersCollection.document(currentUserId).get().await()
             val targetUserDoc = usersCollection.document(targetUserId).get().await()
 
@@ -225,7 +207,6 @@ class UserRepository {
 
             val batch = db.batch()
 
-            // 1. Cập nhật sub-collection "following" của currentUser
             val followingRef = followsCollection.document(currentUserId).collection("following").document(targetUserId)
             val followingData = mapOf(
                 "timestamp" to FieldValue.serverTimestamp(),
@@ -234,7 +215,6 @@ class UserRepository {
             )
             batch.set(followingRef, followingData)
 
-            // 2. Cập nhật sub-collection "followers" của targetUser
             val followerRef = followsCollection.document(targetUserId).collection("followers").document(currentUserId)
             val followerData = mapOf(
                 "timestamp" to FieldValue.serverTimestamp(),
@@ -243,56 +223,39 @@ class UserRepository {
             )
             batch.set(followerRef, followerData)
 
-            // 3. Tăng số followingCount của currentUser
             val currentUserRef = usersCollection.document(currentUserId)
             batch.update(currentUserRef, "followingCount", FieldValue.increment(1))
 
-            // 4. Tăng số followerCount của targetUser
             val targetUserRef = usersCollection.document(targetUserId)
             batch.update(targetUserRef, "followerCount", FieldValue.increment(1))
 
-            // Thực hiện tất cả các thao tác
             batch.commit().await()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    // =======================================================================================
-// ✅ SỬA LẠI HÀM UNFOLLOW
-// =======================================================================================
     suspend fun unfollowUser(targetUserId: String): Result<Unit> {
         val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not logged in"))
 
         return try {
             val batch = db.batch()
-
-            // 1. Xóa khỏi sub-collection "following" của currentUser
             val followingRef = followsCollection.document(currentUserId).collection("following").document(targetUserId)
             batch.delete(followingRef)
-
-            // 2. Xóa khỏi sub-collection "followers" của targetUser
             val followerRef = followsCollection.document(targetUserId).collection("followers").document(currentUserId)
             batch.delete(followerRef)
-
-            // 3. Giảm số followingCount của currentUser
             val currentUserRef = usersCollection.document(currentUserId)
             batch.update(currentUserRef, "followingCount", FieldValue.increment(-1))
-
-            // 4. Giảm số followerCount của targetUser
             val targetUserRef = usersCollection.document(targetUserId)
             batch.update(targetUserRef, "followerCount", FieldValue.increment(-1))
-
-            // Thực hiện tất cả các thao tác
             batch.commit().await()
-
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
+
     suspend fun isFollowing(targetUserId: String): Result<Boolean> {
         val currentUserId = getCurrentUserId() ?: return Result.success(false)
         return try {
@@ -331,3 +294,4 @@ class UserRepository {
         }
     }
 }
+// KẾT THÚC FILE

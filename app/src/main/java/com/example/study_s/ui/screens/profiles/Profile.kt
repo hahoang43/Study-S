@@ -173,15 +173,10 @@ private fun ProfileContent(
                             .size(24.dp)
                             .padding(start = 4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Profile",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+
                     }
                 }
 
-                Spacer(modifier = Modifier.height(2.dp))
 
                 Text(
                     text = user.email,
