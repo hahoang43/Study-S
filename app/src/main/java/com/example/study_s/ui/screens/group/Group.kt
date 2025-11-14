@@ -42,7 +42,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.text.font.FontWeight
@@ -140,14 +139,14 @@ fun GroupScreen(
                                 contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Tạo nhóm mới")
+                            Icon(Icons.Filled.Add, contentDescription = "Tạo nhóm mới")
                         }
                     }
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         label = { Text("Tìm kiếm trong các nhóm...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search Icon") },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search Icon") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     )

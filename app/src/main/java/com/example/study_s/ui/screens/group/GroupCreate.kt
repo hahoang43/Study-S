@@ -64,6 +64,7 @@ fun GroupCreateScreen(
             navController.navigate("${Routes.GroupChat}/$createSuccess") {
                 popUpTo(Routes.GroupList) { inclusive = false }
             }
+            groupViewModel.onGroupCreationHandled()
         }
     }
 
@@ -72,7 +73,7 @@ fun GroupCreateScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Create, contentDescription = "Create Group Icon")
+                        Icon(Icons.Filled.Create, contentDescription = "Create Group Icon")
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Tạo Nhóm Học Tập")
                     }

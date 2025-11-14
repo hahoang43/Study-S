@@ -1,41 +1,26 @@
 package com.example.study_s.data.model
 
-import com.google.firebase.firestore.Exclude
+import com.google.firebase.firestore.DocumentId
+import java.util.Date
 
 /**
- * Data class Group - phiên bản HOÀN CHỈNH dựa trên code của bạn.
- * - Sửa 'groupId' thành 'var' để có thể gán lại.
- * - Thêm 'groupNameLowercase' để tìm kiếm hiệu quả.
- * - Thêm constructor phụ cho Firebase.
+ * Represents a study group.
+ *
+ * This data class is structured to match the data stored in Firestore, preventing
+ * deserialization crashes. The `createdAt` field is a Long to match the existing
+ * timestamp format in the database.
  */
 data class Group(
+    @DocumentId
+    val groupId: String = "",
     val groupName: String = "",
-    val description: String = "", // SỬ DỤNG 'description' LÀM CHUẨN
-    val members: List<String> = emptyList(),
-    val createdBy: String = "",
-    val createdAt: Long? = null,
+    val groupNameLowercase: String = "",
+    val description: String = "",
     val subject: String = "",
-    val avatarUrl: String? = null,
+    val members: List<String> = emptyList(),
     val bannedUsers: List<String> = emptyList(),
-
-    // Trường hỗ trợ tìm kiếm không phân biệt hoa thường
-    val groupNameLowercase: String = groupName.lowercase(),
+    val createdBy: String = "",
     val searchKeywords: List<String> = emptyList(),
-    @get:Exclude
-    var groupId: String = "" // PHẢI LÀ 'var'
-) {
-    // Constructor phụ mà Firebase cần
-    constructor() : this(
-        groupName = "",
-        description = "",
-        members = emptyList(),
-        createdBy = "",
-        createdAt = 0L,
-        subject = "",
-        avatarUrl = null,
-        bannedUsers = emptyList(),
-        groupNameLowercase = "",
-        groupId = "",
-
-    )
-}
+    val avatarUrl: String? = null,
+    val createdAt: Date? = null,
+)

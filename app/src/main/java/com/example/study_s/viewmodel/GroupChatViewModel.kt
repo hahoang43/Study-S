@@ -15,7 +15,7 @@ class GroupChatViewModel(private val groupChatRepository: GroupChatRepository = 
     private val _messages = MutableStateFlow<List<MessageModel>>(emptyList())
     val messages: StateFlow<List<MessageModel>> = _messages
 
-    private val _userRemoved = MutableSharedFlow<Unit>()
+    private val _userRemoved = MutableSharedFlow<String>()
     val userRemoved = _userRemoved.asSharedFlow()
 
     fun listenToGroupMessages(groupId: String) {
@@ -31,16 +31,16 @@ class GroupChatViewModel(private val groupChatRepository: GroupChatRepository = 
             val message = MessageModel(
                 senderId = senderId,
                 content = content,
-                timestamp = System.currentTimeMillis(),
-                senderName = senderName
+                senderName = senderName,
+                timestamp = System.currentTimeMillis()
             )
             groupChatRepository.sendGroupMessage(groupId, message)
         }
     }
 
-    fun notifyUserRemoved() {
+    fun notifyUserRemoved(removedUserId: String) {
         viewModelScope.launch {
-            _userRemoved.emit(Unit)
+            _userRemoved.emit(removedUserId)
         }
     }
 }
