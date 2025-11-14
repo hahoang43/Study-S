@@ -1,17 +1,20 @@
 package com.example.study_s.ui.screens.profiles
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ChatBubbleOutline
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,49 +22,44 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
-import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import com.example.study_s.data.model.PostModel
 import com.example.study_s.data.model.User
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.BottomNavBar
-import com.example.study_s.ui.theme.Study_STheme
-import com.example.study_s.viewmodel.AuthEvent
-import com.example.study_s.viewmodel.AuthViewModel
-import com.example.study_s.viewmodel.AuthViewModelFactory
-import com.example.study_s.viewmodel.ProfileUiState
-import com.example.study_s.viewmodel.ProfileViewModel
-import com.example.study_s.viewmodel.ProfileViewModelFactory
-import java.util.Date
+import com.example.study_s.viewmodel.*
+import com.google.firebase.auth.FirebaseAuth
+import androidx.navigation.compose.currentBackStackEntryAsState
+import java.text.SimpleDateFormat
+import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     navController: NavController,
     viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory()),
-    authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
+    postViewModel: PostViewModel = viewModel()
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    LaunchedEffect(Unit) {
-        viewModel.loadCurrentUserProfile()
-    }
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    var myPosts by remember { mutableStateOf<List<PostModel>>(emptyList()) }
 
-    LaunchedEffect(Unit) {
-        authViewModel.event.collect { event ->
-            when (event) {
-                is AuthEvent.OnSignOut -> {
-                    navController.navigate(Routes.Login) {
-                        popUpTo(0) { inclusive = true }
-                    }
-                }
-            }
+    // Load thông tin user
+    LaunchedEffect(Unit) { viewModel.loadCurrentUserProfile() }
+
+    // Load bài viết của mình
+    LaunchedEffect(currentUserId) {
+        postViewModel.loadPosts()
+        postViewModel.posts.collect { posts ->
+            myPosts = posts
+                .filter { it.authorId == currentUserId }
+                .sortedByDescending { it.timestamp?.toDate()?.time ?: 0L }
         }
     }
 
@@ -69,7 +67,8 @@ fun ProfileScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text("STUDY-S",
+                    Text(
+                        "STUDY-S",
                         fontWeight = FontWeight.Bold,
                         fontSize = 23.sp,
                         fontFamily = FontFamily.Serif
@@ -77,48 +76,105 @@ fun ProfileScreen(
                 },
                 actions = {
                     IconButton(onClick = { navController.navigate(Routes.Settings) }) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Cài đặt",
-                            modifier = Modifier.size(28.dp)
-                        )
+                        Icon(Icons.Default.Settings, contentDescription = null)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    actionIconContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                }
             )
         },
         bottomBar = {
             BottomNavBar(navController = navController, currentRoute = currentRoute)
         }
-    ) { innerPadding ->
-        Box(
+    ) { padding ->
+
+        val uiState = viewModel.profileUiState
+
+        LazyColumn(
             modifier = Modifier
+                .padding(padding)
                 .fillMaxSize()
-                .padding(innerPadding),
-            contentAlignment = Alignment.TopCenter
         ) {
-            when (val uiState = viewModel.profileUiState) {
-                is ProfileUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            when (uiState) {
+
+                is ProfileUiState.Loading -> item {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
 
-                is ProfileUiState.Error -> {
-                    Text(
-                        text = uiState.message,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
+                is ProfileUiState.Error -> item {
+                    Text(uiState.message, color = Color.Red, modifier = Modifier.padding(16.dp))
                 }
 
                 is ProfileUiState.Success -> {
-                    ProfileContent(
-                        navController = navController,
-                        user = uiState.user,
-                    )
+
+                    val user = uiState.user
+
+// ================= HEADER =================
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            // ===== AVATAR BÊN TRÁI =====
+                            Image(
+                                painter = rememberAsyncImagePainter(
+                                    user.avatarUrl ?: "https://i.pravatar.cc/200"
+                                ),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(90.dp)
+                                    .clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+
+                            Spacer(modifier = Modifier.width(20.dp))
+
+                            // ===== TÊN + SỐ LIỆU BÊN PHẢI =====
+                            Column(modifier = Modifier.weight(1f)) {
+
+                                Text(
+                                    user.name,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+
+                                    ProfileStat(myPosts.size.toString(), "bài viết")
+                                    ProfileStat(user.followerCount.toString(), "người theo dõi")
+                                    ProfileStat(user.followingCount.toString(), "đang theo dõi")
+                                }
+                            }
+                        }
+
+                        Divider(thickness = 1.dp)
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Text(
+                            "Bài viết",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+
+                    // =============== LIST BÀI VIẾT ===============
+                    items(myPosts) { post ->
+                        ProfilePostCard(post, navController)
+                        Divider(color = Color.LightGray, thickness = 1.dp, modifier = Modifier.padding(vertical = 12.dp))
+                    }
+
                 }
             }
         }
@@ -126,126 +182,105 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun ProfileContent(
-    navController: NavController,
-    user: User,
-) {
+fun ProfileStat(count: String, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(count, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(label, fontSize = 12.sp, color = Color.Gray)
+    }
+}
+
+@Composable
+fun ProfilePostCard(post: PostModel, navController: NavController) {
+
+    val formattedDate = post.timestamp?.toDate()?.let {
+        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
+    } ?: ""
+
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(top = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .fillMaxWidth()
+            .clickable {
+                navController.navigate("${Routes.PostDetail}/${post.postId}")
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AsyncImage(
-                model = user.avatarUrl.takeIf { !it.isNullOrEmpty() }
-                    ?: "https://i.imgur.com/8p3xYso.png",
-                contentDescription = "Avatar",
+        // HEADER avatar + tên + thời gian
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Image(
+                painter = rememberAsyncImagePainter(
+                    post.authorAvatarUrl ?: "https://i.pravatar.cc/150"
+                ),
+                contentDescription = null,
                 modifier = Modifier
-                    .size(90.dp)
+                    .size(40.dp)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
 
-            Spacer(modifier = Modifier.width(20.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            Column(
-                horizontalAlignment = Alignment.Start,
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = user.name,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 20.sp,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    IconButton(
-                        onClick = { navController.navigate(Routes.EditProfile) },
-                        modifier = Modifier
-                            .size(24.dp)
-                            .padding(start = 4.dp)
-                    ) {
-
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ProfileStat(count = "0", label = "bài viết")
-                    ProfileStat(count = user.followerCount.toString(), label = "người theo dõi") {
-                        navController.navigate("${Routes.FollowList}/${user.userId}/followers")
-                    }
-                    ProfileStat(count = user.followingCount.toString(), label = "đang theo dõi") {
-                        navController.navigate("${Routes.FollowList}/${user.userId}/following")
-                    }
-                }
+            Column {
+                Text(
+                    text = post.authorName,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = formattedDate,
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(Modifier.height(12.dp))
 
-        Button(
-            onClick = { navController.navigate(Routes.MyPosts) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text("Các bài viết", color = MaterialTheme.colorScheme.onPrimary)
+        // CONTENT
+        if (post.content.isNotBlank()) {
+            Text(
+                text = post.content,
+                fontSize = 16.sp
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        // IMAGE nếu có
+        post.imageUrl?.let {
+            Image(
+                painter = rememberAsyncImagePainter(it),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .heightIn(max = 300.dp),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // LIKE + COMMENT xem thôi
+        Row(verticalAlignment = Alignment.CenterVertically) {
+
+            Icon(
+                imageVector = Icons.Default.FavoriteBorder,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("${post.likesCount}")
+
+            Spacer(modifier = Modifier.width(20.dp))
+
+            Icon(
+                imageVector = Icons.Default.ChatBubbleOutline,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("${post.commentsCount}")
         }
     }
 }
 
-@Composable
-fun ProfileStat(count: String, label: String, onClick: () -> Unit = {}) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Text(
-            text = count,
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-
-@Preview(showBackground = true, name = "Light Mode")
-@Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
-@Composable
-fun ProfileScreenPreview() {
-    val fakeUser = User(
-        userId = "fakeId",
-        name = "Ngo Ich (Preview)",
-        email = "preview@vnu.edu.vn",
-        avatarUrl = null,
-        bio = "Đây là bio xem trước",
-        createdAt = Date()
-    )
-    Study_STheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            ProfileContent(navController = rememberNavController(), user = fakeUser)
-        }
-    }
-}

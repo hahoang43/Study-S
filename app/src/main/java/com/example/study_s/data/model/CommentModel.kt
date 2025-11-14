@@ -7,6 +7,8 @@ data class CommentModel(
     val commentId: String = "",
     val postId: String = "",
     val authorId: String = "",
+    val authorName: String = "",
+    val authorAvatar: String? = null,
     val content: String = "",
     @ServerTimestamp
     val timestamp: Timestamp? = null

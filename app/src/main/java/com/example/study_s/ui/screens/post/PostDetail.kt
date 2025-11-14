@@ -145,18 +145,15 @@ fun PostDetailContent(
         currentUserId?.let { post.likedBy.contains(it) } ?: false
     }
 
-    // lấy info tác giả từ cache
     val userCache by viewModel.userCache.collectAsState()
     val author = userCache[post.authorId] ?: User(name = "Đang tải...")
 
-    // nếu cache chưa có thì gọi fetch
     LaunchedEffect(post.authorId) {
         if (post.authorId.isNotBlank()) {
             viewModel.fetchUser(post.authorId)
         }
     }
 
-    // bài này có phải của mình không
     val isMyPost = currentUserId != null && currentUserId == post.authorId
 
     Column(
@@ -166,7 +163,6 @@ fun PostDetailContent(
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // avatar
@@ -175,7 +171,7 @@ fun PostDetailContent(
                     model = author.avatarUrl,
                     fallback = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=5")
                 ),
-                contentDescription = "Avatar của ${author.name}",
+                contentDescription = "Avatar",
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
@@ -184,7 +180,8 @@ fun PostDetailContent(
                         if (isMyPost) {
                             navController.navigate(Routes.Profile)
                         } else {
-                            navController.navigate("strager/${post.authorId}")
+                            navController.navigate("${Routes.OtherProfile}/${post.authorId}")
+
                         }
                     },
                 contentScale = ContentScale.Crop
@@ -192,7 +189,6 @@ fun PostDetailContent(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // tên + time
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -200,7 +196,7 @@ fun PostDetailContent(
                         if (isMyPost) {
                             navController.navigate(Routes.Profile)
                         } else {
-                            navController.navigate("strager/${post.authorId}")
+                            navController.navigate("strager_profile/${post.authorId}")
                         }
                     }
             ) {
@@ -216,11 +212,8 @@ fun PostDetailContent(
         Text(post.content, fontSize = 20.sp)
         Spacer(Modifier.height(16.dp))
 
-        // ảnh
         if (post.imageUrl != null &&
-            (post.fileName == null ||
-                    post.fileName.endsWith(".png") ||
-                    post.fileName.endsWith(".jpg"))
+            (post.fileName == null || post.fileName.endsWith(".png") || post.fileName.endsWith(".jpg"))
         ) {
             Image(
                 painter = rememberAsyncImagePainter(post.imageUrl),
@@ -234,7 +227,6 @@ fun PostDetailContent(
             Spacer(Modifier.height(16.dp))
         }
 
-        // like + cmt
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onLikeToggle) {
                 Icon(
@@ -245,50 +237,12 @@ fun PostDetailContent(
             }
             Text("${post.likesCount}", fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(24.dp))
-            Icon(Icons.Default.Send, contentDescription = "Bình luận", tint = Color.Gray)
+            Icon(Icons.Default.Send, contentDescription = null, tint = Color.Gray)
             Spacer(Modifier.width(8.dp))
             Text("${post.commentsCount}", fontWeight = FontWeight.SemiBold)
         }
 
         Divider(modifier = Modifier.padding(vertical = 12.dp))
-    }
-}
-
-/* ======================= BOTTOM COMMENT BAR ======================= */
-@Composable
-fun BottomCommentBar(
-    commentText: String,
-    onCommentChanged: (String) -> Unit,
-    onSendClick: () -> Unit
-) {
-    Surface(modifier = Modifier.fillMaxWidth(), shadowElevation = 8.dp) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-                .navigationBarsPadding(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = commentText,
-                onValueChange = onCommentChanged,
-                placeholder = { Text("Viết bình luận...") },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(24.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
-                )
-            )
-            Spacer(Modifier.width(8.dp))
-            IconButton(onClick = onSendClick, enabled = commentText.isNotBlank()) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "Gửi bình luận",
-                    tint = if (commentText.isNotBlank())
-                        MaterialTheme.colorScheme.primary else Color.Gray
-                )
-            }
-        }
     }
 }
 
@@ -325,7 +279,7 @@ fun CommentItem(
                     if (isMyComment) {
                         navController.navigate(Routes.Profile)
                     } else {
-                        navController.navigate("strager/${comment.authorId}")
+                        navController.navigate("${Routes.OtherProfile}/${comment.authorId}")
                     }
                 },
             contentScale = ContentScale.Crop
@@ -346,7 +300,7 @@ fun CommentItem(
                     if (isMyComment) {
                         navController.navigate(Routes.Profile)
                     } else {
-                        navController.navigate("strager/${comment.authorId}")
+                        navController.navigate("${Routes.OtherProfile}/${comment.authorId}")
                     }
                 }
             )
@@ -361,4 +315,41 @@ fun CommentItem(
 fun PreviewPostDetailScreen() {
     val nav = rememberNavController()
     PostDetailScreen(postId = "1", navController = nav)
+}
+/* ======================= BOTTOM COMMENT BAR ======================= */
+@Composable
+fun BottomCommentBar(
+    commentText: String,
+    onCommentChanged: (String) -> Unit,
+    onSendClick: () -> Unit
+) {
+    Surface(modifier = Modifier.fillMaxWidth(), shadowElevation = 8.dp) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = commentText,
+                onValueChange = onCommentChanged,
+                placeholder = { Text("Viết bình luận...") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(24.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent
+                )
+            )
+            Spacer(Modifier.width(8.dp))
+            IconButton(onClick = onSendClick, enabled = commentText.isNotBlank()) {
+                Icon(
+                    imageVector = Icons.Default.Send,
+                    contentDescription = "Gửi bình luận",
+                    tint = if (commentText.isNotBlank())
+                        MaterialTheme.colorScheme.primary else Color.Gray
+                )
+            }
+        }
+    }
 }
