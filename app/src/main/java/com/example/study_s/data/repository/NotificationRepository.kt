@@ -25,13 +25,6 @@ class NotificationRepository {
     private val notificationCollection = db.collection("notifications")
     /**
      * Gửi yêu cầu tạo Push Notification đến server FCM của Google.
-     * Hàm này nên được gọi từ một Coroutine Scope (ví dụ: viewModelScope).
-     * @param token FCM Token của thiết bị người nhận.
-     * @param title Tiêu đề của thông báo.
-     * @param body Nội dung của thông báo.
-     */
-    /**
-     * Gửi yêu cầu tạo Push Notification đến server FCM của Google.
      */
     private suspend fun sendPushNotification(token: String, title: String, body: String) {
         withContext(Dispatchers.IO) {
@@ -198,5 +191,21 @@ class NotificationRepository {
             sendPushNotification(token, title, body)
         }
     }
+    // ✅ HÀM MỚI: ĐÁNH DẤU MỘT THÔNG BÁO LÀ ĐÃ ĐỌC
+    suspend fun markAsRead(notificationId: String) {
+        // Chỉ thực hiện nếu ID không rỗng
+        if (notificationId.isBlank()) return
+
+        try {
+            // Tìm đến đúng document của thông báo đó và cập nhật trường isRead
+            notificationCollection.document(notificationId)
+                .update("isRead", true)
+                .await()
+            Log.d("NotificationRepo", "Notification $notificationId marked as read.")
+        } catch (e: Exception) {
+            Log.e("NotificationRepo", "Error marking notification as read", e)
+        }
+    }
 }
+
 

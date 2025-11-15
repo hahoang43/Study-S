@@ -86,7 +86,9 @@ fun NavGraph(navController: NavHostController) {
         // ========== CÁC MÀN HÌNH CHÍNH ==========
         composable(Routes.Home) { HomeScreen(navController) }
         composable(Routes.Message) { MessageListScreen() }
-        composable(Routes.Notification) { NotificationScreen() }
+        composable(Routes.Notification) {
+            NotificationScreen(navController = navController) // ✅ TRUYỀN navController VÀO ĐÂY
+        }
         composable(Routes.Schedule) { ScheduleScreen(navController) }
 
 

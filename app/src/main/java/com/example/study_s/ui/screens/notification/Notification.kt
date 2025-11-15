@@ -1,16 +1,15 @@
 // ĐƯỜNG DẪN: ui/screens/notification/NotificationScreen.kt
+// NỘI DUNG HOÀN CHỈNH - PHIÊN BẢN CUỐI CÙNG
 
 package com.example.study_s.ui.screens.notification
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -18,196 +17,124 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.isEmpty
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import com.example.study_s.R
+import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.Notification
-import com.example.study_s.ui.theme.Study_STheme
 import com.example.study_s.viewmodel.NotificationViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationScreen(
-    notificationViewModel: NotificationViewModel = viewModel()
+    navController: NavController, // ✅ 1. NHẬN NavController
+    viewModel: NotificationViewModel = viewModel()
 ) {
-    // Lấy danh sách thông báo THẬT từ StateFlow của ViewModel
-    val notifications by notificationViewModel.notifications.collectAsState()
-    // Lấy trạng thái loading từ ViewModel
-    val isLoading by notificationViewModel.isLoading.collectAsState()
+    val notifications by viewModel.notifications.collectAsState()
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Thanh tiêu đề trên cùng
-            TopAppBar()
-
-            // Phần nội dung chính
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Text(
-                    text = "Hoạt động",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
-                )
-
-                // Hiển thị vòng xoay loading khi đang tải dữ liệu
-                if (isLoading) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Hoạt động", fontWeight = FontWeight.Bold) })
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            if (notifications.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Chưa có hoạt động nào")
                     }
                 }
-                // Hiển thị thông báo khi danh sách rỗng sau khi đã tải xong
-                else if (notifications.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Chưa có hoạt động nào.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
-                    }
-                }
-                // Hiển thị danh sách thông báo
-                else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(notifications) { notification ->
-                            NotificationItemView(notification = notification)
-                            Divider(color = Color.LightGray.copy(alpha = 0.5f), thickness = 1.dp)
+            } else {
+                items(notifications, key = { it.notificationId }) { notification ->
+                    NotificationItem(
+                        notification = notification,
+                        // ✅ 2. TRUYỀN HÀNH ĐỘNG CLICK VÀO ITEM
+                        onItemClick = {
+                            viewModel.onNotificationClicked(notification, navController)
                         }
-                    }
+                    )
                 }
             }
         }
     }
 }
 
-// Composable cho một mục thông báo đơn lẻ
 @Composable
-fun NotificationItemView(notification: Notification) {
+fun NotificationItem(
+    notification: Notification,
+    onItemClick: () -> Unit // ✅ 3. NHẬN HÀNH ĐỘNG CLICK
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
+            .clickable(onClick = onItemClick) // Áp dụng hành động click
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Dấu chấm đỏ cho thông báo chưa đọc
+        // ✅ 4. HIỂN THỊ CHẤM ĐỎ DỰA TRÊN `isRead`
         if (!notification.isRead) {
             Box(
                 modifier = Modifier
                     .size(8.dp)
-                    .clip(CircleShape)
-                    .background(Color.Red)
+                    .background(Color.Red, CircleShape)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
         } else {
-            // Thêm khoảng trống để căn chỉnh nếu thông báo đã đọc
-            Spacer(modifier = Modifier.width(18.dp))
+            // Thêm spacer để các item đã đọc và chưa đọc thẳng hàng
+            Spacer(Modifier.width(16.dp))
         }
 
-        // Avatar của người gửi
-        AsyncImage(
-            model = notification.actorAvatarUrl, // Tải ảnh từ URL
-            contentDescription = "Avatar của ${notification.actorName}",
-            placeholder = painterResource(id = R.drawable.avatar), // Ảnh mặc định
-            error = painterResource(id = R.drawable.avatar), // Ảnh khi lỗi
+        Image(
+            painter = rememberAsyncImagePainter(
+                model = notification.actorAvatarUrl ?: "https://i.pravatar.cc/150",
+                placeholder = rememberAsyncImagePainter("https://i.pravatar.cc/150")
+            ),
+            contentDescription = "Avatar",
             modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape),
             contentScale = ContentScale.Crop
         )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(Modifier.width(12.dp))
 
-        // Nội dung thông báo
-        Column(modifier = Modifier.weight(1f)) {
-            // Sử dụng AnnotatedString để in đậm tên người gửi
-            Text(
-                text = buildAnnotatedString {
-                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                        append(notification.actorName ?: "Ai đó")
-                    }
-                    append(" ${notification.message}")
-                },
-                fontSize = 14.sp,
-                lineHeight = 18.sp // Tăng khoảng cách dòng cho dễ đọc
-            )
-            // Có thể thêm thời gian ở đây nếu muốn
-            // Text(text = formatTime(notification.createdAt), fontSize = 12.sp, color = Color.Gray)
-        }
+        // Text message (actor name + message)
+        Text(
+            text = buildAnnotatedString {
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
+                    append(notification.actorName ?: "Ai đó")
+                }
+                withStyle(style = SpanStyle(fontSize = 15.sp)) {
+                    append(" ")
+                    append(notification.message)
+                }
+            },
+            modifier = Modifier.weight(1f),
+            lineHeight = 20.sp
+        )
 
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Ảnh của bài viết liên quan (nếu có)
-        if (notification.postImageUrl != null) {
-            AsyncImage(
-                model = notification.postImageUrl,
-                contentDescription = "Ảnh bài viết",
-                placeholder = painterResource(id = R.drawable.group),
-                error = painterResource(id = R.drawable.group),
+        // Thumbnail ảnh bài viết (nếu có)
+        notification.postImageUrl?.let {
+            Spacer(Modifier.width(12.dp))
+            Image(
+                painter = rememberAsyncImagePainter(model = it),
+                contentDescription = "Post thumbnail",
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(6.dp)),
+                    .clip(MaterialTheme.shapes.small),
                 contentScale = ContentScale.Crop
             )
         }
-    }
-}
-
-// Composable cho thanh tiêu đề
-@Composable
-fun TopAppBar() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        IconButton(onClick = { /* TODO: Mở menu */ }) {
-            Icon(imageVector = Icons.Default.Menu, contentDescription = "Menu")
-        }
-        Text(text = "Study-S", fontWeight = FontWeight.Bold, fontSize = 22.sp)
-        IconButton(onClick = { /* TODO: Tới trang Profile */ }) {
-            // Thay thế bằng avatar người dùng thật
-            Image(
-                painter = painterResource(id = R.drawable.avatar),
-                contentDescription = "Avatar",
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape),
-                contentScale = ContentScale.Crop
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun PreviewNotificationScreen() {
-    Study_STheme {
-        NotificationScreen()
     }
 }
