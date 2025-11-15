@@ -1,12 +1,12 @@
 // ĐƯỜNG DẪN: com/example/study_s/viewmodel/StragerViewModel.kt
+// NỘI DUNG HOÀN CHỈNH, ĐÃ SỬA LỖI
 
 package com.example.study_s.viewmodel
 
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-// DÒNG IMPORT QUAN TRỌNG NHẤT
-import com.example.study_s.data.model.Notification
+// KHÔNG CẦN IMPORT Notification nữa, ViewModel không nên biết về nó
 import com.example.study_s.data.model.PostModel
 import com.example.study_s.data.model.User
 import com.example.study_s.data.repository.NotificationRepository
@@ -58,24 +58,29 @@ class StragerViewModel : ViewModel() {
         }
     }
 
-    fun toggleFollow(userId: String) {
+    fun toggleFollow(userIdToFollow: String) {
         viewModelScope.launch {
             if (_isFollowing.value) {
-                userRepository.unfollowUser(userId).onSuccess {
+                // --- UNFOLLOW ---
+                userRepository.unfollowUser(userIdToFollow).onSuccess {
                     _isFollowing.value = false
-                    loadUserProfile(userId)
+                    // Tải lại để cập nhật số follower
+                    loadUserProfile(userIdToFollow)
                 }
             } else {
-                userRepository.followUser(userId).onSuccess {
+                // --- FOLLOW ---
+                userRepository.followUser(userIdToFollow).onSuccess {
                     _isFollowing.value = true
-                    loadUserProfile(userId)
-                    sendFollowNotification(userId)
+                    // Tải lại để cập nhật số follower
+                    loadUserProfile(userIdToFollow)
+                    // Gửi thông báo
+                    sendFollowNotification(userIdToFollow)
                 }
             }
         }
     }
 
-    fun loadUserPosts(userId: String) {
+    private fun loadUserPosts(userId: String) {
         db.collection("posts")
             .whereEqualTo("authorId", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
@@ -84,14 +89,9 @@ class StragerViewModel : ViewModel() {
                     Log.w("LoadUserPosts", "Listen failed.", e)
                     return@addSnapshotListener
                 }
-                if (snapshot != null) {
-                    val list = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
-                    }
-                    _posts.value = list
-                } else {
-                    _posts.value = emptyList()
-                }
+                _posts.value = snapshot?.documents?.mapNotNull { doc ->
+                    doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
+                } ?: emptyList()
             }
     }
 
@@ -107,30 +107,18 @@ class StragerViewModel : ViewModel() {
         }
     }
 
+    // ✅ SỬA LẠI HOÀN TOÀN HÀM NÀY CHO SẠCH SẼ
     private fun sendFollowNotification(userToNotifyId: String) {
         viewModelScope.launch {
+            // 1. Lấy thông tin người đi follow (actor)
             val currentUserId = auth.currentUser?.uid ?: return@launch
-            val follower = userRepository.getUserProfile(currentUserId).getOrNull()
+            val actor = userRepository.getUserProfile(currentUserId).getOrNull() ?: return@launch
 
-            // DÒNG CODE SỬ DỤNG "Notification"
-            val notification = Notification(
-                userId = userToNotifyId,
-                actorId = currentUserId,
-                actorName = follower?.name ?: "Một người nào đó",
-                actorAvatarUrl = follower?.avatarUrl,
-                type = "follow",
-                message = "đã bắt đầu theo dõi bạn."
-            )
-            notificationRepository.saveNotificationToFirestore(notification)
+            // 2. Lấy thông tin người được follow (người nhận thông báo)
+            val userToNotify = userRepository.getUserProfile(userToNotifyId).getOrNull() ?: return@launch
 
-            val userToNotify = userRepository.getUserProfile(userToNotifyId).getOrNull()
-            userToNotify?.fcmToken?.let { token ->
-                if (token.isNotEmpty()) {
-                    val title = "Bạn có lượt theo dõi mới!"
-                    val body = "${follower?.name ?: "Một người nào đó"} đã bắt đầu theo dõi bạn."
-                    notificationRepository.sendPushNotification(token, title, body)
-                }
-            }
+            // 3. Ủy quyền toàn bộ việc gửi thông báo cho Repository
+            notificationRepository.sendFollowNotification(actor, userToNotify)
         }
     }
 }

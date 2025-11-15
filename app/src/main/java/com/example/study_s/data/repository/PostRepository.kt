@@ -1,46 +1,49 @@
+// ĐƯỜNG DẪN: data/repository/PostRepository.kt
+// NỘI DUNG HOÀN CHỈNH - PHIÊN BẢN CUỐI CÙNG
+
 package com.example.study_s.data.repository
+
 import android.util.Log
 import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
+import com.example.study_s.data.model.User
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
-import com.example.study_s.data.model.User // <-- Import model User
-import com.google.firebase.auth.FirebaseAuth
+
 class PostRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
-            private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 ) {
     private val postCollection = firestore.collection("posts")
     private val usersCollection = firestore.collection("users")
-    // 🟢 Tạo bài đăng mới
-    // PHIÊN BẢN ĐÃ SỬA (ĐÚNG)
+
+    /**
+     * Tạo bài đăng mới
+     */
     suspend fun createPost(post: PostModel) {
-        // 1. Lấy ID của người dùng đang đăng nhập.
         val userId = auth.currentUser?.uid ?: throw Exception("User not logged in")
         val newPostRef = postCollection.document()
 
-        // 2. Dùng ID đó để lấy toàn bộ thông tin profile của người dùng từ collection 'users'.
         val userDoc = usersCollection.document(userId).get().await()
         val currentUser = userDoc.toObject(User::class.java) ?: throw Exception("User profile not found")
 
-        // 3. TẠO RA một đối tượng `finalPost` HOÀN CHỈNH.
-        // Nó lấy thông tin gốc từ 'post' (content, imageUrl) và bổ sung thêm các thông tin còn thiếu.
         val finalPost = post.copy(
             postId = newPostRef.id,
             authorId = userId,
-            authorName = currentUser.name,         // <-- Lấy từ profile
-            authorAvatarUrl = currentUser.avatarUrl, // <-- Lấy từ profile
-            contentLowercase = post.content.lowercase() // <-- Tự tính toán
+            authorName = currentUser.name,
+            authorAvatarUrl = currentUser.avatarUrl,
+            contentLowercase = post.content.lowercase()
         )
 
-        // 4. Lưu đối tượng HOÀN CHỈNH này lên Firestore.
         newPostRef.set(finalPost).await()
     }
 
-
-    // 🟢 Lấy toàn bộ danh sách bài đăng
+    /**
+     * Lấy toàn bộ danh sách bài đăng
+     */
     suspend fun getAllPosts(): List<PostModel> {
         val snapshot = postCollection
             .orderBy("timestamp", Query.Direction.DESCENDING)
@@ -50,9 +53,9 @@ class PostRepository(
             doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
         }
     }
+
     /**
-     * HÀM TÌM KIẾM BÀI VIẾT (CHO MÀN HÌNH SEARCH)
-     * Tìm kiếm không phân biệt hoa thường trên trường 'contentLowercase' của bài viết.
+     * Tìm kiếm bài viết (cho màn hình Search)
      */
     suspend fun searchPosts(query: String): List<PostModel> {
         if (query.isBlank()) {
@@ -78,40 +81,46 @@ class PostRepository(
         }
     }
 
-    // 🟢 Lấy chi tiết 1 bài đăng theo ID
+    /**
+     * Lấy chi tiết 1 bài đăng theo ID
+     */
     suspend fun getPostById(postId: String): PostModel? {
         val doc = postCollection.document(postId).get().await()
         return doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
     }
 
-    // 🟢 MỚI: Thêm/Xóa Like (sử dụng Transaction)
-    suspend fun toggleLike(postId: String, userId: String) {
+    /**
+     * Xử lý Like/Unlike và trả về trạng thái 'isLiked' (true/false)
+     */
+    suspend fun toggleLike(postId: String, userId: String): Boolean {
         val postRef = postCollection.document(postId)
+        return try {
+            // ✅ SỬA "db" THÀNH "firestore"
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(postRef)
+                val currentLikes = snapshot.get("likedBy") as? List<String> ?: emptyList()
 
-        firestore.runTransaction { transaction ->
-            val snapshot = transaction.get(postRef)
-            val post = snapshot.toObject(PostModel::class.java)
-                ?: throw Exception("Post not found")
-
-            val likedBy = post.likedBy.toMutableList()
-            val isLiked = likedBy.contains(userId)
-
-            if (isLiked) {
-                // User đã like -> Bỏ like
-                likedBy.remove(userId)
-                transaction.update(postRef, "likesCount", FieldValue.increment(-1))
-                transaction.update(postRef, "likedBy", likedBy)
-            } else {
-                // User chưa like -> Thêm like
-                likedBy.add(userId)
-                transaction.update(postRef, "likesCount", FieldValue.increment(1))
-                transaction.update(postRef, "likedBy", likedBy)
-            }
-            null // Transaction success
-        }.await()
+                if (currentLikes.contains(userId)) {
+                    // --- ĐÃ LIKE -> BỎ LIKE ---
+                    transaction.update(postRef, "likedBy", FieldValue.arrayRemove(userId))
+                    transaction.update(postRef, "likesCount", FieldValue.increment(-1))
+                    false // TRẢ VỀ false khi bỏ like
+                } else {
+                    // --- CHƯA LIKE -> THỰC HIỆN LIKE ---
+                    transaction.update(postRef, "likedBy", FieldValue.arrayUnion(userId))
+                    transaction.update(postRef, "likesCount", FieldValue.increment(1))
+                    true // TRẢ VỀ true khi like
+                }
+            }.await()
+        } catch (e: Exception) {
+            Log.e("PostRepository", "Error toggling like", e)
+            false // Trả về false nếu có lỗi
+        }
     }
 
-    // 🟢 MỚI: Lấy danh sách bình luận cho 1 bài đăng
+    /**
+     * Lấy danh sách bình luận cho 1 bài đăng
+     */
     suspend fun getCommentsForPost(postId: String): List<CommentModel> {
         val snapshot = postCollection.document(postId).collection("comments")
             .orderBy("timestamp", Query.Direction.ASCENDING)
@@ -122,14 +131,15 @@ class PostRepository(
         }
     }
 
-    // 🟢 MỚI: Thêm bình luận mới
+    /**
+     * Thêm bình luận mới
+     */
     suspend fun addComment(postId: String, comment: CommentModel) {
         val postRef = postCollection.document(postId)
-        val commentRef = postRef.collection("comments").document() // Tạo ID mới
+        val commentRef = postRef.collection("comments").document()
 
         val newComment = comment.copy(commentId = commentRef.id, postId = postId)
 
-        // Sử dụng batched write để vừa thêm comment, vừa cập nhật count
         firestore.batch()
             .set(commentRef, newComment)
             .update(postRef, "commentsCount", FieldValue.increment(1))
@@ -137,7 +147,9 @@ class PostRepository(
             .await()
     }
 
-    // ✅ HÀM MỚI: LƯU / BỎ LƯU BÀI VIẾT
+    /**
+     * Lưu / Bỏ lưu bài viết
+     */
     suspend fun toggleSavePost(postId: String, userId: String) {
         val postRef = postCollection.document(postId)
         firestore.runTransaction { transaction ->
@@ -149,11 +161,9 @@ class PostRepository(
             val isSaved = savedBy.contains(userId)
 
             if (isSaved) {
-                // Đã lưu -> Bỏ lưu
                 savedBy.remove(userId)
                 transaction.update(postRef, "savedBy", savedBy)
             } else {
-                // Chưa lưu -> Lưu
                 savedBy.add(userId)
                 transaction.update(postRef, "savedBy", savedBy)
             }
@@ -161,10 +171,12 @@ class PostRepository(
         }.await()
     }
 
-    // ✅ HÀM MỚI: LẤY DANH SÁCH BÀI VIẾT ĐÃ LƯU CỦA USER
+    /**
+     * Lấy danh sách bài viết đã lưu của user
+     */
     suspend fun getSavedPosts(userId: String): List<PostModel> {
         val snapshot = postCollection
-            .whereArrayContains("savedBy", userId) // Tìm tất cả post có userId trong mảng 'savedBy'
+            .whereArrayContains("savedBy", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .get()
             .await()

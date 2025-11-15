@@ -1,3 +1,6 @@
+// ĐƯỜNG DẪN: ui/screens/post/PostDetailScreen.kt
+// NỘI DUNG HOÀN CHỈNH, ĐÃ SỬA LỖI
+
 package com.example.study_s.ui.screens.post
 
 import androidx.compose.foundation.Image
@@ -15,23 +18,23 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
 import com.example.study_s.data.model.User
-import com.example.study_s.ui.navigation.Routes
+import com.example.study_s.ui.navigation.Routes // DÒNG IMPORT QUAN TRỌNG
 import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
@@ -44,7 +47,7 @@ fun PostDetailScreen(
     viewModel: PostViewModel = viewModel(),
     navController: NavController
 ) {
-    // tải post + cmt
+    // Tải post + cmt
     LaunchedEffect(postId) {
         viewModel.selectPostAndLoadComments(postId)
     }
@@ -73,6 +76,7 @@ fun PostDetailScreen(
                 commentText = commentInput,
                 onCommentChanged = { commentInput = it },
                 onSendClick = {
+                    // ✅ HÀM GỬI COMMENT VÀ THÔNG BÁO ĐƯỢC GỌI Ở ĐÂY
                     viewModel.addComment(postId, commentInput)
                     commentInput = ""
                 }
@@ -85,12 +89,13 @@ fun PostDetailScreen(
                 .fillMaxSize()
                 .background(Color(0xFFF8F9FA))
         ) {
-            // phần post
+            // Phần post
             item {
                 post?.let { postData ->
                     PostDetailContent(
                         post = postData,
                         currentUserId = currentUserId,
+                        // ✅ HÀM LIKE VÀ GỬI THÔNG BÁO ĐƯỢC GỌI Ở ĐÂY
                         onLikeToggle = { viewModel.toggleLike(postData.postId) },
                         viewModel = viewModel,
                         navController = navController
@@ -107,7 +112,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // tiêu đề cmt
+            // Tiêu đề cmt
             item {
                 Text(
                     "Bình luận (${comments.size})",
@@ -117,7 +122,7 @@ fun PostDetailScreen(
                 )
             }
 
-            // list cmt
+            // List cmt
             items(comments) { comment ->
                 CommentItem(
                     comment = comment,
@@ -165,11 +170,9 @@ fun PostDetailContent(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // avatar
             Image(
                 painter = rememberAsyncImagePainter(
-                    model = author.avatarUrl,
-                    fallback = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=5")
+                    model = author.avatarUrl ?: "https://i.pravatar.cc/150?img=5"
                 ),
                 contentDescription = "Avatar",
                 modifier = Modifier
@@ -180,8 +183,8 @@ fun PostDetailContent(
                         if (isMyPost) {
                             navController.navigate(Routes.Profile)
                         } else {
+                            // SỬA LẠI CHO ĐÚNG ROUTE
                             navController.navigate("${Routes.OtherProfile}/${post.authorId}")
-
                         }
                     },
                 contentScale = ContentScale.Crop
@@ -196,7 +199,8 @@ fun PostDetailContent(
                         if (isMyPost) {
                             navController.navigate(Routes.Profile)
                         } else {
-                            navController.navigate("strager_profile/${post.authorId}")
+                            // ✅ SỬA LẠI CHO ĐÚNG ROUTE
+                            navController.navigate("${Routes.OtherProfile}/${post.authorId}")
                         }
                     }
             ) {
@@ -237,7 +241,7 @@ fun PostDetailContent(
             }
             Text("${post.likesCount}", fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.width(24.dp))
-            Icon(Icons.Default.Send, contentDescription = null, tint = Color.Gray)
+            Icon(Icons.Default.Send, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp)) // Thay đổi kích thước icon cho cân đối
             Spacer(Modifier.width(8.dp))
             Text("${post.commentsCount}", fontWeight = FontWeight.SemiBold)
         }
@@ -268,8 +272,7 @@ fun CommentItem(
     Row(modifier = modifier.fillMaxWidth()) {
         Image(
             painter = rememberAsyncImagePainter(
-                model = author.avatarUrl,
-                fallback = rememberAsyncImagePainter("https://i.pravatar.cc/150?img=3")
+                model = author.avatarUrl ?: "https://i.pravatar.cc/150?img=3"
             ),
             contentDescription = "Avatar",
             modifier = Modifier
@@ -279,6 +282,7 @@ fun CommentItem(
                     if (isMyComment) {
                         navController.navigate(Routes.Profile)
                     } else {
+                        // SỬA LẠI CHO ĐÚNG ROUTE
                         navController.navigate("${Routes.OtherProfile}/${comment.authorId}")
                     }
                 },
@@ -300,6 +304,7 @@ fun CommentItem(
                     if (isMyComment) {
                         navController.navigate(Routes.Profile)
                     } else {
+                        // SỬA LẠI CHO ĐÚNG ROUTE
                         navController.navigate("${Routes.OtherProfile}/${comment.authorId}")
                     }
                 }
@@ -310,12 +315,6 @@ fun CommentItem(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun PreviewPostDetailScreen() {
-    val nav = rememberNavController()
-    PostDetailScreen(postId = "1", navController = nav)
-}
 /* ======================= BOTTOM COMMENT BAR ======================= */
 @Composable
 fun BottomCommentBar(
