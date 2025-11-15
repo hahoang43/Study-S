@@ -14,7 +14,8 @@ data class User(    val userId: String = "",
                     @ServerTimestamp // Tự động gán thời gian tạo trên server
                     val createdAt: Date? = null,
                     val nameLowercase: String = name.lowercase(),
-                    val searchKeywords: List<String> = emptyList()
+                    val searchKeywords: List<String> = emptyList(),
+                    val fcmToken: String = ""
 ) {
     // Constructor này rất cần thiết để Firestore có thể chuyển đổi dữ liệu thành đối tượng User.
     constructor() : this(

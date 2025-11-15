@@ -191,6 +191,14 @@ class UserRepository {
     // =======================================================================================
     // 6. CÁC HÀM FOLLOW/UNFOLLOW/GETTERS (GIỮ NGUYÊN)
     // =======================================================================================
+    suspend fun updateFcmToken(userId: String, token: String) {
+        try {
+            usersCollection.document(userId).update("fcmToken", token).await()
+            Log.d("UserRepository", "FCM token updated successfully for user $userId")
+        } catch (e: Exception) {
+            Log.e("UserRepository", "Error updating FCM token", e)
+        }
+    }
 
     suspend fun followUser(targetUserId: String): Result<Unit> {
         val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not logged in"))

@@ -104,7 +104,17 @@ fun NavGraph(navController: NavHostController) {
 
 
         // ========== HỒ SƠ (PROFILE) ==========
-        composable(Routes.Profile) { ProfileScreen(navController) }
+
+// ✅ HÃY THAY THẾ KHỐI COMPOSABLE NÀY
+        // ✅ ĐÃ SỬA LẠI COMPOSABLE NÀY CHO ĐÚNG
+        composable(Routes.Profile) {
+            ProfileScreen(
+                navController = navController,
+                onNavigateToFollowList = { userId, listType ->
+                    navController.navigate("${Routes.FollowList}/$userId/$listType")
+                }
+            )
+        }
         composable(Routes.EditProfile) { EditProfileScreen(navController) }
         composable(
             route = "${Routes.OtherProfile}/{userId}",

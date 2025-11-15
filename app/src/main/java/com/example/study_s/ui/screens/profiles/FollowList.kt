@@ -39,7 +39,7 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.R
 import com.example.study_s.data.model.FollowUserData
 import com.example.study_s.viewmodel.FollowListViewModel
-
+import com.example.study_s.ui.navigation.Routes
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FollowListScreen(
@@ -86,7 +86,8 @@ fun UserListItem(user: FollowUserData, navController: NavController) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { navController.navigate("strager/${user.userId}") }
+            // ✅ ĐÃ SỬA LỖI Ở ĐÂY: Dùng đúng route "other_profile"
+            .clickable { navController.navigate("${Routes.OtherProfile}/${user.userId}") }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -102,3 +103,4 @@ fun UserListItem(user: FollowUserData, navController: NavController) {
         Text(user.username, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
     }
 }
+

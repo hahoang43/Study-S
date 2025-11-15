@@ -30,7 +30,7 @@ class ProfileViewModel : ViewModel() {
 
     private val userRepository: UserRepository = UserRepository()
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-
+    val currentUserId: String? get() = auth.currentUser?.uid
     var profileUiState: ProfileUiState by mutableStateOf(ProfileUiState.Loading)
         private set
 
