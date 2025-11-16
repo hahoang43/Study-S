@@ -29,6 +29,9 @@ class GroupViewModel(
     private val _members = MutableStateFlow<List<User>>(emptyList())
     val members: StateFlow<List<User>> = _members.asStateFlow()
 
+    private val _pendingMembers = MutableStateFlow<List<User>>(emptyList())
+    val pendingMembers: StateFlow<List<User>> = _pendingMembers.asStateFlow()
+
     private val _bannedMembers = MutableStateFlow<List<User>>(emptyList())
     val bannedMembers: StateFlow<List<User>> = _bannedMembers.asStateFlow()
 
@@ -90,6 +93,16 @@ class GroupViewModel(
         }
     }
 
+    fun loadPendingMemberDetails(memberIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                _pendingMembers.value = groupRepository.getMemberDetails(memberIds)
+            } catch (e: Exception) {
+                _error.value = "Không thể tải chi tiết thành viên: ${e.message}"
+            }
+        }
+    }
+
     fun loadBannedMemberDetails(memberIds: List<String>) {
         viewModelScope.launch {
             try {
@@ -141,11 +154,45 @@ class GroupViewModel(
         _createSuccess.value = null
     }
 
+    fun sendJoinRequest(groupId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                groupRepository.addPendingMember(groupId, userId)
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
+        }
+    }
+
+    fun approveJoinRequest(groupId: String, userId: String, groupName: String, userName: String) {
+        viewModelScope.launch {
+            try {
+                groupRepository.approveJoinRequest(groupId, userId)
+                groupChatViewModel.sendMessage(groupId, "system", "$userName đã được thêm vào nhóm.", "System")
+                getGroupById(groupId)
+                _group.value?.let { loadPendingMemberDetails(it.pendingMembers) }
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
+        }
+    }
+
+    fun rejectJoinRequest(groupId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                groupRepository.removePendingMember(groupId, userId)
+                getGroupById(groupId)
+                _group.value?.let { loadPendingMemberDetails(it.pendingMembers) }
+            } catch (e: Exception) {
+                _error.value = e.message
+            }
+        }
+    }
+
     fun joinGroup(groupId: String, userId: String) {
         viewModelScope.launch {
             try {
-                groupRepository.joinGroup(groupId, userId)
-                joinAll(loadAllGroups(), loadUserGroups(userId))
+                sendJoinRequest(groupId, userId)
             } catch (e: Exception) {
                 _error.value = e.message
             }
@@ -203,16 +250,16 @@ class GroupViewModel(
 
     fun joinGroupAndRefresh(groupId: String, userId: String) {
         if (groupId.isBlank() || userId.isBlank()) {
-            _error.value = "Không thể tham gia do thiếu thông tin."
+            _error.value = "Không thể gửi yêu cầu do thiếu thông tin."
             return
         }
 
         viewModelScope.launch {
             try {
-                groupRepository.joinGroup(groupId, userId)
+                sendJoinRequest(groupId, userId)
                 getGroupById(groupId)
             } catch (e: Exception) {
-                _error.value = "Không thể tham gia nhóm: ${e.message}"
+                _error.value = "Không thể gửi yêu cầu tham gia nhóm: ${e.message}"
             }
         }
     }

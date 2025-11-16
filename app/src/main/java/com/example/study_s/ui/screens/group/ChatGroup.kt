@@ -1,6 +1,11 @@
 package com.example.study_s.ui.screens.group
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,13 +18,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Group
@@ -57,6 +65,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.example.study_s.data.model.Group
@@ -66,6 +75,7 @@ import com.example.study_s.viewmodel.GroupChatViewModel
 import com.example.study_s.viewmodel.GroupViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.collectLatest
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,8 +92,9 @@ fun ChatGroupScreen(
     val messages by groupChatViewModel.messages.collectAsState()
     val members by groupViewModel.members.collectAsState()
     val bannedMembers by groupViewModel.bannedMembers.collectAsState()
+    val pendingMembers by groupViewModel.pendingMembers.collectAsState()
+    val listState = rememberLazyListState()
 
-    // Listen for user removal events
     LaunchedEffect(key1 = groupChatViewModel) {
         groupChatViewModel.userRemoved.collectLatest { removedUserId ->
             if (removedUserId == currentUserId) {
@@ -93,10 +104,21 @@ fun ChatGroupScreen(
         }
     }
 
-    // Fetch group and message details when the screen is opened
-    LaunchedEffect(groupId) {
+    LaunchedEffect(messages) {
+        if (messages.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
+    val refreshData = {
         if (currentUserId != null) {
             groupViewModel.getGroupById(groupId)
+        }
+    }
+
+    LaunchedEffect(groupId) {
+        refreshData()
+        if (currentUserId != null) {
             groupChatViewModel.listenToGroupMessages(groupId)
         }
     }
@@ -113,7 +135,9 @@ fun ChatGroupScreen(
                 isMember = isMember,
                 groupViewModel = groupViewModel,
                 members = members,
-                bannedMembers = bannedMembers
+                bannedMembers = bannedMembers,
+                pendingMembers = pendingMembers,
+                refreshData = refreshData
             )
         },
         bottomBar = {
@@ -142,7 +166,8 @@ fun ChatGroupScreen(
             } else if (isMember) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                    reverseLayout = true
+                    reverseLayout = true,
+                    state = listState
                 ) {
                     items(messages) { message ->
                         if (message.senderId == "system") {
@@ -154,12 +179,17 @@ fun ChatGroupScreen(
                 }
             } else {
                 if (group != null) {
+                    var requestSent by remember { mutableStateOf(false) }
+                    val isPending = group?.pendingMembers?.contains(currentUserId) == true
+
                     JoinGroupOverlay(
                         groupName = group!!.groupName,
+                        isPending = isPending || requestSent,
                         onJoinClick = {
                             if (currentUserId != null) {
-                                groupViewModel.joinGroupAndRefresh(groupId, currentUserId)
-                                Toast.makeText(context, "Đang xử lý...", Toast.LENGTH_SHORT).show()
+                                groupViewModel.joinGroup(groupId, currentUserId)
+                                requestSent = true
+                                Toast.makeText(context, "Đã gửi yêu cầu tham gia.", Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
@@ -203,7 +233,7 @@ fun BannedFromGroupOverlay() {
 }
 
 @Composable
-fun JoinGroupOverlay(groupName: String, onJoinClick: () -> Unit) {
+fun JoinGroupOverlay(groupName: String, isPending: Boolean, onJoinClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -219,18 +249,18 @@ fun JoinGroupOverlay(groupName: String, onJoinClick: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Bạn cần tham gia nhóm",
+            text = if (isPending) "Yêu cầu đã được gửi" else "Bạn cần tham gia nhóm",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "\"$groupName\"",
+            text = if (isPending) "Vui lòng chờ duyệt" else "\"$groupName\"",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
-            text = "để có thể xem tin nhắn và trò chuyện cùng mọi người.",
+            text = if (isPending) "Bạn sẽ được thông báo khi yêu cầu được chấp nhận." else "để có thể xem tin nhắn và trò chuyện cùng mọi người.",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center
         )
@@ -239,9 +269,10 @@ fun JoinGroupOverlay(groupName: String, onJoinClick: () -> Unit) {
             onClick = onJoinClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(50.dp)
+                .height(50.dp),
+            enabled = !isPending
         ) {
-            Text("THAM GIA NGAY", fontSize = 16.sp)
+            Text(if (isPending) "Đã gửi yêu cầu tham gia" else "Gửi yêu cầu tham gia", fontSize = 16.sp)
         }
     }
 }
@@ -255,13 +286,16 @@ fun GroupChatTopBar(
     isMember: Boolean,
     groupViewModel: GroupViewModel,
     members: List<User>,
-    bannedMembers: List<User>
+    bannedMembers: List<User>,
+    pendingMembers: List<User>,
+    refreshData: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showLeaveDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showMembersDialog by remember { mutableStateOf(false) }
     var showBannedMembersDialog by remember { mutableStateOf(false) }
+    var showPendingRequestsDialog by remember { mutableStateOf(false) }
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     if (showLeaveDialog) {
@@ -313,9 +347,11 @@ fun GroupChatTopBar(
             onDismiss = { showMembersDialog = false },
             onRemoveMember = { memberId, memberName ->
                 group.let {  groupViewModel.removeMember(it.groupId, memberId, it.groupName, memberName) }
+                refreshData()
             },
             onBanMember = { memberId ->
                 groupViewModel.banUser(group.groupId, memberId)
+                refreshData()
             }
         )
     }
@@ -326,6 +362,22 @@ fun GroupChatTopBar(
             onDismiss = { showBannedMembersDialog = false },
             onUnbanMember = { memberId ->
                 groupViewModel.unbanUser(group.groupId, memberId)
+                refreshData()
+            }
+        )
+    }
+
+    if (showPendingRequestsDialog && group != null) {
+        PendingRequestsDialog(
+            pendingMembers = pendingMembers,
+            onDismiss = { showPendingRequestsDialog = false },
+            onApprove = { userId, userName ->
+                groupViewModel.approveJoinRequest(group.groupId, userId, group.groupName, userName)
+                refreshData()
+            },
+            onReject = { userId ->
+                groupViewModel.rejectJoinRequest(group.groupId, userId)
+                refreshData()
             }
         )
     }
@@ -333,11 +385,6 @@ fun GroupChatTopBar(
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Group,
-                    contentDescription = "Group Icon",
-                    modifier = Modifier.size(40.dp)
-                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(text = group?.groupName ?: "Đang tải...", fontWeight = FontWeight.Bold, fontSize = 20.sp)
@@ -374,6 +421,15 @@ fun GroupChatTopBar(
 
                         if (isAdmin) {
                             DropdownMenuItem(
+                                text = { Text("Yêu cầu tham gia") },
+                                onClick = {
+                                    group?.pendingMembers?.let { groupViewModel.loadPendingMemberDetails(it) }
+                                    showPendingRequestsDialog = true
+                                    showMenu = false
+                                },
+                                leadingIcon = { Icon(Icons.Filled.People, contentDescription = null) }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Danh sách chặn") },
                                 onClick = {
                                     group?.bannedUsers?.let { groupViewModel.loadBannedMemberDetails(it) }
@@ -407,6 +463,49 @@ fun GroupChatTopBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
+    )
+}
+
+@Composable
+fun PendingRequestsDialog(
+    pendingMembers: List<User>,
+    onDismiss: () -> Unit,
+    onApprove: (String, String) -> Unit,
+    onReject: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Yêu cầu tham gia (${pendingMembers.size})") },
+        text = {
+            if (pendingMembers.isEmpty()) {
+                Text("Không có yêu cầu nào.", modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center)
+            } else {
+                LazyColumn {
+                    items(pendingMembers) { member ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(member.name ?: "Unknown User", modifier = Modifier.weight(1f))
+                            Row {
+                                TextButton(onClick = { onApprove(member.userId, member.name ?: "Thành viên mới") }) {
+                                    Text("Duyệt")
+                                }
+                                TextButton(onClick = { onReject(member.userId) }) {
+                                    Text("Từ chối", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
     )
 }
 
@@ -446,6 +545,45 @@ fun BannedMembersDialog(bannedMembers: List<User>, onDismiss: () -> Unit, onUnba
 @Composable
 fun MessageInput(onSendMessage: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var showPermissionRationale by remember { mutableStateOf(false) }
+
+    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        Manifest.permission.READ_MEDIA_IMAGES
+    } else {
+        Manifest.permission.WRITE_EXTERNAL_STORAGE
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Quyền đã được cấp, mở thư viện ảnh
+            Toast.makeText(context, "Mở thư viện ảnh...", Toast.LENGTH_SHORT).show()
+        } else {
+            // Quyền bị từ chối
+            Toast.makeText(context, "Bạn đã từ chối quyền truy cập.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    if (showPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showPermissionRationale = false },
+            title = { Text("Yêu cầu quyền truy cập") },
+            text = { Text("Để có thể chọn ảnh và tệp, Study-S cần quyền truy cập vào thư viện của bạn. Bạn đồng ý chứ?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionRationale = false
+                    launcher.launch(permission)
+                }) {
+                    Text("Tiếp tục")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionRationale = false }) { Text("Hủy") }
+            }
+        )
+    }
 
     Row(
         modifier = Modifier
@@ -453,6 +591,23 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        IconButton(onClick = {
+            when (ContextCompat.checkSelfPermission(context, permission)) {
+                PackageManager.PERMISSION_GRANTED -> {
+                    // Đã có quyền
+                    Toast.makeText(context, "Mở thư viện ảnh...", Toast.LENGTH_SHORT).show()
+                }
+                else -> {
+                    // Hiển thị thông báo giải thích
+                    showPermissionRationale = true
+                }
+            }
+        }) {
+            Icon(
+                imageVector = Icons.Default.AttachFile,
+                contentDescription = "Attach File"
+            )
+        }
         TextField(
             value = text,
             onValueChange = { text = it },
@@ -460,9 +615,17 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
             placeholder = { Text("Nhập tin nhắn...") },
             shape = RoundedCornerShape(24.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        IconButton(onClick = { onSendMessage(text); text = "" }) {
-            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+        IconButton(onClick = {
+            if (text.isNotBlank()) {
+                onSendMessage(text)
+                text = ""
+            }
+        }) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send Message",
+                tint = MaterialTheme.colorScheme.primary
+            )
         }
     }
 }
@@ -470,21 +633,34 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
 @Composable
 fun MessageItem(message: MessageModel, currentUserId: String) {
     val isCurrentUser = message.senderId == currentUserId
+    val arrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
-    ) {
-        Column(
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = arrangement) {
+        Box(
             modifier = Modifier
+                .widthIn(max = 280.dp)
                 .background(
                     color = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(12.dp)
                 )
-                .padding(8.dp)
+                .padding(12.dp)
         ) {
-            Text(text = message.senderName, fontWeight = FontWeight.Bold)
-            Text(text = message.content)
+            Column {
+                if (!isCurrentUser) {
+                    Text(
+                        text = message.senderName,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                Text(
+                    text = message.content,
+                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 }
@@ -492,13 +668,16 @@ fun MessageItem(message: MessageModel, currentUserId: String) {
 @Composable
 fun SystemMessageItem(message: MessageModel) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center
     ) {
         Text(
             text = message.content,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }
 }

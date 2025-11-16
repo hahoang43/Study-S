@@ -18,6 +18,7 @@ data class Group(
     val description: String = "",
     val subject: String = "",
     val members: List<String> = emptyList(),
+    val pendingMembers: List<String> = emptyList(),
     val bannedUsers: List<String> = emptyList(),
     val createdBy: String = "",
     val searchKeywords: List<String> = emptyList(),

@@ -30,6 +30,27 @@ class GroupRepository(
         return snapshot.toObject(Group::class.java)
     }
 
+    suspend fun addPendingMember(groupId: String, userId: String) {
+        if (groupId.isEmpty() || userId.isEmpty()) {
+            Log.e("GroupRepository", "addPendingMember called with empty groupId or userId.")
+            throw IllegalArgumentException("Group ID and User ID cannot be empty.")
+        }
+        val group = getGroupById(groupId)
+        if (group?.bannedUsers?.contains(userId) == true) {
+            throw Exception("You have been banned from this group and cannot join.")
+        }
+        groupsRef.document(groupId).update("pendingMembers", FieldValue.arrayUnion(userId)).await()
+    }
+
+    suspend fun approveJoinRequest(groupId: String, userId: String) {
+        groupsRef.document(groupId).update("pendingMembers", FieldValue.arrayRemove(userId)).await()
+        groupsRef.document(groupId).update("members", FieldValue.arrayUnion(userId)).await()
+    }
+
+    suspend fun removePendingMember(groupId: String, userId: String) {
+        groupsRef.document(groupId).update("pendingMembers", FieldValue.arrayRemove(userId)).await()
+    }
+
     suspend fun joinGroup(groupId: String, userId: String) {
         if (groupId.isEmpty() || userId.isEmpty()) {
             Log.e("GroupRepository", "joinGroup called with empty groupId or userId.")
@@ -39,7 +60,7 @@ class GroupRepository(
         if (group?.bannedUsers?.contains(userId) == true) {
             throw Exception("You have been banned from this group and cannot join.")
         }
-        groupsRef.document(groupId).update("members", FieldValue.arrayUnion(userId)).await()
+        addPendingMember(groupId, userId)
     }
 
     suspend fun leaveGroup(groupId: String, userId: String) {

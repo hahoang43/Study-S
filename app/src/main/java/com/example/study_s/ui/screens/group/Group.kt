@@ -192,6 +192,7 @@ fun GroupItem(
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isMember = group.members.contains(currentUserId) || group.createdBy == currentUserId
+    var requestSent by remember { mutableStateOf(group.pendingMembers.contains(currentUserId)) }
 
     Box(
         modifier = Modifier
@@ -214,14 +215,16 @@ fun GroupItem(
             Spacer(modifier = Modifier.width(16.dp))
             Button(
                 onClick = {
-                    if (group.groupId.isNotEmpty()) { // An toàn hơn: Kiểm tra ID trước khi sử dụng
+                    if (group.groupId.isNotEmpty()) {
                         if (isMember) {
                             navController.navigate("${Routes.GroupChat}/${group.groupId}")
                         } else {
                             groupViewModel.joinGroup(group.groupId, currentUserId)
+                            requestSent = true
                         }
                     }
                 },
+                enabled = !requestSent,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isMember) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
                     contentColor = if (isMember) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
@@ -229,7 +232,7 @@ fun GroupItem(
                 shape = RoundedCornerShape(50),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                Text(if (isMember) "Chat" else "Tham gia")
+                Text(if (isMember) "Chat" else if (requestSent) "Đã gửi yêu cầu tham gia" else "Tham gia")
             }
         }
     }

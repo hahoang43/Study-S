@@ -1,4 +1,4 @@
-// XÓA HẾT CÁC DÒNG IMPORT CŨ VÀ THAY BẰNG KHỐI NÀY
+
 package com.example.study_s.ui.screens.auth
 
 import android.app.Activity
@@ -14,6 +14,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -39,8 +43,11 @@ import com.google.android.gms.auth.api.identity.BeginSignInRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await // Rất quan trọng cho lỗi 'await'
+import kotlinx.coroutines.tasks.await
 import java.net.URLEncoder
+
+
+
 
 // PHẦN CODE CÒN LẠI CỦA BẠN BẮT ĐẦU TỪ ĐÂY
 // @Composable
@@ -133,13 +140,24 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Spacer(modifier = Modifier.height(50.dp))
             // Header
-            Text("Study-S", fontSize = 40.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(40.dp))
-            Text("Đăng nhập", fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = "STUDY-S",
+                color = MaterialTheme.colorScheme.onSurface, // Dùng màu của theme
+                fontWeight = FontWeight.Bold,
+                fontSize = 38.sp,
+                fontFamily = FontFamily.Serif
+            )
+            Spacer(modifier = Modifier.height(60.dp))
+            Text(
+                text = "Đăng nhập",
+                fontSize = 25.sp,
+                fontWeight = FontWeight.SemiBold
+            )
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                "Vui lòng nhập tên đăng nhập hoặc email",
+                text = "Vui lòng nhập tên đăng nhập hoặc email",
                 fontSize = 15.sp,
                 textAlign = TextAlign.Center
             )
@@ -153,6 +171,7 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(8.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
                 singleLine = true
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -164,6 +183,7 @@ fun LoginScreen(
                 label = { Text("Nhập mật khẩu") },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password Icon") },
                 trailingIcon = {
                     val icon = if (passwordVisible) R.drawable.ic_visibility_off else R.drawable.ic_visibility
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -181,7 +201,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             TextButton(
-                onClick = { /* TODO: Điều hướng đến màn hình quên mật khẩu */ },
+                onClick = { navController.navigate(Routes.ForgotPassword) },
                 modifier = Modifier.align(Alignment.End)
             ) {
                 Text("Quên mật khẩu", fontSize = 14.sp)
@@ -189,21 +209,39 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Login button
-            OutlinedButton(
+            Button(
                 onClick = { authViewModel.signInWithEmail(email, password) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color.Black),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFD6E6FF))
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF6D4C41), // Dark Brown
+                    contentColor = Color.White
+                )
             ) {
-                Text("Đăng nhập", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text("Đăng nhập", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             }
 
             if (authState is AuthState.Loading) {
                 Spacer(modifier = Modifier.height(16.dp))
                 CircularProgressIndicator(modifier = Modifier.size(32.dp))
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Divider(modifier = Modifier.weight(1f))
+                Text(
+                    text = " Hoặc ",
+                    color = Color.Gray,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                Divider(modifier = Modifier.weight(1f))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -235,12 +273,12 @@ fun LoginScreen(
                     .height(48.dp),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color.Gray),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFE8F0FE))
+                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.google_logo),
                     contentDescription = "Google logo",
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(36.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -254,19 +292,27 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Facebook button
-            OutlinedButton(
+            Button(
                 onClick = { /* TODO */ },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
                 shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color.Black),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color(0xFFD6E6FF))
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1877F2), // Facebook Blue
+                    contentColor = Color.White
+                )
             ) {
-                Text("Đăng nhập bằng Facebook", color = Color.Black, fontSize = 16.sp)
+                Text(
+                    "f",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 22.sp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Đăng nhập bằng Facebook", color = Color.White, fontSize = 16.sp)
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
                 horizontalArrangement = Arrangement.Center,
@@ -279,15 +325,7 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.weight(1f))
-
-            // Illustration
-            Image(
-                painter = painterResource(id = R.drawable.hinh_avatar),
-                contentDescription = "Student Illustration",
-                modifier = Modifier
-                    .size(180.dp)
-                    .padding(bottom = 16.dp)
-            )
+            
         }
     }
 }

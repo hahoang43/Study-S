@@ -73,7 +73,6 @@ fun GroupCreateScreen(
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Create, contentDescription = "Create Group Icon")
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Tạo Nhóm Học Tập")
                     }
