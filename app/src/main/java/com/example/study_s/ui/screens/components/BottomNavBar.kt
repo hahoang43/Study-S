@@ -30,7 +30,8 @@ private data class BottomNavItem(
 @Composable
 fun BottomNavBar(
     navController: NavController,
-    currentRoute: String? // Truyền vào route hiện tại của màn hình
+    currentRoute: String?, // Truyền vào route hiện tại của màn hình
+    onHomeIconReselected: () -> Unit = {}
 ) {
     // Danh sách các mục, giờ đây liên kết trực tiếp với Routes
     val items = listOf(
@@ -52,13 +53,7 @@ fun BottomNavBar(
                     selected = isSelected,
                     onClick = {
                         if (item.route == Routes.Home && isSelected) {
-                            navController.navigate(item.route) {
-                                popUpTo(navController.graph.startDestinationId) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            onHomeIconReselected()
                         } else if (!isSelected) {
                             navController.navigate(item.route) {
                                 popUpTo(navController.graph.startDestinationId) {

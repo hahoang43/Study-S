@@ -1,7 +1,5 @@
-// Đây là nội dung đầy đủ của file PostItem.kt
-package com.example.study_s.ui.screens.components // ✅ Dòng package cho file mới
+package com.example.study_s.ui.screens.components
 
-// ✅ Tất cả các import cần thiết cho 2 hàm
 import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
@@ -10,48 +8,21 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -64,10 +35,11 @@ import com.example.study_s.data.model.PostModel
 import com.example.study_s.data.model.User
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.PostViewModel
+import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Locale
-import com.google.firebase.auth.FirebaseAuth
-// ✅ HÀM SỐ 1 (Đã di chuyển)
+
+// hàm downloadFile không đổi
 fun downloadFile(context: Context, url: String, fileName: String) {
     Log.d("DownloadDebug", "Đang thử tải URL: $url")
     try {
@@ -85,9 +57,8 @@ fun downloadFile(context: Context, url: String, fileName: String) {
     }
 }
 
-// ✅ HÀM SỐ 2 (Đã di chuyển)
 @Composable
-fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewModel, modifier: Modifier = Modifier) {
+fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewModel, modifier: Modifier = Modifier,isClickable: Boolean = true) {
     val context = LocalContext.current
     val userCache by viewModel.userCache.collectAsState()
 
@@ -104,36 +75,35 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
     val isLiked = remember(post.likedBy) {
         currentUserId?.let { post.likedBy.contains(it) } ?: false
     }
-
     val isSaved = remember(post.savedBy) {
         currentUserId?.let { post.savedBy.contains(it) } ?: false
     }
+    // KIỂM TRA QUYỀN SỞ HỮU BÀI VIẾT
+    val isAuthor = currentUserId != null && currentUserId == post.authorId
 
     var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable {
-                navController.navigate("${Routes.PostDetail}/${post.postId}")
-            },
+            .clickable(enabled = isClickable) { navController.navigate("${Routes.PostDetail}/${post.postId}") },
         shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ){
         Column(modifier = Modifier.padding(12.dp)) {
-            // Header
+            // Header (không đổi)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
                     painter = rememberAsyncImagePainter(authorAvatar ?: "https://i.pravatar.cc/150?img=5"),
-                    contentDescription = "Avatar của ${authorName }",
+                    contentDescription = "Avatar của ${authorName}",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray),
+                        .background(MaterialTheme.colorScheme.secondaryContainer),
                     contentScale = ContentScale.Crop
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -142,35 +112,70 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                     val formattedDate = post.timestamp?.toDate()?.let {
                         SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
                     } ?: "Không rõ thời gian"
-                    Text(text = formattedDate, fontSize = 12.sp, color = Color.Gray)
+                    Text(text = formattedDate, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 Box {
                     IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
+                        Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    // =================== CẬP NHẬT DROPDOWN MENU ===================
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text(if (isSaved) "Bỏ lưu bài viết" else "Lưu bài viết") },
+                            text = { Text(if (isSaved) "Bỏ lưu" else "Lưu bài viết") },
                             onClick = {
                                 viewModel.toggleSavePost(post.postId)
                                 showMenu = false
                             },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                    imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Filled.BookmarkBorder,
                                     contentDescription = null
                                 )
                             }
                         )
+
+                        // CHỈ HIỂN THỊ NẾU LÀ TÁC GIẢ
+                        if (isAuthor) {
+                            Divider()
+                            DropdownMenuItem(
+                                text = { Text("Sửa bài viết") },
+                                onClick = {
+                                    navController.navigate("${Routes.EditPost}/${post.postId}")
+                                    showMenu = false
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Sửa bài viết"
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Xóa bài viết") },
+                                onClick = {
+                                    viewModel.deletePost(post.postId)
+                                    showMenu = false
+                                    Toast.makeText(context, "Đã xóa bài viết", Toast.LENGTH_SHORT).show()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = "Xóa bài viết",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            )
+                        }
                     }
+                    // =============================================================
                 }
             }
 
-            // Nội dung
+            // Nội dung (không đổi)
             Spacer(modifier = Modifier.height(12.dp))
             if (post.content.isNotBlank()) {
                 Text(
@@ -182,7 +187,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Ảnh/File
+            // Ảnh/File (không đổi)
             if (post.imageUrl != null) {
                 val isImage = post.fileName?.let {
                     it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) || it.endsWith(".png", true)
@@ -211,12 +216,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                .clickable {
-                                    val encodedUrl = Uri.encode(post.imageUrl)
-                                    val encodedName = Uri.encode(post.fileName ?: "Tệp đính kèm")
-                                    navController.navigate("${Routes.FilePreview}?fileUrl=$encodedUrl&fileName=$encodedName")
-                                },
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -240,7 +240,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                             )
                         }
                         IconButton(onClick = {
-                            downloadFile(context, post.imageUrl, post.fileName ?: "downloaded_file")
+                            post.imageUrl?.let { downloadFile(context, it, post.fileName ?: "downloaded_file") }
                         }) {
                             Icon(
                                 imageVector = Icons.Filled.AttachFile,
@@ -250,35 +250,43 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Footer
+            // Footer Actions (không đổi)
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = {
-                    viewModel.toggleLike(post.postId)
-                }) {
+                // LIKE
+                Row(
+                    modifier = Modifier.clickable { viewModel.toggleLike(post.postId) },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                         contentDescription = "Thích",
-                        tint = if (isLiked) Color.Red else Color.Gray
+                        tint = if (isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Text(text = post.likesCount.toString(), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(text = "${post.likesCount}")
-                Spacer(modifier = Modifier.width(16.dp))
-                IconButton(onClick = {
-                    navController.navigate("${Routes.PostDetail}/${post.postId}")
-                }) {
-                    Icon(Icons.Default.Send, contentDescription = "Bình luận")
+
+                // COMMENT
+                Row(
+                    modifier = Modifier.clickable { navController.navigate("${Routes.PostDetail}/${post.postId}") },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = "Bình luận",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(text = post.commentsCount.toString(), fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text(text = "${post.commentsCount}")
             }
         }
     }
 }
-
-// ✅ Thêm import này vào file PostItem.kt (nếu còn thiếu)

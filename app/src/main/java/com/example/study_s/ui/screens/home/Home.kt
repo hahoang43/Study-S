@@ -60,7 +60,7 @@ import java.util.*
 import android.widget.Toast
 import kotlinx.coroutines.launch // <-- 3. IMPORT
 import android.util.Log // <-- THÊM IMPORT NÀY
-// Hàm downloadFile (Giữ nguyên, không thay đổi)
+import kotlinx.coroutines.flow.collectLatest // <-- THÊM IMPORT NÀY// ...
 
 @Composable
 fun HomeScreen(
@@ -73,12 +73,19 @@ fun HomeScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    LaunchedEffect(navBackStackEntry) {
-        if (currentRoute == Routes.Home) {
-            viewModel.loadPosts()
+    LaunchedEffect(Unit) {
+        // Luôn lắng nghe các sự kiện yêu cầu cuộn lên đầu
+        viewModel.scrollToTopEvent.collectLatest {
             scope.launch {
                 lazyListState.animateScrollToItem(index = 0)
             }
+        }
+    }
+
+    // Tải bài đăng lần đầu tiên khi màn hình được tạo (nếu danh sách đang rỗng)
+    LaunchedEffect(Unit) {
+        if (posts.isEmpty()) {
+            viewModel.loadPosts()
         }
     }
 
@@ -92,7 +99,10 @@ fun HomeScreen(
         },
 
         bottomBar = {
-            BottomNavBar(navController = navController, currentRoute = currentRoute)
+            BottomNavBar(navController = navController, currentRoute = currentRoute, onHomeIconReselected = {
+                // Khi nhấn lại icon Home, gọi hàm trong ViewModel
+                viewModel.reloadPostsAndScrollToTop()
+            })
         }
     ) { innerPadding ->
         LazyColumn(

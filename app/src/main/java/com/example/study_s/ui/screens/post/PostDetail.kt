@@ -2,7 +2,7 @@
 // NỘI DUNG HOÀN CHỈNH, ĐÃ SỬA LỖI
 
 package com.example.study_s.ui.screens.post
-
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,8 +13,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +33,7 @@ import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
 import com.example.study_s.data.model.User
 import com.example.study_s.ui.navigation.Routes // DÒNG IMPORT QUAN TRỌNG
+import com.example.study_s.ui.screens.components.PostItem
 import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
@@ -54,7 +53,6 @@ fun PostDetailScreen(
 
     val post by viewModel.selectedPost.collectAsState()
     val comments by viewModel.comments.collectAsState()
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     var commentInput by remember { mutableStateOf("") }
 
     Scaffold(
@@ -68,7 +66,12 @@ fun PostDetailScreen(
                             contentDescription = "Quay lại"
                         )
                     }
-                }
+                },
+                // Tự động đổi màu theo theme
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
         },
         bottomBar = {
@@ -87,18 +90,16 @@ fun PostDetailScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFFF8F9FA))
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             // Phần post
             item {
                 post?.let { postData ->
-                    PostDetailContent(
+                    PostItem(
                         post = postData,
-                        currentUserId = currentUserId,
-                        // ✅ HÀM LIKE VÀ GỬI THÔNG BÁO ĐƯỢC GỌI Ở ĐÂY
-                        onLikeToggle = { viewModel.toggleLike(postData.postId) },
+                        navController = navController,
                         viewModel = viewModel,
-                        navController = navController
+                        isClickable = false
                     )
                 } ?: run {
                     Box(
@@ -111,15 +112,23 @@ fun PostDetailScreen(
                     }
                 }
             }
-
+            // Thêm đường kẻ phân cách để tách biệt bài đăng và bình luận
+            item {
+                Divider(
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
             // Tiêu đề cmt
             item {
                 Text(
                     "Bình luận (${comments.size})",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    // SỬA: Dùng màu chữ từ theme
+                    color = MaterialTheme.colorScheme.onSurface)
             }
 
             // List cmt
@@ -137,118 +146,7 @@ fun PostDetailScreen(
     }
 }
 
-/* ======================= NỘI DUNG POST ======================= */
-@Composable
-fun PostDetailContent(
-    post: PostModel,
-    currentUserId: String?,
-    onLikeToggle: () -> Unit,
-    viewModel: PostViewModel,
-    navController: NavController
-) {
-    val isLiked = remember(post.likedBy) {
-        currentUserId?.let { post.likedBy.contains(it) } ?: false
-    }
 
-    val userCache by viewModel.userCache.collectAsState()
-    val author = userCache[post.authorId] ?: User(name = "Đang tải...")
-
-    LaunchedEffect(post.authorId) {
-        if (post.authorId.isNotBlank()) {
-            viewModel.fetchUser(post.authorId)
-        }
-    }
-
-    val isMyPost = currentUserId != null && currentUserId == post.authorId
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Image(
-                painter = rememberAsyncImagePainter(
-                    model = author.avatarUrl ?: "https://i.pravatar.cc/150?img=5"
-                ),
-                contentDescription = "Avatar",
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color.LightGray)
-                    .clickable {
-                        if (isMyPost) {
-                            navController.navigate(Routes.Profile)
-                        } else {
-                            // SỬA LẠI CHO ĐÚNG ROUTE
-                            navController.navigate("${Routes.OtherProfile}/${post.authorId}")
-                        }
-                    },
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable {
-                        if (isMyPost) {
-                            navController.navigate(Routes.Profile)
-                        } else {
-                            // ✅ SỬA LẠI CHO ĐÚNG ROUTE
-                            navController.navigate("${Routes.OtherProfile}/${post.authorId}")
-                        }
-                    }
-            ) {
-                Text(author.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                post.timestamp?.toDate()?.let {
-                    val formatted = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
-                    Text(formatted, fontSize = 12.sp, color = Color.Gray)
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(post.content, fontSize = 20.sp)
-        Spacer(Modifier.height(16.dp))
-
-        if (post.imageUrl != null &&
-            (post.fileName == null || post.fileName.endsWith(".png") || post.fileName.endsWith(".jpg"))
-        ) {
-            Image(
-                painter = rememberAsyncImagePainter(post.imageUrl),
-                contentDescription = "Ảnh đính kèm",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 300.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
-            Spacer(Modifier.height(16.dp))
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onLikeToggle) {
-                Icon(
-                    imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "Thích",
-                    tint = if (isLiked) Color.Red else Color.Gray
-                )
-            }
-            Text("${post.likesCount}", fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.width(24.dp))
-            Icon(Icons.Default.Send, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(20.dp)) // Thay đổi kích thước icon cho cân đối
-            Spacer(Modifier.width(8.dp))
-            Text("${post.commentsCount}", fontWeight = FontWeight.SemiBold)
-        }
-
-        Divider(modifier = Modifier.padding(vertical = 12.dp))
-    }
-}
 
 /* ======================= COMMENT ITEM ======================= */
 @Composable
@@ -293,7 +191,11 @@ fun CommentItem(
 
         Column(
             modifier = Modifier
-                .background(Color(0xFFEEEEEE), RoundedCornerShape(12.dp))
+                // SỬA: Dùng màu nền từ theme thay vì màu cứng
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(12.dp)
+                )
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Text(
@@ -346,7 +248,9 @@ fun BottomCommentBar(
                     imageVector = Icons.Default.Send,
                     contentDescription = "Gửi bình luận",
                     tint = if (commentText.isNotBlank())
-                        MaterialTheme.colorScheme.primary else Color.Gray
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }

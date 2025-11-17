@@ -55,5 +55,7 @@ object Routes {
     const val Support = "support"
     const val SavedPosts = "saved_posts"
 
+    const val EditPost = "edit_post"
+
 
 }

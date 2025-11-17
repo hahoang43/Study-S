@@ -22,24 +22,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,7 +53,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -96,42 +97,130 @@ fun getFileName(uri: Uri, context: Context): String? {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewModel()) {
-    var postContent by remember { mutableStateOf("") }
-    val currentUser = FirebaseAuth.getInstance().currentUser
-    val context = LocalContext.current
+fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
+    navController: NavController,
+    viewModel: PostViewModel = viewModel(),
+    postToEdit: PostModel? = null // ✅ Thêm tham số mới, mặc định là null (tạo mới)
+) {
+    // Xác định chế độ: true nếu đang chỉnh sửa, false nếu tạo mới
+    val isEditMode = postToEdit != null
 
+    // --- Khởi tạo State với dữ liệu có sẵn nếu là chế độ chỉnh sửa ---
+    var postContent by remember { mutableStateOf(postToEdit?.content ?: "") }
+
+    // State cho ảnh/file
+    // imageUrl/fileName từ bài đăng cũ
+    var existingImageUrl by remember { mutableStateOf(postToEdit?.imageUrl) }
+    var existingFileName by remember { mutableStateOf(postToEdit?.fileName) }
+
+    // Uri cho ảnh/file mới được chọn
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var fileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
 
+
+    val currentUser = FirebaseAuth.getInstance().currentUser
+    val context = LocalContext.current
     var isLoading by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableStateOf(0f) }
     val coroutineScope = rememberCoroutineScope()
-
     val libraryRepository = remember { LibraryRepository() }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        imageUri = uri
+        imageUri = uri // Chọn ảnh mới
         fileUri = null
         selectedFileName = null
+        existingImageUrl = null // Hủy ảnh cũ
+        existingFileName = null // Hủy file cũ
     }
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        fileUri = uri
+        fileUri = uri // Chọn file mới
         selectedFileName = uri?.let { getFileName(it, context) }
         imageUri = null
+        existingImageUrl = null // Hủy ảnh cũ
+        existingFileName = null // Hủy file cũ
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Tạo bài đăng", fontWeight = FontWeight.Bold, fontSize = 22.sp) },
-                actions = { TextButton(onClick = { navController.popBackStack() }) { Text("Hủy", color = Color.Black, fontSize = 22.sp, fontWeight = FontWeight.Bold) } }
+                // ✅ Tiêu đề và nút thay đổi theo chế độ
+                title = { Text(if (isEditMode) "Chỉnh sửa bài đăng" else "Tạo bài đăng") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    Button(
+                        onClick = {
+                            if (currentUser != null) {
+                                coroutineScope.launch {
+                                    isLoading = true
+                                    uploadProgress = 0f
+                                    try {
+                                        var newImageUrl = existingImageUrl
+                                        var newFileName = existingFileName
+
+                                        val uriToUpload = imageUri ?: fileUri
+                                        if (uriToUpload != null) {
+                                            // Nếu có chọn file/ảnh mới -> Tải lên
+                                            val fileName = selectedFileName ?: getFileName(uriToUpload, context) ?: "file"
+                                            val mimeType = context.contentResolver.getType(uriToUpload) ?: "*/*"
+                                            // ...
+                                            val uploadResultUrl = libraryRepository.uploadFile(context, uriToUpload, fileName, mimeType, currentUser.uid, currentUser.displayName ?: "User") { progressInt ->
+                                                uploadProgress = progressInt / 100f
+                                            }
+
+                                            // Gán URL/tên file mới
+                                            if (imageUri != null) newImageUrl = uploadResultUrl
+                                            if (fileUri != null) newFileName = selectedFileName
+                                        }
+
+                                        if (isEditMode) {
+                                            // ✅ L LOGIC CẬP NHẬT
+                                            val updatedPost = postToEdit!!.copy(
+                                                content = postContent,
+                                                imageUrl = newImageUrl,
+                                                fileName = newFileName
+                                            )
+                                            viewModel.updatePost(updatedPost) {
+                                                Toast.makeText(context, "Cập nhật thành công!", Toast.LENGTH_SHORT).show()
+                                                navController.popBackStack()
+                                            }
+                                        } else {
+                                            // ✅ LOGIC TẠO MỚI (giữ nguyên)
+                                            val newPost = PostModel(
+                                                authorId = currentUser.uid,
+                                                content = postContent,
+                                                imageUrl = newImageUrl,
+                                                fileName = newFileName
+                                            )
+                                            viewModel.createNewPost(newPost)
+                                            navController.popBackStack()
+                                        }
+
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Thao tác thất bại: ${e.message}", Toast.LENGTH_LONG).show()
+                                        e.printStackTrace()
+                                    } finally {
+                                        isLoading = false
+                                    }
+                                }
+                            }
+                        },
+                        // ✅ Điều kiện enabled vẫn giữ nguyên
+                        enabled = (postContent.isNotBlank() || imageUri != null || fileUri != null || existingImageUrl != null || existingFileName != null) && currentUser != null && !isLoading,
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(if (isEditMode) "Lưu" else "Đăng", fontSize = 16.sp) // ✅ Text của nút thay đổi
+                    }
+                }
             )
         },
     ) { padding ->
@@ -141,12 +230,12 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
                     .padding(padding)
                     .padding(16.dp)
                     .fillMaxSize()
+                    .verticalScroll(rememberScrollState()) // Cho phép cuộn nếu nội dung dài
             ) {
+                // ... Giao diện người dùng (giữ nguyên)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Image(
-                        painter = rememberAsyncImagePainter(
-                            model = currentUser?.photoUrl ?: R.drawable.avatar1
-                        ),
+                        painter = rememberAsyncImagePainter(model = currentUser?.photoUrl ?: R.drawable.avatar1),
                         contentDescription = "Avatar",
                         modifier = Modifier
                             .size(50.dp)
@@ -154,115 +243,88 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
                         contentScale = ContentScale.Crop
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Column {
-                        Text(currentUser?.displayName ?: "Người dùng", fontWeight = FontWeight.SemiBold)
-                    }
+                    Text(currentUser?.displayName ?: "Người dùng", fontWeight = FontWeight.SemiBold)
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
                     value = postContent,
                     onValueChange = { postContent = it },
                     placeholder = { Text("Bạn đang nghĩ gì? ...") },
-                    modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = 120.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 120.dp),
                     shape = RoundedCornerShape(10.dp)
                 )
                 Spacer(modifier = Modifier.height(2.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Start, // Chỉ cần các nút ở bên trái
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row {
-                        IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
-                            Icon(Icons.Default.PhotoLibrary, contentDescription = "Chọn ảnh", modifier = Modifier.size(28.dp))
-                        }
-                        IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                            Icon(Icons.Default.AttachFile, contentDescription = "Đính kèm tệp", modifier = Modifier.size(28.dp))
-                        }
+                    IconButton(onClick = { imagePickerLauncher.launch("image/*") }) {
+                        Icon(Icons.Default.PhotoLibrary, contentDescription = "Chọn ảnh", modifier = Modifier.size(28.dp))
                     }
-                    Button(
-                        onClick = {
-                            if (currentUser != null) {
-                                coroutineScope.launch {
-                                    isLoading = true
-                                    uploadProgress = 0f // Reset tiến trình
-                                    try {
-                                        var attachmentUrl: String? = null
-                                        var attachmentFileName: String? = null
-
-                                        val uriToUpload = imageUri ?: fileUri
-
-                                        if (uriToUpload != null) {
-                                            val fileName = selectedFileName ?: getFileName(uriToUpload, context) ?: "file"
-                                            val mimeType = context.contentResolver.getType(uriToUpload) ?: "*/*"
-                                            val uploaderId = currentUser.uid
-                                            val uploaderName = currentUser.displayName?.takeIf { it.isNotBlank() }
-                                                ?: currentUser.email
-                                                ?: "Người dùng"
-
-                                            val uploadResultUrl = libraryRepository.uploadFile(
-                                                context = context,
-                                                fileUri = uriToUpload,
-                                                fileName = fileName,
-                                                mimeType = mimeType,
-                                                uploaderId = uploaderId,
-                                                uploaderName = uploaderName,
-                                                onProgress = { progressInt ->
-                                                    uploadProgress = progressInt / 100f
-                                                }
-                                            )
-                                            attachmentUrl = uploadResultUrl
-                                            attachmentFileName = if (fileUri != null) selectedFileName else null
-                                        }
-
-                                        val newPost = PostModel(
-                                            authorId = currentUser.uid,
-                                            content = postContent,
-                                            imageUrl = attachmentUrl,
-                                            fileName = attachmentFileName
-                                        )
-
-                                        viewModel.createNewPost(newPost)
-                                        navController.popBackStack()
-
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Tải lên thất bại: ${e.message}", Toast.LENGTH_LONG).show()
-                                        e.printStackTrace()
-                                    } finally {
-                                        isLoading = false
-                                    }
-                                }
-                            }
-                        },
-                        enabled = (postContent.isNotBlank() || imageUri != null || fileUri != null) && currentUser != null && !isLoading,
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Đăng", fontSize = 16.sp)
+                    IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                        Icon(Icons.Default.AttachFile, contentDescription = "Đính kèm tệp", modifier = Modifier.size(28.dp))
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // --- Hiển thị ảnh/file đã có hoặc mới chọn ---
+
+                // Ảnh mới chọn
                 if (imageUri != null) {
                     Box(modifier = Modifier.height(200.dp)) {
                         Image(
                             painter = rememberAsyncImagePainter(imageUri),
                             contentDescription = "Ảnh đã chọn",
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp)),
                             contentScale = ContentScale.Crop
                         )
                         IconButton(
                             onClick = { imageUri = null },
-                            modifier = Modifier.align(Alignment.TopEnd).background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
                         ) {
                             Icon(Icons.Default.Close, contentDescription = "Xóa ảnh", tint = Color.White)
                         }
                     }
                 }
+                // Ảnh đã có từ trước
+                else if (existingImageUrl != null) {
+                    Box(modifier = Modifier.height(200.dp)) {
+                        Image(
+                            painter = rememberAsyncImagePainter(existingImageUrl),
+                            contentDescription = "Ảnh hiện tại",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                        IconButton(
+                            onClick = { existingImageUrl = null }, // Xóa ảnh cũ
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Xóa ảnh", tint = Color.White)
+                        }
+                    }
+                }
+
+
+                // File mới chọn
                 if (fileUri != null && selectedFileName != null) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().border(1.dp, Color.Gray, RoundedCornerShape(8.dp)).padding(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                            .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -272,21 +334,36 @@ fun NewPostScreen(navController: NavController, viewModel: PostViewModel = viewM
                         }
                     }
                 }
+                // File đã có từ trước
+                else if (existingFileName != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.dp, Color.Gray, RoundedCornerShape(8.dp))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = existingFileName!!, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { existingFileName = null }) { // Xóa file cũ
+                            Icon(Icons.Default.Close, contentDescription = "Xóa tệp")
+                        }
+                    }
+                }
             }
-
+            // ... Giao diện loading (giữ nguyên)
             if (isLoading) {
                 Box(
-                    modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).clickable(enabled = false, onClick = {}),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f))
+                        .clickable(enabled = false, onClick = {}),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(color = Color.White)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Đang tải lên: ${(uploadProgress * 100).toInt()}%",
-                            color = Color.White,
-                            fontSize = 16.sp
-                        )
+                        Text("Đang xử lý: ${(uploadProgress * 100).toInt()}%", color = Color.White, fontSize = 16.sp)
                     }
                 }
             }

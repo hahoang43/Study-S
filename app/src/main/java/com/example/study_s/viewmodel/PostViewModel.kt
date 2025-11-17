@@ -1,8 +1,7 @@
-// ĐƯỜNG DẪN: viewmodel/PostViewModel.kt
-// NỘI DUNG HOÀN CHỈNH, ĐÃ SỬA LỖI CUỐI CÙNG
 
 package com.example.study_s.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.model.CommentModel
@@ -13,10 +12,12 @@ import com.example.study_s.data.repository.PostRepository
 import com.example.study_s.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.asSharedFlow
 
 class PostViewModel(
     private val postRepository: PostRepository = PostRepository(),
@@ -42,6 +43,8 @@ class PostViewModel(
 
     private val currentUserId: String?
         get() = FirebaseAuth.getInstance().currentUser?.uid
+    private val _scrollToTopEvent = MutableSharedFlow<Unit>()
+    val scrollToTopEvent = _scrollToTopEvent.asSharedFlow()
 
     // --- CÁC HÀM CŨ (giữ nguyên logic gốc) ---
     fun loadPosts() { viewModelScope.launch { _posts.value = postRepository.getAllPosts() } }
@@ -57,16 +60,14 @@ class PostViewModel(
 
     // ✅ HÀM NÀY GIỜ ĐÃ ĐÚNG VÌ `toggleLike` TRẢ VỀ BOOLEAN
     fun toggleLike(postId: String) {
-        val userId = currentUserId ?: return
+        val userId = currentUserId ?: return // Cần user id
         viewModelScope.launch {
-            val isLiked = postRepository.toggleLike(postId, userId)
-            reloadStates(postId)
-
-            if (isLiked) {
-                val post = postRepository.getPostById(postId) ?: return@launch
-                val actor = userRepository.getUserProfile(userId).getOrNull() ?: return@launch
-                val postOwner = userRepository.getUserProfile(post.authorId).getOrNull() ?: return@launch
-                notificationRepository.sendLikeNotification(post, actor, postOwner)
+            try {
+                postRepository.toggleLike(postId, userId)
+                // Cập nhật lại state của post
+                reloadStates(postId)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
@@ -132,4 +133,49 @@ class PostViewModel(
         val userId = currentUserId ?: return
         viewModelScope.launch { _savedPosts.value = postRepository.getSavedPosts(userId) }
     }
+
+    fun deletePost(postId: String) {
+        viewModelScope.launch {
+            try {
+                postRepository.deletePost(postId)
+                // Sau khi xóa, cập nhật lại danh sách bài đăng trên UI
+                _posts.update { currentPosts ->
+                    currentPosts.filterNot { it.postId == postId }
+                }
+            } catch (e: Exception) {
+                Log.e("PostViewModel", "Lỗi khi xóa bài viết: ${e.message}", e)
+            }
+        }
+    }
+    // ✍️ HÀM MỚI: CẬP NHẬT BÀI VIẾT
+    fun updatePost(post: PostModel, onComplete: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                postRepository.updatePost(post)
+                // Cập nhật lại danh sách posts trong StateFlow để giao diện được làm mới
+                _posts.update { currentPosts ->
+                    currentPosts.map { if (it.postId == post.postId) post else it }
+                }
+                onComplete()
+            } catch (e: Exception) {
+                Log.e("PostViewModel", "Lỗi khi cập nhật bài đăng: ${e.message}", e)
+            }
+        }
+    }
+
+    // Hàm này là suspend function để EditPostScreen có thể gọi và chờ kết quả
+    suspend fun getPostById(postId: String): PostModel? {
+        return postRepository.getPostById(postId)
+    }
+
+
+    fun reloadPostsAndScrollToTop() {
+        viewModelScope.launch {
+            // Tải lại danh sách bài đăng từ repository
+            _posts.value = postRepository.getAllPosts()
+            // Gửi đi một tín hiệu yêu cầu View (HomeScreen) cuộn lên đầu
+            _scrollToTopEvent.emit(Unit)
+        }
+    }
 }
+

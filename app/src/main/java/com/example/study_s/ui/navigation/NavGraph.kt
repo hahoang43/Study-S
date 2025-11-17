@@ -3,10 +3,13 @@ package com.example.study_s.ui.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navigation
+
 import androidx.navigation.navArgument
 import com.example.study_s.data.repository.GroupRepository
 import com.example.study_s.data.repository.LibraryRepository
@@ -26,12 +29,14 @@ import com.example.study_s.ui.screens.library.UploadFileScreen
 import com.example.study_s.ui.screens.message.MessageListScreen
 import com.example.study_s.ui.screens.notification.NotificationScreen
 import com.example.study_s.ui.screens.post.MyPostsScreen
-import com.example.study_s.ui.screens.post.NewPostScreen
+import com.example.study_s.ui.screens.post.PostScreen
 import com.example.study_s.ui.screens.post.PostDetailScreen
+import com.example.study_s.ui.screens.post.EditPostScreen
 import com.example.study_s.ui.screens.post.SavedPostsScreen
 import com.example.study_s.ui.screens.profiles.EditProfileScreen
 import com.example.study_s.ui.screens.profiles.FollowListScreen
 import com.example.study_s.ui.screens.profiles.ProfileScreen
+import com.example.study_s.viewmodel.PostViewModel
 import com.example.study_s.ui.screens.profiles.StragerProfileScreen
 import com.example.study_s.ui.screens.schedule.ScheduleScreen
 import com.example.study_s.ui.screens.search.SearchScreen
@@ -48,6 +53,7 @@ import java.net.URLDecoder
 @Composable
 fun NavGraph(navController: NavHostController) {
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
+    val postViewModel: PostViewModel = viewModel()
     val userRepository = remember { UserRepository() }
     val postRepository = remember { PostRepository() }
     val groupRepository = remember { GroupRepository() }
@@ -60,7 +66,12 @@ fun NavGraph(navController: NavHostController) {
 
         // ========== CÁC ROUTE CƠ BẢN & AUTH ==========
         composable(Routes.Splash) { SplashScreen(navController) }
-        composable(Routes.Login) { LoginScreen(navController = navController, authViewModel = authViewModel) }
+        composable(Routes.Login) {
+            LoginScreen(
+                navController = navController,
+                authViewModel = authViewModel
+            )
+        }
         composable(
             route = "${Routes.Register}?name={name}&email={email}",
             arguments = listOf(
@@ -81,10 +92,10 @@ fun NavGraph(navController: NavHostController) {
             )
         }
         composable(Routes.VerifyCode) { VerifyCodeScreen(navController) }
+        postGraph(navController, postViewModel)
 
 
         // ========== CÁC MÀN HÌNH CHÍNH ==========
-        composable(Routes.Home) { HomeScreen(navController) }
         composable(Routes.Message) { MessageListScreen() }
         composable(Routes.Notification) {
             NotificationScreen(navController = navController) // ✅ TRUYỀN navController VÀO ĐÂY
@@ -93,8 +104,7 @@ fun NavGraph(navController: NavHostController) {
 
 
         // ========== BÀI VIẾT (POST) ==========
-        composable(Routes.NewPost) { NewPostScreen(navController) }
-        composable(Routes.MyPosts) { MyPostsScreen(navController) }
+        composable(Routes.NewPost) { PostScreen(navController) }
         composable(Routes.SavedPosts) { SavedPostsScreen(navController = navController) }
         composable(
             route = "${Routes.PostDetail}/{postId}",
@@ -153,8 +163,9 @@ fun NavGraph(navController: NavHostController) {
 
         // ========== THƯ VIỆN (LIBRARY) & XEM TRƯỚC FILE ==========
         composable(Routes.Library) { LibraryScreen(navController) }
-        composable(Routes.UploadFile) { UploadFileScreen(navController = navController, fileUrl = null, fileName = null) }
-        // KHỐI DUY NHẤT VÀ CHÍNH XÁC cho màn hình xem trước file.
+        composable(Routes.UploadFile) {
+            UploadFileScreen(navController = navController, fileUrl = null, fileName = null)
+        }
         composable(
             route = "${Routes.FilePreview}?fileUrl={fileUrl}&fileName={fileName}",
             arguments = listOf(
@@ -162,7 +173,8 @@ fun NavGraph(navController: NavHostController) {
                 navArgument("fileName") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
-            val fileUrl = backStackEntry.arguments?.getString("fileUrl")?.let { URLDecoder.decode(it, "UTF-8") }
+            val fileUrl = backStackEntry.arguments?.getString("fileUrl")
+                ?.let { URLDecoder.decode(it, "UTF-8") }
             val fileName = backStackEntry.arguments?.getString("fileName")
             if (fileUrl != null) {
                 FilePreviewScreen(navController, fileUrl = fileUrl, fileName = fileName)
@@ -172,7 +184,12 @@ fun NavGraph(navController: NavHostController) {
 
         // ========== TÌM KIẾM (SEARCH) ==========
         composable(Routes.Search) {
-            val searchFactory = SearchViewModelFactory(userRepository, postRepository, groupRepository, libraryRepository)
+            val searchFactory = SearchViewModelFactory(
+                userRepository,
+                postRepository,
+                groupRepository,
+                libraryRepository
+            )
             val searchViewModel: SearchViewModel = viewModel(factory = searchFactory)
             SearchScreen(navController = navController, viewModel = searchViewModel)
         }
@@ -184,3 +201,72 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.Support) { SupportScreen(navController) }
     }
 }
+        //✅ TẠO HÀM MỞ RỘNG CHO NAVGRAPHBUILDER
+        fun NavGraphBuilder.postGraph(navController: NavHostController,postViewModel: PostViewModel) {
+            // Sử dụng navigation() để tạo một graph lồng nhau
+            navigation(startDestination = Routes.Home, route = "post_flow") {
+
+                // ✅ KHỞI TẠO POSTVIEWMODEL Ở ĐÂY - Nó sẽ được chia sẻ cho tất cả các màn hình bên trong graph này
+
+                // 🏠 Home
+                composable(Routes.Home) {
+                    HomeScreen(navController = navController, viewModel = postViewModel)
+                }
+
+                // 📝 Post
+                composable(Routes.NewPost) {
+                    PostScreen(navController, viewModel = postViewModel)
+                }
+
+                composable(
+                    route = "${Routes.PostDetail}/{postId}",
+                    arguments = listOf(navArgument("postId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val postId = backStackEntry.arguments?.getString("postId") ?: ""
+                    PostDetailScreen(postId = postId, navController = navController, viewModel = postViewModel)
+                }
+
+                composable(
+                    route = "${Routes.EditPost}/{postId}", // Route có chứa postId
+                    arguments = listOf(navArgument("postId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    val postId = backStackEntry.arguments?.getString("postId")
+                    if (postId != null) {
+                        // ✅ LỖI ĐÃ ĐƯỢC SỬA: postViewModel giờ đã tồn tại trong scope này
+                        EditPostScreen(
+                            navController = navController,
+                            viewModel = postViewModel,
+                            postId = postId
+                        )
+                    } else {
+                        navController.popBackStack()
+                    }
+                }
+
+                // Các màn hình khác cũng cần PostViewModel
+                composable(Routes.MyPosts) {
+                    MyPostsScreen(navController, viewModel = postViewModel)
+                }
+                composable(Routes.SavedPosts) {
+                    SavedPostsScreen(navController = navController, viewModel = postViewModel)
+                }
+
+                // File Preview có thể cần PostViewModel nếu nó liên quan đến bài đăng
+                composable(
+                    route = "${Routes.FilePreview}?fileUrl={fileUrl}&fileName={fileName}",
+                    arguments = listOf(
+                        navArgument("fileUrl") { type = NavType.StringType; nullable = true },
+                        navArgument("fileName") { type = NavType.StringType; nullable = true }
+                    )
+                ) { backStackEntry ->
+                    val fileUrl = backStackEntry.arguments?.getString("fileUrl")?.let {
+                        URLDecoder.decode(it, "UTF-8")
+                    }
+                    val fileName = backStackEntry.arguments?.getString("fileName")
+                    UploadFileScreen(navController, fileUrl, fileName)
+                }
+            }
+        }
+
+
+
