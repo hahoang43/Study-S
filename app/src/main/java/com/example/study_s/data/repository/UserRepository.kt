@@ -301,5 +301,45 @@ class UserRepository {
             Result.failure(e)
         }
     }
+    // ✅✅✅ HÀM MỚI: XÓA TÀI KHOẢN VÀ DỌN DẸP DỮ LIỆU ✅✅✅
+    /**
+     * Xóa tài khoản người dùng và tất cả dữ liệu liên quan.
+     * Yêu cầu người dùng phải được xác thực lại trước khi gọi hàm này.
+     */
+    suspend fun deleteUserAccount(): Result<Unit> {
+        val currentUser = auth.currentUser ?: return Result.failure(Exception("Không tìm thấy người dùng."))
+        val userId = currentUser.uid
+
+        return try {
+            // =================================================================
+            // BƯỚC 1: DỌN DẸP DỮ LIỆU TRÊN FIRESTORE (VÀ STORAGE NẾU CẦN)
+            // =================================================================
+            // Đây là bước tùy chọn nhưng rất nên làm để database được sạch sẽ.
+            // Ví dụ: Xóa document của user trong collection "users"
+            usersCollection.document(userId).delete().await()
+
+            // Ví dụ: Xóa collection "following" và "followers" của user
+            // (Phần này cần Cloud Function để xóa sub-collection hiệu quả,
+            // nhưng tạm thời ta có thể bỏ qua nếu phức tạp)
+
+            // Ví dụ: Xóa các bài viết của user (cần PostRepository)
+            // val postRepo = PostRepository()
+            // postRepo.deleteAllPostsFromUser(userId)
+
+            // =================================================================
+            // BƯỚC 2: XÓA TÀI KHOẢN TRÊN FIREBASE AUTHENTICATION (QUAN TRỌNG NHẤT)
+            // =================================================================
+            // Hành động này sẽ xóa vĩnh viễn user khỏi hệ thống đăng nhập.
+            currentUser.delete().await()
+
+            // Nếu mọi thứ thành công
+            Result.success(Unit)
+        } catch (e: Exception) {
+            // Bắt các lỗi có thể xảy ra (ví dụ: cần xác thực lại, lỗi mạng...)
+            Log.e("UserRepository", "Lỗi khi xóa tài khoản: ", e)
+            Result.failure(e)
+        }
+    }
 }
+
 // KẾT THÚC FILE

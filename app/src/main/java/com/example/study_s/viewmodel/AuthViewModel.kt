@@ -1,4 +1,5 @@
 package com.example.study_s.viewmodel
+import kotlinx.coroutines.tasks.await
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -39,21 +40,40 @@ class AuthViewModel(
     private val _currentUser = MutableStateFlow(repo.currentUser)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser
 
+    // ✅✅✅ THAY THẾ TOÀN BỘ HÀM CŨ BẰNG HÀM NÀY ✅✅✅
     /**
      * Hàm này được SettingScreen gọi để làm mới thông tin.
-     * Nó yêu cầu AuthRepository tải lại dữ liệu từ server và cập nhật StateFlow.
+     * Nó trực tiếp sử dụng FirebaseAuth để tải lại dữ liệu từ server
+     * và cập nhật StateFlow.
      */
     fun reloadUserData() {
         viewModelScope.launch {
-            val result = repo.reloadCurrentUser() // Giả định hàm này tồn tại trong Repo
-            result.onSuccess { reloadedUser ->
-                _currentUser.value = reloadedUser
-                Log.d("AuthViewModel", "User data reloaded for ${reloadedUser?.displayName}")
-            }.onFailure { exception ->
-                Log.e("AuthViewModel", "Failed to reload user data", exception)
+            val user = repo.currentUser // Lấy người dùng hiện tại từ repository
+
+            // BƯỚC 1: KIỂM TRA BẢO VỆ
+            // Nếu không có người dùng nào đăng nhập, phát tín hiệu đăng xuất
+            // để tự động đẩy người dùng về màn hình Login.
+            if (user == null) {
+                Log.w("AuthViewModel", "Không có người dùng đăng nhập. Phát tín hiệu OnSignOut.")
+                _event.emit(AuthEvent.OnSignOut)
+                return@launch
+            }
+
+            // BƯỚC 2: TẢI LẠI DỮ LIỆU TỪ SERVER
+            // Nếu có người dùng, yêu cầu Firebase làm mới thông tin của họ.
+            try {
+                user.reload().await() // Chờ cho đến khi việc tải lại hoàn tất
+                // Sau khi reload, repo.currentUser sẽ tự động được cập nhật
+                val freshUser = repo.currentUser
+                _currentUser.value = freshUser // Cập nhật StateFlow với thông tin mới nhất
+                Log.d("AuthViewModel", "User data reloaded for ${freshUser?.displayName}")
+            } catch (e: Exception) {
+                // Xử lý các lỗi có thể xảy ra khi reload (ví dụ: mất mạng)
+                Log.e("AuthViewModel", "Lỗi khi tải lại dữ liệu người dùng", e)
             }
         }
     }
+
     /**
      * HÀM CHUNG: Đồng bộ hồ sơ người dùng lên Firestore sau khi Firebase Auth thành công.
      */

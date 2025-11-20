@@ -73,16 +73,28 @@ import com.example.study_s.viewmodel.ProfileViewModelFactory
 import com.example.study_s.viewmodel.SettingsViewModel
 import com.example.study_s.viewmodel.SettingsViewModelFactory
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.VisualTransformation
 import coil.compose.AsyncImage
 import com.example.study_s.R
+import com.example.study_s.viewmodel.AccountViewModel
+import com.example.study_s.viewmodel.AccountDeletionState
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.DeleteForever
+import com.example.study_s.viewmodel.AccountViewModelFactory
 
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 @Composable
 fun SettingScreen(
     navController: NavController,
     authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory()),
     profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory()),
+    accountViewModel: AccountViewModel = viewModel(factory = AccountViewModelFactory()),
     settingsViewModel: SettingsViewModel = viewModel(factory = SettingsViewModelFactory(SettingsRepository(LocalContext.current)))
 ) {
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -92,6 +104,9 @@ fun SettingScreen(
     val currentUser by authViewModel.currentUser.collectAsState()
 
     val isDarkTheme by settingsViewModel.isDarkTheme.collectAsState()
+    // ✅ LẮNG NGHE TRẠNG THÁI TỪ ACCOUNT VIEWMODEL
+    val deletionState by accountViewModel.deletionState.collectAsState()
+    val errorMessage by accountViewModel.errorMessage.collectAsState()
 
     // ✅ BƯỚC 2: Yêu cầu làm mới dữ liệu mỗi khi màn hình được mở
     LaunchedEffect(Unit) {
@@ -107,6 +122,34 @@ fun SettingScreen(
             }
         }
     }
+    // ✅ XỬ LÝ SỰ KIỆN XÓA TÀI KHOẢN
+    LaunchedEffect(deletionState) {
+        when (deletionState) {
+            AccountDeletionState.SUCCESS -> {
+                Toast.makeText(context, "Đã xóa tài khoản thành công.", Toast.LENGTH_LONG).show()
+                navController.navigate(Routes.Login) {
+                    popUpTo(0) { inclusive = true }
+                }
+                accountViewModel.resetDeletionState()
+            }
+
+            AccountDeletionState.ERROR -> {
+                errorMessage?.let { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                accountViewModel.resetDeletionState() // Reset để người dùng có thể thử lại
+            }
+            // Không làm gì với các trạng thái khác để dialog tự xử lý
+            else -> {}
+        }
+    }
+
+
+    if (showChangePasswordDialog) {
+        ChangePasswordDialog(
+            onDismissRequest = { showChangePasswordDialog = false },
+            onConfirmClick = { old, new -> profileViewModel.changePassword(old, new) },
+            isLoading = actionState is ProfileActionState.Loading
+        )
+    }
 
     LaunchedEffect(actionState) {
         when (actionState) {
@@ -116,10 +159,12 @@ fun SettingScreen(
                 profileViewModel.resetActionState()
                 authViewModel.reloadUserData()
             }
+
             is ProfileActionState.Failure -> {
                 Toast.makeText(context, actionState.message, Toast.LENGTH_LONG).show()
                 profileViewModel.resetActionState()
             }
+
             else -> {}
         }
     }
@@ -131,6 +176,22 @@ fun SettingScreen(
                 profileViewModel.changePassword(old, new)
             },
             isLoading = actionState is ProfileActionState.Loading
+        )
+    }
+    // ✅✅✅ DÁN ĐOẠN CODE NÀY VÀO ĐÂY ✅✅✅
+    // KIỂM TRA TRẠNG THÁI VÀ HIỂN THỊ DIALOG XÁC THỰC LẠI
+    if (deletionState == AccountDeletionState.REQUIRES_REAUTH ||
+        deletionState == AccountDeletionState.DELETING ||
+        deletionState == AccountDeletionState.ERROR_WRONG_PASSWORD) {
+        ReauthenticationDialog(
+            isLoading = deletionState == AccountDeletionState.DELETING,
+            error = if (deletionState == AccountDeletionState.ERROR_WRONG_PASSWORD) errorMessage else null,
+            onConfirm = { password ->
+                accountViewModel.reauthenticateAndDeleteAccount(password)
+            },
+            onDismiss = {
+                accountViewModel.resetDeletionState()
+            }
         )
     }
 
@@ -197,7 +258,6 @@ fun SettingScreen(
                     onClick = { navController.navigate(Routes.Support) }
                 )
             }
-
             SettingsGroup(title = "") {
                 SettingsLogoutItem(
                     icon = Icons.AutoMirrored.Filled.Logout,
@@ -205,9 +265,18 @@ fun SettingScreen(
                     onClick = { authViewModel.signOut() }
                 )
             }
+            DangerZoneSection(
+                onDeleteAccountClicked = {
+                    accountViewModel.startAccountDeletionProcess()
+                }
+            )
+
+            Spacer(modifier = Modifier.height(32.dp)) // Thêm khoảng trống ở dưới
         }
     }
 }
+
+
 
 @Composable
 fun ChangePasswordDialog(
@@ -457,7 +526,106 @@ fun SettingsLogoutItem(
         )
     }
 }
+@Composable
+fun DangerZoneSection(onDeleteAccountClicked: () -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)) {
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onDeleteAccountClicked)
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.DeleteForever,
+                contentDescription = "Xóa tài khoản",
+                tint = MaterialTheme.colorScheme.error
+            )
+            Spacer(modifier = Modifier.size(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Xóa tài khoản",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.error
+                )
+                Text(
+                    text = "Hành động này không thể hoàn tác.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+
+@Composable
+fun ReauthenticationDialog(
+    isLoading: Boolean,
+    error: String?,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var password by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+
+    // Dùng LaunchedEffect để reset lỗi khi dialog được mở lại
+    LaunchedEffect(error) {
+        // Có thể thêm logic ở đây nếu cần
+    }
+
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = { Text("Xác thực lại") },
+        text = {
+            Column {
+                Text("Vì lý do bảo mật, vui lòng nhập lại mật khẩu của bạn để xóa tài khoản vĩnh viễn.")
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Mật khẩu") },
+                    singleLine = true,
+                    isError = error != null,
+                    supportingText = { if (error != null) Text(error, color = MaterialTheme.colorScheme.error) },
+                    visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val image = if (isPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
+                        IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                            Icon(image, "Toggle password visibility")
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (isLoading) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(password) },
+                enabled = !isLoading && password.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Xác nhận Xóa")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
+                Text("Hủy")
+            }
+        }
+    )
+}
 @Preview(showBackground = true, name = "Light Mode")
 @Preview(showBackground = true, uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
