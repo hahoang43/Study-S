@@ -83,16 +83,27 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
 
     var showMenu by remember { mutableStateOf(false) }
 
+    val onProfileClick = {
+        if (isAuthor) {
+            navController.navigate(Routes.Profile)
+        } else {
+            navController.navigate("${Routes.OtherProfile}/${post.authorId}")
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = isClickable) { navController.navigate("${Routes.PostDetail}/${post.postId}") },
-        shape = RoundedCornerShape(8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = RoundedCornerShape(12.dp), // Tăng bo góc cho mềm mại hơn
+        // ✅ THAY ĐỔI MÀU NỀN TẠI ĐÂY
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer // Màu nền nổi bật hơn
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Bỏ shadow vì đã có màu nền phân biệt
     ){
-        Column(modifier = Modifier.padding(12.dp)) {
-            // Header (không đổi)
+        Column(modifier = Modifier.padding(16.dp)) { // Tăng padding cho thoáng hơn
+            // Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -103,12 +114,18 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.secondaryContainer),
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .clickable { onProfileClick() },
                     contentScale = ContentScale.Crop
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(text = authorName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(
+                        text = authorName,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.clickable { onProfileClick() }
+                    )
                     val formattedDate = post.timestamp?.toDate()?.let {
                         SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
                     } ?: "Không rõ thời gian"
@@ -119,7 +136,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                     IconButton(onClick = { showMenu = true }) {
                         Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    // =================== CẬP NHẬT DROPDOWN MENU ===================
+                    // Dropdown menu
                     DropdownMenu(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
@@ -171,11 +188,10 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                             )
                         }
                     }
-                    // =============================================================
                 }
             }
 
-            // Nội dung (không đổi)
+            // Nội dung
             Spacer(modifier = Modifier.height(12.dp))
             if (post.content.isNotBlank()) {
                 Text(
@@ -187,7 +203,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Ảnh/File (không đổi)
+            // Ảnh/File
             if (post.imageUrl != null) {
                 val isImage = post.fileName?.let {
                     it.endsWith(".jpg", true) || it.endsWith(".jpeg", true) || it.endsWith(".png", true)
@@ -208,7 +224,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)) // Nền file hơi khác biệt
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -234,7 +250,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                                 overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "Nhấn biểu tượng để xem hoặc tải xuống",
+                                text = "Nhấn để tải xuống",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -243,7 +259,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                             post.imageUrl?.let { downloadFile(context, it, post.fileName ?: "downloaded_file") }
                         }) {
                             Icon(
-                                imageVector = Icons.Filled.AttachFile,
+                                imageVector = Icons.Filled.Download, // Icon tải xuống
                                 contentDescription = "Tải xuống",
                                 tint = MaterialTheme.colorScheme.primary
                             )
@@ -253,7 +269,8 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // Footer Actions (không đổi)
+
+            // Footer Actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceAround,
