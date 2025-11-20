@@ -8,5 +8,7 @@ data class MessageModel(
     val senderId: String = "",
     val senderName: String = "",
     val content: String = "",
-    val timestamp: Long? = null
+    val timestamp: Long? = null,
+    val type: String = "text", // "text", "image", "file"
+    val fileUrl: String? = null
 )

@@ -1,12 +1,17 @@
 package com.example.study_s.ui.screens.group
 
 import android.Manifest
+import android.app.DownloadManager
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,11 +31,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.GroupAdd
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
@@ -38,7 +45,7 @@ import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -60,17 +67,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.example.study_s.data.model.Group
 import com.example.study_s.data.model.MessageModel
 import com.example.study_s.data.model.User
+import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.GroupChatViewModel
 import com.example.study_s.viewmodel.GroupViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -93,6 +105,8 @@ fun ChatGroupScreen(
     val members by groupViewModel.members.collectAsState()
     val bannedMembers by groupViewModel.bannedMembers.collectAsState()
     val pendingMembers by groupViewModel.pendingMembers.collectAsState()
+    val isUploading by groupChatViewModel.isUploading.collectAsState()
+
     val listState = rememberLazyListState()
 
     LaunchedEffect(key1 = groupChatViewModel) {
@@ -101,6 +115,10 @@ fun ChatGroupScreen(
                 Toast.makeText(context, "Bạn đã bị xóa khỏi nhóm.", Toast.LENGTH_LONG).show()
                 navController.popBackStack()
             }
+        }
+        groupChatViewModel.uploadSuccess.collectLatest { success ->
+            val message = if (success) "Tải lên thành công!" else "Tải lên thất bại."
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -142,16 +160,20 @@ fun ChatGroupScreen(
         },
         bottomBar = {
             if (isMember) {
-                MessageInput(onSendMessage = { message ->
-                    if (currentUserId != null) {
-                        groupChatViewModel.sendMessage(
-                            groupId = groupId,
-                            senderId = currentUserId,
-                            content = message,
-                            senderName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Unknown"
-                        )
-                    }
-                })
+                MessageInput(
+                    onSendMessage = { message ->
+                        if (currentUserId != null) {
+                            groupChatViewModel.sendMessage(
+                                groupId = groupId,
+                                senderId = currentUserId,
+                                content = message,
+                                senderName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Unknown"
+                            )
+                        }
+                    },
+                    groupChatViewModel = groupChatViewModel,
+                    groupId = groupId
+                )
             }
         }
     ) { paddingValues ->
@@ -165,7 +187,9 @@ fun ChatGroupScreen(
                 BannedFromGroupOverlay()
             } else if (isMember) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp),
                     reverseLayout = true,
                     state = listState
                 ) {
@@ -173,7 +197,11 @@ fun ChatGroupScreen(
                         if (message.senderId == "system") {
                             SystemMessageItem(message = message)
                         } else if (currentUserId != null) {
-                            MessageItem(message = message, currentUserId = currentUserId)
+                            MessageItem(
+                                message = message,
+                                currentUserId = currentUserId,
+                                navController = navController
+                            )
                         }
                     }
                 }
@@ -197,6 +225,11 @@ fun ChatGroupScreen(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
+                }
+            }
+            if (isUploading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
                 }
             }
         }
@@ -352,7 +385,8 @@ fun GroupChatTopBar(
             onBanMember = { memberId ->
                 groupViewModel.banUser(group.groupId, memberId)
                 refreshData()
-            }
+            },
+            navController = navController
         )
     }
 
@@ -427,7 +461,7 @@ fun GroupChatTopBar(
                                     showPendingRequestsDialog = true
                                     showMenu = false
                                 },
-                                leadingIcon = { Icon(Icons.Filled.People, contentDescription = null) }
+                                leadingIcon = { Icon(Icons.Filled.GroupAdd, contentDescription = "Yêu cầu tham gia") }
                             )
                             DropdownMenuItem(
                                 text = { Text("Danh sách chặn") },
@@ -438,7 +472,7 @@ fun GroupChatTopBar(
                                 },
                                 leadingIcon = { Icon(Icons.Filled.Block, contentDescription = null) }
                             )
-                            Divider()
+                            HorizontalDivider()
                             DropdownMenuItem(
                                 text = { Text("Xóa nhóm", color = MaterialTheme.colorScheme.error) },
                                 onClick = {
@@ -448,7 +482,7 @@ fun GroupChatTopBar(
                                 leadingIcon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) }
                             )
                         } else {
-                            Divider()
+                            HorizontalDivider()
                             DropdownMenuItem(
                                 text = { Text("Rời nhóm", color = MaterialTheme.colorScheme.error) },
                                 onClick = {
@@ -483,13 +517,15 @@ fun PendingRequestsDialog(
                 LazyColumn {
                     items(pendingMembers) { member ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(member.name ?: "Unknown User", modifier = Modifier.weight(1f))
+                            Text(member.name, modifier = Modifier.weight(1f))
                             Row {
-                                TextButton(onClick = { onApprove(member.userId, member.name ?: "Thành viên mới") }) {
+                                TextButton(onClick = { onApprove(member.userId, member.name) }) {
                                     Text("Duyệt")
                                 }
                                 TextButton(onClick = { onReject(member.userId) }) {
@@ -521,11 +557,13 @@ fun BannedMembersDialog(bannedMembers: List<User>, onDismiss: () -> Unit, onUnba
                 LazyColumn {
                     items(bannedMembers) { member ->
                         Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(member.name ?: "Unknown User")
+                            Text(member.name)
                             TextButton(onClick = { onUnbanMember(member.userId) }) {
                                 Text("Bỏ chặn")
                             }
@@ -543,25 +581,51 @@ fun BannedMembersDialog(bannedMembers: List<User>, onDismiss: () -> Unit, onUnba
 }
 
 @Composable
-fun MessageInput(onSendMessage: (String) -> Unit) {
+fun MessageInput(
+    onSendMessage: (String) -> Unit,
+    groupChatViewModel: GroupChatViewModel,
+    groupId: String
+) {
     var text by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val currentUserDisplayName = FirebaseAuth.getInstance().currentUser?.displayName ?: "Unknown"
+
     var showPermissionRationale by remember { mutableStateOf(false) }
+    var showAttachmentMenu by remember { mutableStateOf(false) }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            if (currentUserId != null) {
+                groupChatViewModel.sendFile(context, groupId, currentUserId, currentUserDisplayName, it, "image")
+            }
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            if (currentUserId != null) {
+                groupChatViewModel.sendFile(context, groupId, currentUserId, currentUserDisplayName, it, "file")
+            }
+        }
+    }
 
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {
-        Manifest.permission.WRITE_EXTERNAL_STORAGE
+        Manifest.permission.READ_EXTERNAL_STORAGE
     }
 
-    val launcher = rememberLauncherForActivityResult(
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Quyền đã được cấp, mở thư viện ảnh
-            Toast.makeText(context, "Mở thư viện ảnh...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Quyền đã được cấp. Vui lòng thử lại.", Toast.LENGTH_SHORT).show()
         } else {
-            // Quyền bị từ chối
             Toast.makeText(context, "Bạn đã từ chối quyền truy cập.", Toast.LENGTH_SHORT).show()
         }
     }
@@ -570,11 +634,11 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
         AlertDialog(
             onDismissRequest = { showPermissionRationale = false },
             title = { Text("Yêu cầu quyền truy cập") },
-            text = { Text("Để có thể chọn ảnh và tệp, Study-S cần quyền truy cập vào thư viện của bạn. Bạn đồng ý chứ?") },
+            text = { Text("Để có thể chọn ảnh và tệp, Study-S cần quyền truy cập vào bộ nhớ của bạn. Bạn đồng ý chứ?") },
             confirmButton = {
                 TextButton(onClick = {
                     showPermissionRationale = false
-                    launcher.launch(permission)
+                    requestPermissionLauncher.launch(permission)
                 }) {
                     Text("Tiếp tục")
                 }
@@ -585,28 +649,65 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
         )
     }
 
+    fun launchPicker(type: String) {
+        when (ContextCompat.checkSelfPermission(context, permission)) {
+            PackageManager.PERMISSION_GRANTED -> {
+                if (type == "image") {
+                    imagePickerLauncher.launch("image/*")
+                } else {
+                    filePickerLauncher.launch("*/*")
+                }
+            }
+            else -> {
+                showPermissionRationale = true
+            }
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = {
-            when (ContextCompat.checkSelfPermission(context, permission)) {
-                PackageManager.PERMISSION_GRANTED -> {
-                    // Đã có quyền
-                    Toast.makeText(context, "Mở thư viện ảnh...", Toast.LENGTH_SHORT).show()
-                }
-                else -> {
-                    // Hiển thị thông báo giải thích
-                    showPermissionRationale = true
-                }
+        Box {
+            IconButton(onClick = { showAttachmentMenu = true }) {
+                Icon(
+                    imageVector = Icons.Default.AttachFile,
+                    contentDescription = "Attach File"
+                )
             }
-        }) {
-            Icon(
-                imageVector = Icons.Default.AttachFile,
-                contentDescription = "Attach File"
-            )
+            DropdownMenu(
+                expanded = showAttachmentMenu,
+                onDismissRequest = { showAttachmentMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Tải ảnh lên") },
+                    onClick = {
+                        showAttachmentMenu = false
+                        launchPicker("image")
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = "Upload Image"
+                        )
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Tải tệp lên") },
+                    onClick = {
+                        showAttachmentMenu = false
+                        launchPicker("file")
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
+                            contentDescription = "Upload File"
+                        )
+                    }
+                )
+            }
         }
         TextField(
             value = text,
@@ -630,12 +731,16 @@ fun MessageInput(onSendMessage: (String) -> Unit) {
     }
 }
 
+
 @Composable
-fun MessageItem(message: MessageModel, currentUserId: String) {
+fun MessageItem(message: MessageModel, currentUserId: String, navController: NavHostController) {
     val isCurrentUser = message.senderId == currentUserId
     val arrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
+    val context = LocalContext.current
 
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = arrangement) {
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .padding(vertical = 4.dp), horizontalArrangement = arrangement) {
         Box(
             modifier = Modifier
                 .widthIn(max = 280.dp)
@@ -651,15 +756,63 @@ fun MessageItem(message: MessageModel, currentUserId: String) {
                         text = message.senderName,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
+                        modifier = Modifier.clickable { navController.navigate("${Routes.Profile}/${message.senderId}") }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
-                Text(
-                    text = message.content,
-                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
-                    fontSize = 16.sp
-                )
+                when (message.type) {
+                    "text" -> {
+                        Text(
+                            text = message.content,
+                            color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                            fontSize = 16.sp
+                        )
+                    }
+                    "image" -> {
+                        message.fileUrl?.let { url ->
+                            AsyncImage(
+                                model = url,
+                                contentDescription = "Sent image",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                    "file" -> {
+                         message.fileUrl?.let { url ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.clickable {
+                                    val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                    val request = DownloadManager.Request(url.toUri())
+                                        .setTitle(message.content) // Or a more descriptive name
+                                        .setDescription("Downloading")
+                                        .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                                        .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, message.content)
+                                    downloadManager.enqueue(request)
+                                    Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
+                                    contentDescription = "File icon",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = message.content,
+                                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -668,7 +821,9 @@ fun MessageItem(message: MessageModel, currentUserId: String) {
 @Composable
 fun SystemMessageItem(message: MessageModel) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center
     ) {
         Text(
@@ -690,7 +845,8 @@ fun MembersDialog(
     currentUserId: String,
     onDismiss: () -> Unit,
     onRemoveMember: (String, String) -> Unit,
-    onBanMember: (String) -> Unit
+    onBanMember: (String) -> Unit,
+    navController: NavHostController
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -699,12 +855,19 @@ fun MembersDialog(
             LazyColumn {
                 items(members) { member ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // User info
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = member.name ?: "Unknown", fontWeight = FontWeight.Bold)
+                        Column(modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                navController.navigate("${Routes.Profile}/${member.userId}")
+                            }
+                        ) {
+                            Text(text = member.name, fontWeight = FontWeight.Bold)
                             if (group.createdBy == member.userId) {
                                 Text(text = "Admin", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                             }
@@ -713,7 +876,7 @@ fun MembersDialog(
                         // Admin actions
                         if (isAdmin && member.userId != currentUserId) {
                             Row {
-                                IconButton(onClick = { onRemoveMember(member.userId, member.name ?: "") }) {
+                                IconButton(onClick = { onRemoveMember(member.userId, member.name) }) {
                                     Icon(Icons.Filled.PersonRemove, contentDescription = "Remove member")
                                 }
                                 IconButton(onClick = { onBanMember(member.userId) }) {
