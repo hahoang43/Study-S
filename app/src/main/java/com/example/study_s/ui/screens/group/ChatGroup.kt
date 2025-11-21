@@ -757,7 +757,7 @@ fun MessageItem(message: MessageModel, currentUserId: String, navController: Nav
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         fontSize = 14.sp,
-                        modifier = Modifier.clickable { navController.navigate("${Routes.Profile}/${message.senderId}") }
+                        modifier = Modifier.clickable { navController.navigate("${Routes.Profile}?userId=${message.senderId}") }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -864,7 +864,7 @@ fun MembersDialog(
                         Column(modifier = Modifier
                             .weight(1f)
                             .clickable {
-                                navController.navigate("${Routes.Profile}/${member.userId}")
+                                navController.navigate("${Routes.Profile}?userId=${member.userId}")
                             }
                         ) {
                             Text(text = member.name, fontWeight = FontWeight.Bold)

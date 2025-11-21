@@ -1,6 +1,5 @@
 package com.example.study_s.ui.navigation
 
-import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -51,7 +50,7 @@ import com.google.firebase.auth.FirebaseAuth
 import java.net.URLDecoder
 
 @Composable
-fun NavGraph(navController: NavHostController, windowSizeClass: WindowSizeClass) {
+fun NavGraph(navController: NavHostController) {
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
     val postViewModel: PostViewModel = viewModel()
     val userRepository = remember { UserRepository() }
@@ -92,7 +91,7 @@ fun NavGraph(navController: NavHostController, windowSizeClass: WindowSizeClass)
             )
         }
         composable(Routes.VerifyCode) { VerifyCodeScreen(navController) }
-        postGraph(navController, postViewModel, windowSizeClass)
+        postGraph(navController, postViewModel)
 
 
         // ========== CÁC MÀN HÌNH CHÍNH ==========
@@ -135,8 +134,7 @@ fun NavGraph(navController: NavHostController, windowSizeClass: WindowSizeClass)
                     navController = navController,
                     onNavigateToFollowList = { uid, listType ->
                         navController.navigate("${Routes.FollowList}/$uid/$listType")
-                    },
-                    windowSizeClass = windowSizeClass
+                    }
                 )
             }
         }
@@ -192,11 +190,11 @@ fun NavGraph(navController: NavHostController, windowSizeClass: WindowSizeClass)
         composable(Routes.Support) { SupportScreen(navController) }
     }
 }
-fun NavGraphBuilder.postGraph(navController: NavHostController, postViewModel: PostViewModel, windowSizeClass: WindowSizeClass) {
+fun NavGraphBuilder.postGraph(navController: NavHostController, postViewModel: PostViewModel) {
     navigation(startDestination = Routes.Home, route = "post_flow") {
 
         composable(Routes.Home) {
-            HomeScreen(navController = navController, viewModel = postViewModel, windowSizeClass = windowSizeClass)
+            HomeScreen(navController = navController, viewModel = postViewModel)
         }
 
         composable(Routes.NewPost) {
