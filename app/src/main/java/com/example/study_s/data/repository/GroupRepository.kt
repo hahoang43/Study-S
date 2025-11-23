@@ -37,7 +37,7 @@ class GroupRepository(
         }
         val group = getGroupById(groupId)
         if (group?.bannedUsers?.contains(userId) == true) {
-            throw Exception("You have been banned from this group and cannot join.")
+            throw Exception("Bạn đã bị chặn và không thể tham gia nhóm.")
         }
         groupsRef.document(groupId).update("pendingMembers", FieldValue.arrayUnion(userId)).await()
     }
@@ -58,7 +58,7 @@ class GroupRepository(
         }
         val group = getGroupById(groupId)
         if (group?.bannedUsers?.contains(userId) == true) {
-            throw Exception("You have been banned from this group and cannot join.")
+            throw Exception("Bạn đã bị chặn và không thể tham gia nhóm.")
         }
         addPendingMember(groupId, userId)
     }

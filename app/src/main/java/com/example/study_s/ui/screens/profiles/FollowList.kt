@@ -86,8 +86,7 @@ fun UserListItem(user: FollowUserData, navController: NavController) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // ✅ ĐÃ SỬA LỖI Ở ĐÂY: Dùng đúng route "other_profile"
-            .clickable { navController.navigate("${Routes.OtherProfile}/${user.userId}") }
+            .clickable { navController.navigate("${Routes.Profile}?userId=${user.userId}") }
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

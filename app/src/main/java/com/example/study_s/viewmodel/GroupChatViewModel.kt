@@ -187,4 +187,16 @@ class GroupChatViewModel(private val groupChatRepository: GroupChatRepository = 
             _userRemoved.emit(removedUserId)
         }
     }
+
+    fun editMessage(groupId: String, messageId: String, newContent: String) {
+        viewModelScope.launch {
+            groupChatRepository.editMessage(groupId, messageId, newContent)
+        }
+    }
+
+    fun deleteMessage(groupId: String, messageId: String) {
+        viewModelScope.launch {
+            groupChatRepository.deleteMessage(groupId, messageId)
+        }
+    }
 }

@@ -31,4 +31,14 @@ class GroupChatRepository(private val db: FirebaseFirestore = FirebaseFirestore.
         val messagesRef = db.collection("groups").document(groupId).collection("messages")
         messagesRef.add(message).await()
     }
+
+    suspend fun editMessage(groupId: String, messageId: String, newContent: String) {
+        val messageRef = db.collection("groups").document(groupId).collection("messages").document(messageId)
+        messageRef.update("content", newContent).await()
+    }
+
+    suspend fun deleteMessage(groupId: String, messageId: String) {
+        val messageRef = db.collection("groups").document(groupId).collection("messages").document(messageId)
+        messageRef.delete().await()
+    }
 }

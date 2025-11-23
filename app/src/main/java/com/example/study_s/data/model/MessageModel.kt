@@ -4,7 +4,7 @@ import com.google.firebase.firestore.DocumentId
 
 data class MessageModel(
     @DocumentId
-    val messageId: String = "",
+    val id: String = "",
     val senderId: String = "",
     val senderName: String = "",
     val content: String = "",

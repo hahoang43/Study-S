@@ -35,7 +35,6 @@ import com.example.study_s.viewmodel.SearchViewModel
 import com.example.study_s.data.model.Group
 import com.example.study_s.data.model.LibraryFile
 
-import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.SearchState // Đảm bảo import SearchState từ ViewModel
 
 @Composable
@@ -163,7 +162,7 @@ fun UserResultList(users: List<User>, navController: NavController) {
         Text("Không tìm thấy người dùng nào.")
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(users) { user -> UserResultItem(user, onClick = { navController.navigate("${Routes.OtherProfile}/${user.userId}") }) }
+            items(users) { user -> UserResultItem(user, onClick = { navController.navigate("${Routes.Profile}?userId=${user.userId}") }) }
         }
     }
 }
