@@ -1,22 +1,23 @@
-// ĐƯỜNG DẪN: viewmodel/NotificationViewModel.kt
-// NỘI DUNG HOÀN CHỈNH, ĐÃ NÂNG CẤP
-
 package com.example.study_s.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.NavController
 import com.example.study_s.data.model.Notification
-import com.example.study_s.data.repository.NotificationRepository
 import com.example.study_s.ui.navigation.Routes
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import androidx.navigation.NavController // ✅ 1. IMPORT NavController
+import kotlinx.coroutines.tasks.await
 
-class NotificationViewModel(
-    private val repository: NotificationRepository = NotificationRepository()
-) : ViewModel() {
+class NotificationViewModel : ViewModel() {
+
+    private val db = FirebaseFirestore.getInstance()
+    private val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications = _notifications.asStateFlow()
@@ -26,48 +27,75 @@ class NotificationViewModel(
     }
 
     private fun loadNotifications() {
-        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        if (userId == null) return
+
         viewModelScope.launch {
-            _notifications.value = repository.getNotificationsForUser(userId)
+            try {
+                val snapshot = db.collection("notifications")
+                    .whereEqualTo("userId", userId)
+                    .orderBy("createdAt", Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+
+                // ✅ LOGIC QUAN TRỌNG NHẤT NẰM Ở ĐÂY
+                // Chuyển đổi các document thành đối tượng Notification
+                // và gán ID của document vào trường notificationId
+                _notifications.value = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Notification::class.java)?.apply {
+                        this.notificationId = doc.id // Gán ID để làm key cho LazyColumn
+                    }
+                }
+                Log.d("NotificationVM", "Loaded ${_notifications.value.size} notifications.")
+
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "Error loading notifications", e)
+            }
         }
     }
 
-    // ✅ 2. HÀM MỚI VÀ QUAN TRỌNG NHẤT
     fun onNotificationClicked(notification: Notification, navController: NavController) {
+        // Đánh dấu là đã đọc
+        markAsRead(notification.notificationId)
+
+        // Điều hướng dựa trên loại thông báo
+        when (notification.type) {
+            "like", "comment" -> {
+                notification.postId?.let { postId ->
+                    navController.navigate("${Routes.PostDetail}/$postId")
+                }
+            }
+            "follow" -> {
+                notification.actorId?.let { actorId ->
+                    navController.navigate("${Routes.OtherProfile}/$actorId")
+                }
+            }
+            "schedule_reminder" -> {
+                // Đối với lời nhắc, điều hướng đến màn hình Lịch
+                navController.navigate(Routes.Schedule)
+            }
+            // Thêm các trường hợp khác nếu cần
+        }
+    }
+
+    private fun markAsRead(notificationId: String) {
+        if (notificationId.isBlank()) return
+
         viewModelScope.launch {
-            // Bước 1: Đánh dấu đã đọc (chỉ khi nó chưa được đọc)
-            if (!notification.isRead) {
-                repository.markAsRead(notification.notificationId)
-                // Cập nhật lại UI ngay lập tức để mất chấm đỏ
-                // Thay vì load lại toàn bộ, ta chỉ cần tìm và sửa item trong list hiện tại
-                val updatedList = _notifications.value.map {
-                    if (it.notificationId == notification.notificationId) {
+            try {
+                db.collection("notifications").document(notificationId)
+                    .update("isRead", true)
+                    .await()
+
+                // Cập nhật lại UI để mất chấm đỏ
+                _notifications.value = _notifications.value.map {
+                    if (it.notificationId == notificationId) {
                         it.copy(isRead = true)
                     } else {
                         it
                     }
                 }
-                _notifications.value = updatedList
-            }
-
-            // Bước 2: Điều hướng dựa trên loại thông báo
-            when (notification.type) {
-                "like", "comment" -> {
-                    // Nếu là like hoặc comment, đi đến bài viết chi tiết
-                    notification.postId?.let { postId ->
-                        navController.navigate("${Routes.PostDetail}/$postId")
-                    }
-                }
-                "follow" -> {
-                    // Nếu là follow, đi đến trang cá nhân của người đã follow mình
-                    notification.actorId?.let { actorId ->
-                        navController.navigate("${Routes.OtherProfile}/$actorId")
-                    }
-                }
-                // Các loại thông báo khác (nếu có)
-                else -> {
-                    // Mặc định không làm gì hoặc đi đến một màn hình chung
-                }
+            } catch (e: Exception) {
+                Log.e("NotificationVM", "Error marking notification as read", e)
             }
         }
     }

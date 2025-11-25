@@ -1,9 +1,10 @@
 package com.example.study_s.data.model
 
 import com.google.firebase.Timestamp
-
+import com.google.firebase.firestore.PropertyName
 data class Notification(
-    val notificationId: String = "",       // ID của thông báo
+    @get:PropertyName("notificationId") @set:PropertyName("notificationId") var notificationId: String = "",
+    // ID của thông báo
     val userId: String = "",               // ID của người nhận thông báo
     val actorId: String = "",              // ID của người gây ra hành động (người like, follow)
     val actorName: String? = null,         // Tên của người gây ra hành động

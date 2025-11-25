@@ -109,19 +109,37 @@ fun NotificationItem(
 
         Spacer(Modifier.width(12.dp))
 
-        // Text message (actor name + message)
         Text(
             text = buildAnnotatedString {
-                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
-                    append(notification.actorName ?: "Ai đó")
-                }
-                withStyle(style = SpanStyle(fontSize = 15.sp)) {
-                    append(" ")
-                    append(notification.message)
+                // ✅ THÊM LOGIC "WHEN"
+                when (notification.type) {
+                    "schedule_reminder" -> {
+                        // Hiển thị đặc biệt cho lời nhắc lịch học
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
+                            append("🔔 Lời nhắc từ Study_S") // Hoặc notification.actorName
+                        }
+                        withStyle(style = SpanStyle(fontSize = 15.sp)) {
+                            append("\n${notification.message}") // Thêm xuống dòng cho rõ ràng
+                        }
+                    }
+                    "like", "comment", "follow" -> {
+                        // Logic cũ của bạn cho các thông báo từ người dùng
+                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
+                            append(notification.actorName ?: "Ai đó")
+                        }
+                        withStyle(style = SpanStyle(fontSize = 15.sp)) {
+                            append(" ")
+                            append(notification.message)
+                        }
+                    }
+                    else -> {
+                        // Hiển thị mặc định nếu có loại thông báo lạ
+                        append(notification.message)
+                    }
                 }
             },
             modifier = Modifier.weight(1f),
-            lineHeight = 20.sp
+            lineHeight = 20.sp // Giúp văn bản có 2 dòng hiển thị đẹp hơn
         )
 
         // Thumbnail ảnh bài viết (nếu có)

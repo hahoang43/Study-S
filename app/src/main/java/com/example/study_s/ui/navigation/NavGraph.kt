@@ -9,6 +9,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import androidx.navigation.navigation
 import com.example.study_s.data.repository.GroupRepository
 import com.example.study_s.data.repository.LibraryRepository
@@ -99,8 +100,15 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.Notification) {
             NotificationScreen(navController = navController)
         }
-        composable(Routes.Schedule) { ScheduleScreen(navController) }
-
+        composable(
+            route = Routes.Schedule,
+            // ✅ THÊM KHỐI NÀY
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "app://example.study_s/${Routes.Schedule}" }
+            )
+        ) {
+            ScheduleScreen(navController)
+        }
 
         // ========== BÀI VIẾT (POST) ==========
         composable(Routes.NewPost) { PostScreen(navController) }
@@ -136,6 +144,26 @@ fun NavGraph(navController: NavHostController) {
                         navController.navigate("${Routes.FollowList}/$uid/$listType")
                     }
                 )
+            }
+        }
+        composable(
+            route = "${Routes.OtherProfile}/{userId}",
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId")
+            if (userId != null) {
+                // Kiểm tra để đảm bảo không mở trang của chính mình bằng route này
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                if (userId == currentUserId) {
+                    navController.navigate(Routes.Profile) {
+                        popUpTo(navController.graph.startDestinationId)
+                        launchSingleTop = true
+                    }
+                } else {
+                    StragerProfileScreen(navController = navController, userId = userId)
+                }
+            } else {
+                navController.popBackStack()
             }
         }
         composable(Routes.EditProfile) { EditProfileScreen(navController) }
@@ -201,13 +229,7 @@ fun NavGraphBuilder.postGraph(navController: NavHostController, postViewModel: P
             PostScreen(navController, viewModel = postViewModel)
         }
 
-        composable(
-            route = "${Routes.PostDetail}/{postId}",
-            arguments = listOf(navArgument("postId") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val postId = backStackEntry.arguments?.getString("postId") ?: ""
-            PostDetailScreen(postId = postId, navController = navController, viewModel = postViewModel)
-        }
+
 
         composable(
             route = "${Routes.EditPost}/{postId}",
@@ -230,6 +252,13 @@ fun NavGraphBuilder.postGraph(navController: NavHostController, postViewModel: P
         }
         composable(Routes.SavedPosts) {
             SavedPostsScreen(navController = navController, viewModel = postViewModel)
+        }
+        composable(
+            route = "${Routes.PostDetail}/{postId}",
+            arguments = listOf(navArgument("postId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val postId = backStackEntry.arguments?.getString("postId") ?: ""
+            PostDetailScreen(postId = postId, navController = navController, viewModel = postViewModel)
         }
     }
 }

@@ -149,6 +149,12 @@ class PostViewModel(
     fun loadPosts() { viewModelScope.launch { _posts.value = postRepository.getAllPosts() } }
     fun createNewPost(post: PostModel) { viewModelScope.launch { postRepository.createPost(post); loadPosts() } }
     fun selectPostAndLoadComments(postId: String) {
+        if (postId.isBlank()) {
+            Log.e("PostViewModel", "LỖI: selectPostAndLoadComments được gọi với postId rỗng!")
+            viewModelScope.launch { _errorEvent.emit("Không thể tải bài viết, ID không hợp lệ.") }
+            return
+        }
+
         viewModelScope.launch {
             _selectedPost.value = postRepository.getPostById(postId)
             _comments.value = postRepository.getCommentsForPost(postId)
@@ -158,10 +164,30 @@ class PostViewModel(
         val userId = currentUserId ?: return
         viewModelScope.launch {
             try {
-                postRepository.toggleLike(postId, userId)
+                // Bước 1: Gọi Repository và nhận lại bài post đã cập nhật
+                val updatedPost = postRepository.toggleLike(postId, userId)
+
+                // Bước 2: Kiểm tra xem có phải là hành động LIKE hay không
+                if (updatedPost != null) {
+                    val isNowLiked = updatedPost.likedBy.contains(userId)
+                    if (isNowLiked) {
+                        // Bước 3: Nếu là LIKE, lấy thông tin các bên và gọi NotificationRepository
+                        val actor = userRepository.getUserProfile(userId).getOrNull()
+                        val postOwner = userRepository.getUserProfile(updatedPost.authorId).getOrNull()
+
+                        if (actor != null && postOwner != null) {
+                            // Ra lệnh cho "nhà máy" NotificationRepository tạo thông báo "like"
+                            notificationRepository.sendLikeNotification(updatedPost, actor, postOwner)
+                        }
+                    }
+                }
+
+                // Bước 4: Tải lại UI (luôn thực hiện dù là like hay unlike)
                 reloadStates(postId)
+
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("PostViewModel", "Lỗi khi toggle like: ${e.message}", e)
+                _errorEvent.emit("Đã có lỗi xảy ra.")
             }
         }
     }

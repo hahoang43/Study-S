@@ -8,7 +8,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ServerTimestamp
 import kotlinx.coroutines.tasks.await
 
 class PostRepository(
@@ -144,26 +143,50 @@ class PostRepository(
     }
 
     suspend fun getPostById(postId: String): PostModel? {
+        if (postId.isBlank()) {
+            Log.e("PostRepository", "LỖI: getPostById được gọi với postId rỗng. Sẽ trả về null.")
+            return null // Trả về null thay vì gây crash
+
+        }
         val doc = postCollection.document(postId).get().await()
         return doc.toObject(PostModel::class.java)?.copy(postId = doc.id)
     }
 
-    suspend fun toggleLike(postId: String, userId: String) {
-        val postRef = postCollection.document(postId)
+    suspend fun toggleLike(postId: String, userId: String): PostModel? {    val postRef = postCollection.document(postId)
+        var updatedPost: PostModel? = null
+
         firestore.runTransaction { transaction ->
             val snapshot = transaction.get(postRef)
-            val post = snapshot.toObject(PostModel::class.java) ?: throw Exception("Post not found")
+
+            // ✅ THAY ĐỔI QUAN TRỌNG NHẤT NẰM Ở ĐÂY
+            // Thay vì dùng toObject() không, chúng ta sẽ dùng toObject() và copy() ngay lập tức
+            // để đảm bảo postId từ document ID được đưa vào đối tượng.
+            val post = snapshot.toObject(PostModel::class.java)?.copy(postId = snapshot.id)
+                ?: throw Exception("Post not found")
+
             val likedBy = post.likedBy.toMutableList()
+            val isLikedNow: Boolean
+
             if (likedBy.contains(userId)) {
                 likedBy.remove(userId)
+                isLikedNow = false
                 transaction.update(postRef, "likesCount", FieldValue.increment(-1))
             } else {
                 likedBy.add(userId)
+                isLikedNow = true
                 transaction.update(postRef, "likesCount", FieldValue.increment(1))
             }
             transaction.update(postRef, "likedBy", likedBy)
-            null
+
+            // Cập nhật lại đối tượng post để trả về cho ViewModel
+            // Vì "post" ở trên đã có postId đúng, nên updatedPost cũng sẽ có postId đúng.
+            updatedPost = post.copy(
+                likedBy = likedBy,
+                likesCount = if(isLikedNow) post.likesCount + 1 else post.likesCount - 1
+            )
         }.await()
+
+        return updatedPost
     }
 
     suspend fun toggleSavePost(postId: String, userId: String) {
