@@ -2,7 +2,7 @@ package com.example.study_s.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.study_s.data.model.FollowUserData
+import com.example.study_s.data.model.FollowUserDataModel
 import com.example.study_s.data.repository.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 class FollowListViewModel : ViewModel() {
     private val userRepository = UserRepository()
 
-    private val _userList = MutableStateFlow<List<FollowUserData>>(emptyList())
+    private val _userList = MutableStateFlow<List<FollowUserDataModel>>(emptyList())
     val userList = _userList.asStateFlow()
 
     private val _isLoading = MutableStateFlow(false)

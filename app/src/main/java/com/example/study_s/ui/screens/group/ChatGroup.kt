@@ -86,8 +86,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.study_s.data.model.Group
-import com.example.study_s.data.model.MessageModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.MessageGroupModel
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.GroupChatViewModel
 import com.example.study_s.viewmodel.GroupViewModel
@@ -326,9 +326,9 @@ fun GroupChatTopBar(
     isAdmin: Boolean,
     isMember: Boolean,
     groupViewModel: GroupViewModel,
-    members: List<User>,
-    bannedMembers: List<User>,
-    pendingMembers: List<User>,
+    members: List<UserModel>,
+    bannedMembers: List<UserModel>,
+    pendingMembers: List<UserModel>,
     refreshData: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -510,7 +510,7 @@ fun GroupChatTopBar(
 
 @Composable
 fun PendingRequestsDialog(
-    pendingMembers: List<User>,
+    pendingMembers: List<UserModel>,
     onDismiss: () -> Unit,
     onApprove: (String, String) -> Unit,
     onReject: (String) -> Unit
@@ -554,7 +554,7 @@ fun PendingRequestsDialog(
 }
 
 @Composable
-fun BannedMembersDialog(bannedMembers: List<User>, onDismiss: () -> Unit, onUnbanMember: (String) -> Unit) {
+fun BannedMembersDialog(bannedMembers: List<UserModel>, onDismiss: () -> Unit, onUnbanMember: (String) -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Thành viên bị chặn (${bannedMembers.size})") },
@@ -744,7 +744,7 @@ fun MessageInput(
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageItem(
-    message: MessageModel,
+    message: MessageGroupModel,
     currentUserId: String,
     navController: NavHostController,
     groupChatViewModel: GroupChatViewModel,
@@ -896,7 +896,7 @@ fun MessageItem(
 }
 
 @Composable
-fun EditMessageDialog(message: MessageModel, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+fun EditMessageDialog(message: MessageGroupModel, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf(message.content) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -922,7 +922,7 @@ fun EditMessageDialog(message: MessageModel, onDismiss: () -> Unit, onConfirm: (
 }
 
 @Composable
-fun SystemMessageItem(message: MessageModel) {
+fun SystemMessageItem(message: MessageGroupModel) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -943,7 +943,7 @@ fun SystemMessageItem(message: MessageModel) {
 @Composable
 fun MembersDialog(
     group: Group,
-    members: List<User>,
+    members: List<UserModel>,
     isAdmin: Boolean,
     currentUserId: String,
     onDismiss: () -> Unit,

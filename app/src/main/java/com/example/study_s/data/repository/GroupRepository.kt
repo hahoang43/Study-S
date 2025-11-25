@@ -2,7 +2,7 @@ package com.example.study_s.data.repository
 
 import android.util.Log
 import com.example.study_s.data.model.Group
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.storage.FirebaseStorage
@@ -75,10 +75,10 @@ class GroupRepository(
         groupsRef.document(groupId).delete().await()
     }
 
-    suspend fun getMemberDetails(memberIds: List<String>): List<User> {
+    suspend fun getMemberDetails(memberIds: List<String>): List<UserModel> {
         if (memberIds.isEmpty()) return emptyList()
         val snapshot = usersRef.whereIn("userId", memberIds).get().await()
-        return snapshot.toObjects(User::class.java)
+        return snapshot.toObjects(UserModel::class.java)
     }
 
     suspend fun removeMemberFromGroup(groupId: String, userId: String) {

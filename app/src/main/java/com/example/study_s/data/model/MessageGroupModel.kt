@@ -2,7 +2,7 @@ package com.example.study_s.data.model
 
 import com.google.firebase.firestore.DocumentId
 
-data class MessageModel(
+data class MessageGroupModel(
     @DocumentId
     val id: String = "",
     val senderId: String = "",

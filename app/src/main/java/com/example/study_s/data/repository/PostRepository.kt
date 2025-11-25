@@ -3,7 +3,7 @@ package com.example.study_s.data.repository
 import android.util.Log
 import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -97,13 +97,13 @@ class PostRepository(
         val userId = auth.currentUser?.uid ?: throw Exception("User not logged in")
         val newPostRef = postCollection.document()
         val userDoc = usersCollection.document(userId).get().await()
-        val currentUser = userDoc.toObject(User::class.java) ?: throw Exception("User profile not found")
+        val currentUserModel = userDoc.toObject(UserModel::class.java) ?: throw Exception("User profile not found")
 
         val finalPost = post.copy(
             postId = newPostRef.id,
             authorId = userId,
-            authorName = currentUser.name,
-            authorAvatarUrl = currentUser.avatarUrl,
+            authorName = currentUserModel.name,
+            authorAvatarUrl = currentUserModel.avatarUrl,
             contentLowercase = post.content.lowercase(),
             timestamp = null // Để server set
         )
@@ -117,6 +117,7 @@ class PostRepository(
     suspend fun getAllPosts(): List<PostModel> {
         val snapshot = postCollection
             .orderBy("timestamp", Query.Direction.DESCENDING)
+            .orderBy("__name__", Query.Direction.DESCENDING)
             .get()
             .await()
         return snapshot.documents.mapNotNull { doc ->

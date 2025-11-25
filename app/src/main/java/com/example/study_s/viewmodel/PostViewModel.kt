@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.model.CommentModel
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.data.repository.NotificationRepository
 import com.example.study_s.data.repository.PostRepository
 import com.example.study_s.data.repository.UserRepository
@@ -33,8 +33,8 @@ class PostViewModel(
     private val _comments = MutableStateFlow<List<CommentModel>>(emptyList())
     val comments = _comments.asStateFlow()
 
-    private val _userCache = MutableStateFlow<Map<String, User>>(emptyMap())
-    val userCache = _userCache.asStateFlow()
+    private val _userModelCache = MutableStateFlow<Map<String, UserModel>>(emptyMap())
+    val userCache = _userModelCache.asStateFlow()
 
     private val _savedPosts = MutableStateFlow<List<PostModel>>(emptyList())
     val savedPosts = _savedPosts.asStateFlow()
@@ -193,10 +193,10 @@ class PostViewModel(
     }
     fun selectPost(postId: String) { viewModelScope.launch { _selectedPost.value = postRepository.getPostById(postId) } }
     fun fetchUser(userId: String) {
-        if (userId.isBlank() || _userCache.value.containsKey(userId)) return
+        if (userId.isBlank() || _userModelCache.value.containsKey(userId)) return
         viewModelScope.launch {
             val user = userRepository.getUserProfile(userId).getOrNull()
-            if (user != null) { _userCache.update { it + (userId to user) } }
+            if (user != null) { _userModelCache.update { it + (userId to user) } }
         }
     }
     fun toggleSavePost(postId: String) {

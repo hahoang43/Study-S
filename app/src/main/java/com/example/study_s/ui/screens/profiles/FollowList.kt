@@ -37,7 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.R
-import com.example.study_s.data.model.FollowUserData
+import com.example.study_s.data.model.FollowUserDataModel
 import com.example.study_s.viewmodel.FollowListViewModel
 import com.example.study_s.ui.navigation.Routes
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,7 +82,7 @@ fun FollowListScreen(
 }
 
 @Composable
-fun UserListItem(user: FollowUserData, navController: NavController) {
+fun UserListItem(user: FollowUserDataModel, navController: NavController) {
     Row(
         modifier = Modifier
             .fillMaxWidth()

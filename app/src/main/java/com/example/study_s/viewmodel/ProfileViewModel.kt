@@ -6,14 +6,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 // Lớp đại diện cho các trạng thái có thể có của giao diện người dùng hồ sơ
 sealed interface ProfileUiState {
-    data class Success(val user: User) : ProfileUiState
+    data class Success(val userModel: UserModel) : ProfileUiState
     data class Error(val message: String) : ProfileUiState
     object Loading : ProfileUiState
 }

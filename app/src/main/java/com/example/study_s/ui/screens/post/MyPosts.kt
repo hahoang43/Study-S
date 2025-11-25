@@ -26,7 +26,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
@@ -99,7 +99,7 @@ fun MyPostsScreen(
 @Composable
 fun MyPostCard(post: PostModel, viewModel: PostViewModel) {
     val userCache by viewModel.userCache.collectAsState()
-    val author = userCache[post.authorId] ?: User(name = "Bạn")
+    val author = userCache[post.authorId] ?: UserModel(name = "Bạn")
 
     // Lấy thời gian hiển thị đẹp
     val formattedDate = post.timestamp?.toDate()?.let {

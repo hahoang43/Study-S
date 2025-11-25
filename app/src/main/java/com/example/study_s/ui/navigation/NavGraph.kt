@@ -25,6 +25,7 @@ import com.example.study_s.ui.screens.group.GroupScreen
 import com.example.study_s.ui.screens.home.HomeScreen
 import com.example.study_s.ui.screens.library.LibraryScreen
 import com.example.study_s.ui.screens.library.UploadFileScreen
+import com.example.study_s.ui.screens.message.ChatScreen
 import com.example.study_s.ui.screens.message.MessageListScreen
 import com.example.study_s.ui.screens.notification.NotificationScreen
 import com.example.study_s.ui.screens.post.EditPostScreen
@@ -96,7 +97,18 @@ fun NavGraph(navController: NavHostController) {
 
 
         // ========== CÁC MÀN HÌNH CHÍNH ==========
-        composable(Routes.Message) { MessageListScreen() }
+        composable(Routes.Message) { MessageListScreen(navController) }
+        composable(
+            route = "chat/{targetUserId}",
+            arguments = listOf(navArgument("targetUserId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val targetUserId = backStackEntry.arguments?.getString("targetUserId")
+            if (!targetUserId.isNullOrBlank()) {
+                ChatScreen(navController = navController, targetUserId = targetUserId)
+            } else {
+                navController.popBackStack()
+            }
+        }
         composable(Routes.Notification) {
             NotificationScreen(navController = navController)
         }
@@ -147,7 +159,7 @@ fun NavGraph(navController: NavHostController) {
             }
         }
         composable(
-            route = "${Routes.OtherProfile}/{userId}",
+            route = "other_profile/{userId}",
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")

@@ -3,7 +3,7 @@ package com.example.study_s.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.model.Group
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.data.repository.GroupRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,14 +26,14 @@ class GroupViewModel(
     private val _group = MutableStateFlow<Group?>(null)
     val group: StateFlow<Group?> = _group.asStateFlow()
 
-    private val _members = MutableStateFlow<List<User>>(emptyList())
-    val members: StateFlow<List<User>> = _members.asStateFlow()
+    private val _members = MutableStateFlow<List<UserModel>>(emptyList())
+    val members: StateFlow<List<UserModel>> = _members.asStateFlow()
 
-    private val _pendingMembers = MutableStateFlow<List<User>>(emptyList())
-    val pendingMembers: StateFlow<List<User>> = _pendingMembers.asStateFlow()
+    private val _pendingMembers = MutableStateFlow<List<UserModel>>(emptyList())
+    val pendingMembers: StateFlow<List<UserModel>> = _pendingMembers.asStateFlow()
 
-    private val _bannedMembers = MutableStateFlow<List<User>>(emptyList())
-    val bannedMembers: StateFlow<List<User>> = _bannedMembers.asStateFlow()
+    private val _bannedMembers = MutableStateFlow<List<UserModel>>(emptyList())
+    val bannedMembers: StateFlow<List<UserModel>> = _bannedMembers.asStateFlow()
 
     private val _isCreating = MutableStateFlow(false)
     val isCreating: StateFlow<Boolean> = _isCreating.asStateFlow()

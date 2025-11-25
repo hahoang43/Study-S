@@ -32,7 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -62,7 +62,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
     val context = LocalContext.current
     val userCache by viewModel.userCache.collectAsState()
 
-    val author = userCache[post.authorId] ?: User(name = "Đang tải...")
+    val author = userCache[post.authorId] ?: UserModel(name = "Đang tải...")
     LaunchedEffect(post.authorId) {
         if (post.authorId.isNotBlank()) {
             viewModel.fetchUser(post.authorId)

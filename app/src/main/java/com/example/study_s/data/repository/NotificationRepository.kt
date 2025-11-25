@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
 
 import com.example.study_s.data.model.Notification // Sử dụng Notification model
 import com.example.study_s.data.model.PostModel // Cần để lấy thông tin bài viết
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -104,7 +104,7 @@ class NotificationRepository {
      * @param actor Người thực hiện hành động (người like).
      * @param postOwner Chủ nhân của bài viết (người nhận thông báo).
      */
-    suspend fun sendLikeNotification(post: PostModel, actor: User, postOwner: User) {
+    suspend fun sendLikeNotification(post: PostModel, actor: UserModel, postOwner: UserModel) {
         // Không gửi thông báo nếu tự like bài của mình
         if (actor.userId == postOwner.userId) return
 
@@ -137,7 +137,7 @@ class NotificationRepository {
      * @param postOwner Chủ nhân của bài viết (người nhận thông báo).
      * @param commentText Nội dung bình luận.
      */
-    suspend fun sendCommentNotification(post: PostModel, actor: User, postOwner: User, commentText: String) {
+    suspend fun sendCommentNotification(post: PostModel, actor: UserModel, postOwner: UserModel, commentText: String) {
         // Không gửi thông báo nếu tự bình luận bài của mình
         if (actor.userId == postOwner.userId) return
 
@@ -168,11 +168,11 @@ class NotificationRepository {
     /**
      * Tạo và gửi thông báo "FOLLOW". (Hàm này đã có trong StragerViewModel, giờ chuyển về đây cho tập trung)
      * @param actor Người đi follow.
-     * @param userToNotify Người được follow (người nhận thông báo).
+     * @param userModelToNotify Người được follow (người nhận thông báo).
      */
-    suspend fun sendFollowNotification(actor: User, userToNotify: User) {
+    suspend fun sendFollowNotification(actor: UserModel, userModelToNotify: UserModel) {
         val followNotification = Notification(
-            userId = userToNotify.userId,
+            userId = userModelToNotify.userId,
             actorId = actor.userId,
             actorName = actor.name,
             actorAvatarUrl = actor.avatarUrl,
@@ -185,7 +185,7 @@ class NotificationRepository {
         saveNotificationToFirestore(followNotification)
 
         // 2. Gửi Push Notification
-        userToNotify.fcmToken?.takeIf { it.isNotEmpty() }?.let { token ->
+        userModelToNotify.fcmToken?.takeIf { it.isNotEmpty() }?.let { token ->
             val title = "Bạn có lượt theo dõi mới!"
             val body = "${actor.name} đã bắt đầu theo dõi bạn."
             sendPushNotification(token, title, body)

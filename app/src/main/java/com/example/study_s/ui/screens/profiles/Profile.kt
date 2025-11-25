@@ -85,7 +85,7 @@ fun ProfileScreen(
                 is ProfileUiState.Loading -> item { Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { CircularProgressIndicator() } }
                 is ProfileUiState.Error -> item { Text(uiState.message, color = Color.Red, modifier = Modifier.padding(16.dp)) }
                 is ProfileUiState.Success -> {
-                    val user = uiState.user
+                    val user = uiState.userModel
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(16.dp),

@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.model.Group
 import com.example.study_s.data.model.LibraryFile
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.data.repository.GroupRepository
 import com.example.study_s.data.repository.LibraryRepository
 import com.example.study_s.data.repository.PostRepository
@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 
 // 2. Nâng cấp `SearchState` để chứa tất cả các loại kết quả
 data class SearchState(
-    val users: List<User> = emptyList(),
+    val userModels: List<UserModel> = emptyList(),
     val posts: List<PostModel> = emptyList(),
     val groups: List<Group> = emptyList(),          // <-- Thêm trường này
     val files: List<LibraryFile> = emptyList(),     // <-- Thêm trường này
@@ -79,7 +79,7 @@ class SearchViewModel(
                 when (_selectedCategory.value) {
                     "Người dùng" -> {
                         val result = userRepository.searchUsers(query)
-                        _searchState.value = SearchState(users = result)
+                        _searchState.value = SearchState(userModels = result)
                     }
                     "Bài viết" -> {
                         val result = postRepository.searchPosts(query)

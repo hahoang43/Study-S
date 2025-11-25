@@ -2,6 +2,7 @@ package com.example.study_s.ui.screens.components
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
@@ -29,13 +30,12 @@ import androidx.compose.ui.unit.sp
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(
-    onNavIconClick: () -> Unit={},
+    onNavIconClick: () -> Unit = {},
     onNotificationClick: () -> Unit,
-    onSearchClick: () -> Unit
+    onSearchClick: () -> Unit,
+    onChatClick: () -> Unit
 ) {
-    // 1. Dùng CenterAlignedTopAppBar để có tiêu đề ở giữa (từ file 1)
     CenterAlignedTopAppBar(
-        // 2. Tiêu đề với font chữ cách điệu (từ file 2)
         title = {
             Text(
                 text = "STUDY-S",
@@ -45,39 +45,33 @@ fun TopBar(
                 fontFamily = FontFamily.Serif
             )
         },
-
-        // 3. Icon điều hướng (Menu) (từ file 1)
         navigationIcon = {
-            IconButton(onClick = onNavIconClick) {
+            IconButton(onClick = onChatClick) {
                 Icon(
-                    imageVector = Icons.Default.Menu,
-                    contentDescription = "Menu",
-                    tint = MaterialTheme.colorScheme.onSurface // Dùng màu của theme
+                    imageVector = Icons.Default.ChatBubble,
+                    contentDescription = "Chat",
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         },
-
-        // 4. Các icon hành động (Search, Notifications) (từ cả hai file)
         actions = {
             IconButton(onClick = onSearchClick) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Tìm kiếm",
-                    modifier = Modifier.size(28.dp), // Có thể tùy chỉnh kích thước
-                    tint = MaterialTheme.colorScheme.onSurface // Dùng màu của theme
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
             IconButton(onClick = onNotificationClick) {
                 Icon(
                     imageVector = Icons.Default.Notifications,
                     contentDescription = "Thông báo",
-                    modifier = Modifier.size(28.dp), // Có thể tùy chỉnh kích thước
-                    tint = MaterialTheme.colorScheme.onSurface // Dùng màu của theme
+                    modifier = Modifier.size(28.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         },
-
-        // 5. Màu nền của TopBar (từ file 2)
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface // Dùng màu nền của theme
         )
@@ -87,10 +81,10 @@ fun TopBar(
 @Preview(showBackground = true)
 @Composable
 fun TopBarPreview() {
-    // Preview với đầy đủ 3 tham số
     TopBar(
         onNavIconClick = {},
         onNotificationClick = {},
-        onSearchClick = {}
+        onSearchClick = {},
+        onChatClick = {}
     )
 }

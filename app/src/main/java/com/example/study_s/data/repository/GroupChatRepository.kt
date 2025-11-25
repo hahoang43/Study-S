@@ -1,6 +1,6 @@
 package com.example.study_s.data.repository
 
-import com.example.study_s.data.model.MessageModel
+import com.example.study_s.data.model.MessageGroupModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -10,7 +10,7 @@ import kotlinx.coroutines.tasks.await
 
 class GroupChatRepository(private val db: FirebaseFirestore = FirebaseFirestore.getInstance()) {
 
-    fun getGroupMessages(groupId: String): Flow<List<MessageModel>> = callbackFlow {
+    fun getGroupMessages(groupId: String): Flow<List<MessageGroupModel>> = callbackFlow {
         val messagesRef = db.collection("groups").document(groupId).collection("messages")
             .orderBy("timestamp", Query.Direction.DESCENDING)
 
@@ -20,14 +20,14 @@ class GroupChatRepository(private val db: FirebaseFirestore = FirebaseFirestore.
                 return@addSnapshotListener
             }
             if (snapshot != null) {
-                val messages = snapshot.toObjects(MessageModel::class.java)
+                val messages = snapshot.toObjects(MessageGroupModel::class.java)
                 trySend(messages).isSuccess
             }
         }
         awaitClose { listener.remove() }
     }
 
-    suspend fun sendGroupMessage(groupId: String, message: MessageModel) {
+    suspend fun sendGroupMessage(groupId: String, message: MessageGroupModel) {
         val messagesRef = db.collection("groups").document(groupId).collection("messages")
         messagesRef.add(message).await()
     }

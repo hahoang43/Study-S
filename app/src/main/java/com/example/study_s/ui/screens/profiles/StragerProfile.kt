@@ -153,7 +153,7 @@ fun StragerProfileScreen(
                         // Message button
                         Button(
                             onClick = {
-                                navController.navigate("${Routes.Message}?toUser=$userId")
+                                navController.navigate("chat/$userId")
                             },
                             modifier = Modifier.weight(1f)
                         ) {

@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 // KHÔNG CẦN IMPORT Notification nữa, ViewModel không nên biết về nó
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.data.repository.NotificationRepository
 import com.example.study_s.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -27,8 +27,8 @@ class StragerViewModel : ViewModel() {
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
 
     // --- STATE CHO THÔNG TIN USER ---
-    private val _user = MutableStateFlow<User?>(null)
-    val user = _user.asStateFlow()
+    private val _userModel = MutableStateFlow<UserModel?>(null)
+    val user = _userModel.asStateFlow()
 
     private val _isFollowing = MutableStateFlow(false)
     val isFollowing = _isFollowing.asStateFlow()
@@ -50,7 +50,7 @@ class StragerViewModel : ViewModel() {
             _isLoading.value = true
             userRepository.getUserProfile(userId)
                 .onSuccess { userData ->
-                    _user.value = userData
+                    _userModel.value = userData
                     checkFollowingStatus(userId)
                 }
             loadUserPosts(userId)

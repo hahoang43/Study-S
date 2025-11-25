@@ -28,7 +28,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.study_s.R
 import com.example.study_s.data.model.PostModel
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.UserModel
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.TopBar // Đảm bảo bạn đã import TopBar
 import com.example.study_s.viewmodel.SearchViewModel
@@ -47,9 +47,9 @@ fun SearchScreen(navController: NavController, viewModel: SearchViewModel) {
     Scaffold(
         topBar = {
             TopBar(
-                onNavIconClick = { /* TODO: Mở drawer menu */ },
                 onNotificationClick = { navController.navigate(Routes.Notification) },
-                onSearchClick = { /* Không cần hành động */ }
+                onSearchClick = { /* Không cần hành động */ },
+                onChatClick = { navController.navigate(Routes.Message) }
             )
         }
     ) { padding ->
@@ -147,7 +147,7 @@ fun CategoryChips(selectedCategory: String, onCategorySelected: (String) -> Unit
 @Composable
 fun SearchResultContent(state: SearchState, selectedCategory: String, navController: NavController) {
     when (selectedCategory) {
-        "Người dùng" -> UserResultList(state.users, navController)
+        "Người dùng" -> UserResultList(state.userModels, navController)
         "Bài viết" -> PostResultList(state.posts, navController)
         "Nhóm" -> GroupResultList(state.groups, navController) // Sửa ở đây
         "Tài liệu" -> FileResultList(state.files, navController) // Sửa ở đây
@@ -157,12 +157,12 @@ fun SearchResultContent(state: SearchState, selectedCategory: String, navControl
 // ----- CÁC COMPOSABLE CŨ (KHÔNG ĐỔI)-----
 
 @Composable
-fun UserResultList(users: List<User>, navController: NavController) {
-    if (users.isEmpty()) {
+fun UserResultList(userModels: List<UserModel>, navController: NavController) {
+    if (userModels.isEmpty()) {
         Text("Không tìm thấy người dùng nào.")
     } else {
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(users) { user -> UserResultItem(user, onClick = { navController.navigate("${Routes.Profile}?userId=${user.userId}") }) }
+            items(userModels) { user -> UserResultItem(user, onClick = { navController.navigate("other_profile/${user.userId}") }) }
         }
     }
 }
@@ -226,20 +226,20 @@ fun FileResultList(files: List<LibraryFile>, navController: NavController) {
 }
 
 @Composable
-fun UserResultItem(user: User, onClick: () -> Unit) {
+fun UserResultItem(userModel: UserModel, onClick: () -> Unit) {
     Card(modifier = Modifier
         .fillMaxWidth()
         .clickable(onClick = onClick), shape = RoundedCornerShape(12.dp), elevation = CardDefaults.cardElevation(2.dp)) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            AsyncImage(model = user.avatarUrl ?: R.drawable.ic_profile, contentDescription = "Avatar", contentScale = ContentScale.Crop, placeholder = painterResource(R.drawable.ic_profile), modifier = Modifier
+            AsyncImage(model = userModel.avatarUrl ?: R.drawable.ic_profile, contentDescription = "Avatar", contentScale = ContentScale.Crop, placeholder = painterResource(R.drawable.ic_profile), modifier = Modifier
                 .size(48.dp)
                 .clip(CircleShape))
             Spacer(Modifier.width(16.dp))
             Column {
-                Text(user.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (!user.bio.isNullOrBlank()) {
+                Text(userModel.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (!userModel.bio.isNullOrBlank()) {
                     Spacer(Modifier.height(4.dp))
-                    Text(user.bio, style = MaterialTheme.typography.bodyMedium, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(userModel.bio, style = MaterialTheme.typography.bodyMedium, color = Color.Gray, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

@@ -3,8 +3,8 @@ package com.example.study_s.data.repository // Đảm bảo đây là package ch
 
 import android.net.Uri
 import android.util.Log
-import com.example.study_s.data.model.FollowUserData
-import com.example.study_s.data.model.User
+import com.example.study_s.data.model.FollowUserDataModel
+import com.example.study_s.data.model.UserModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
@@ -25,7 +25,7 @@ class UserRepository {
     // ✅ KHỞI TẠO IMAGE REPOSITORY ĐỂ SỬ DỤNG
     private val imageRepository = ImageRepository()
 
-    private fun getCurrentUserId(): String? {
+    fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
     }
 
@@ -39,21 +39,21 @@ class UserRepository {
             val snapshot = userRef.get().await()
 
             if (snapshot.exists()) {
-                val existingUser = snapshot.toObject(User::class.java)
+                val existingUserModel = snapshot.toObject(UserModel::class.java)
                 val updates = mutableMapOf<String, Any>()
 
-                if ((existingUser?.name.isNullOrEmpty() || existingUser?.name == "New User") && !firebaseUser.displayName.isNullOrEmpty()) {
+                if ((existingUserModel?.name.isNullOrEmpty() || existingUserModel?.name == "New User") && !firebaseUser.displayName.isNullOrEmpty()) {
                     val newName = firebaseUser.displayName!!
                     updates["name"] = newName
                     updates["nameLowercase"] = newName.lowercase()
                     val keywords = newName.lowercase().split(" ").filter { it.isNotBlank() }.distinct()
                     updates["searchKeywords"] = keywords
                 }
-                if (existingUser?.avatarUrl.isNullOrEmpty() && firebaseUser.photoUrl != null) {
+                if (existingUserModel?.avatarUrl.isNullOrEmpty() && firebaseUser.photoUrl != null) {
                     updates["avatarUrl"] = firebaseUser.photoUrl.toString()
                 }
 
-                if (existingUser?.email != firebaseUser.email && !firebaseUser.email.isNullOrEmpty()) {
+                if (existingUserModel?.email != firebaseUser.email && !firebaseUser.email.isNullOrEmpty()) {
                     updates["email"] = firebaseUser.email!!
                 }
 
@@ -65,7 +65,7 @@ class UserRepository {
                 val nameLowercase = newName.lowercase()
                 val keywords = nameLowercase.split(" ").filter { it.isNotBlank() }.distinct()
 
-                val newUser = User(
+                val newUserModel = UserModel(
                     userId = firebaseUser.uid,
                     name = newName,
                     email = firebaseUser.email ?: "",
@@ -75,7 +75,7 @@ class UserRepository {
                     nameLowercase = nameLowercase,
                     searchKeywords = keywords
                 )
-                userRef.set(newUser).await()
+                userRef.set(newUserModel).await()
             }
             Result.success(Unit)
         } catch (e: Exception) {
@@ -88,7 +88,7 @@ class UserRepository {
             val nameLowercase = name.lowercase()
             val keywords = nameLowercase.split(" ").filter { it.isNotBlank() }.distinct()
 
-            val newUser = User(
+            val newUserModel = UserModel(
                 userId = userId,
                 name = name,
                 email = email,
@@ -98,14 +98,14 @@ class UserRepository {
                 nameLowercase = nameLowercase,
                 searchKeywords = keywords
             )
-            usersCollection.document(userId).set(newUser).await()
+            usersCollection.document(userId).set(newUserModel).await()
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun searchUsers(query: String): List<User> {
+    suspend fun searchUsers(query: String): List<UserModel> {
         val searchQuery = query.lowercase().trim()
         if (searchQuery.isBlank()) {
             return emptyList()
@@ -116,18 +116,18 @@ class UserRepository {
                 .limit(15)
                 .get()
                 .await()
-            querySnapshot.toObjects(User::class.java)
+            querySnapshot.toObjects(UserModel::class.java)
         } catch (e: Exception) {
             Log.e("UserRepository", "Error searching users", e)
             emptyList()
         }
     }
 
-    suspend fun getUserProfile(userId: String): Result<User?> {
+    suspend fun getUserProfile(userId: String): Result<UserModel?> {
         return try {
             val document = usersCollection.document(userId).get().await()
-            val user = document.toObject(User::class.java)
-            Result.success(user)
+            val userModel = document.toObject(UserModel::class.java)
+            Result.success(userModel)
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -210,24 +210,24 @@ class UserRepository {
             val currentUserDoc = usersCollection.document(currentUserId).get().await()
             val targetUserDoc = usersCollection.document(targetUserId).get().await()
 
-            val currentUser = currentUserDoc.toObject(User::class.java) ?: return Result.failure(Exception("Current user not found"))
-            val targetUser = targetUserDoc.toObject(User::class.java) ?: return Result.failure(Exception("Target user not found"))
+            val currentUserModel = currentUserDoc.toObject(UserModel::class.java) ?: return Result.failure(Exception("Current user not found"))
+            val targetUserModel = targetUserDoc.toObject(UserModel::class.java) ?: return Result.failure(Exception("Target user not found"))
 
             val batch = db.batch()
 
             val followingRef = followsCollection.document(currentUserId).collection("following").document(targetUserId)
             val followingData = mapOf(
                 "timestamp" to FieldValue.serverTimestamp(),
-                "username" to targetUser.name,
-                "avatarUrl" to (targetUser.avatarUrl ?: "")
+                "username" to targetUserModel.name,
+                "avatarUrl" to (targetUserModel.avatarUrl ?: "")
             )
             batch.set(followingRef, followingData)
 
             val followerRef = followsCollection.document(targetUserId).collection("followers").document(currentUserId)
             val followerData = mapOf(
                 "timestamp" to FieldValue.serverTimestamp(),
-                "username" to currentUser.name,
-                "avatarUrl" to (currentUser.avatarUrl ?: "")
+                "username" to currentUserModel.name,
+                "avatarUrl" to (currentUserModel.avatarUrl ?: "")
             )
             batch.set(followerRef, followerData)
 
@@ -274,13 +274,13 @@ class UserRepository {
         }
     }
 
-    suspend fun getFollowers(userId: String): Result<List<FollowUserData>> {
+    suspend fun getFollowers(userId: String): Result<List<FollowUserDataModel>> {
         return try {
             val snapshot = followsCollection.document(userId).collection("followers").get().await()
             val users = snapshot.documents.mapNotNull { doc ->
                 val username = doc.getString("username") ?: ""
                 val avatarUrl = doc.getString("avatarUrl")
-                FollowUserData(userId = doc.id, username = username, avatarUrl = avatarUrl)
+                FollowUserDataModel(userId = doc.id, username = username, avatarUrl = avatarUrl)
             }
             Result.success(users)
         } catch (e: Exception) {
@@ -288,15 +288,40 @@ class UserRepository {
         }
     }
 
-    suspend fun getFollowing(userId: String): Result<List<FollowUserData>> {
+    suspend fun getFollowing(userId: String): Result<List<FollowUserDataModel>> {
         return try {
             val snapshot = followsCollection.document(userId).collection("following").get().await()
             val users = snapshot.documents.mapNotNull { doc ->
                 val username = doc.getString("username") ?: ""
                 val avatarUrl = doc.getString("avatarUrl")
-                FollowUserData(userId = doc.id, username = username, avatarUrl = avatarUrl)
+                FollowUserDataModel(userId = doc.id, username = username, avatarUrl = avatarUrl)
             }
             Result.success(users)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Checks if two users mutually follow each other.
+     * @param targetUserId The ID of the other user.
+     * @return Result<Boolean> containing true if they mutually follow, false otherwise.
+     */
+    suspend fun checkMutualFollow(targetUserId: String): Result<Boolean> {
+        val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not logged in"))
+        return try {
+            val currentUserIsFollowingTarget = isFollowing(targetUserId).getOrDefault(false)
+            if (!currentUserIsFollowingTarget) return Result.success(false)
+
+            // Check if target user is following the current user
+            val targetIsFollowingCurrentUser = try {
+                val doc = followsCollection.document(targetUserId).collection("following").document(currentUserId).get().await()
+                doc.exists()
+            } catch (e: Exception) {
+                false
+            }
+
+            Result.success(targetIsFollowingCurrentUser)
         } catch (e: Exception) {
             Result.failure(e)
         }

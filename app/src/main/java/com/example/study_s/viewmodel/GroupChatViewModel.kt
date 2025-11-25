@@ -10,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
-import com.example.study_s.data.model.MessageModel
+import com.example.study_s.data.model.MessageGroupModel
 import com.example.study_s.data.repository.GroupChatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,8 +25,8 @@ import java.io.FileOutputStream
 
 class GroupChatViewModel(private val groupChatRepository: GroupChatRepository = GroupChatRepository()) : ViewModel() {
 
-    private val _messages = MutableStateFlow<List<MessageModel>>(emptyList())
-    val messages: StateFlow<List<MessageModel>> = _messages
+    private val _messages = MutableStateFlow<List<MessageGroupModel>>(emptyList())
+    val messages: StateFlow<List<MessageGroupModel>> = _messages
 
     private val _userRemoved = MutableSharedFlow<String>()
     val userRemoved = _userRemoved.asSharedFlow()
@@ -47,7 +47,7 @@ class GroupChatViewModel(private val groupChatRepository: GroupChatRepository = 
 
     fun sendMessage(groupId: String, senderId: String, content: String, senderName: String) {
         viewModelScope.launch {
-            val message = MessageModel(
+            val message = MessageGroupModel(
                 senderId = senderId,
                 content = content,
                 senderName = senderName,
@@ -94,7 +94,7 @@ class GroupChatViewModel(private val groupChatRepository: GroupChatRepository = 
                     override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
                         val url = resultData?.get("secure_url") as? String
                         if (url != null) {
-                            val message = MessageModel(
+                            val message = MessageGroupModel(
                                 senderId = senderId,
                                 senderName = senderName,
                                 content = fileName,
