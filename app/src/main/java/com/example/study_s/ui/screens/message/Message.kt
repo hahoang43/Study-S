@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import com.example.study_s.R
 import com.example.study_s.data.model.Chat
 import com.example.study_s.data.model.UserModel
+import com.example.study_s.util.formatTimestamp
 import com.example.study_s.viewmodel.ChatListViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,6 +123,12 @@ fun MessageItem(
         Spacer(modifier = Modifier.width(8.dp))
 
         // Placeholder for time
-        Text("Time", color = Color.Gray, fontSize = 13.sp)
+        chat.lastMessage?.timestamp?.let {
+            Text(
+                text = formatTimestamp(it),
+                color = Color.Gray,
+                fontSize = 13.sp
+            )
+        }
     }
 }

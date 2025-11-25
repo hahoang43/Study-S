@@ -1,5 +1,6 @@
 package com.example.study_s.viewmodel
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.model.Message
@@ -60,6 +61,30 @@ class ChatViewModel(
                 timestamp = Date(System.currentTimeMillis())
             )
             chatRepository.sendMessage(currentChatId, message)
+        }
+    }
+
+    fun deleteMessage(messageId: String) {
+        val currentChatId = _chatId.value ?: return
+        viewModelScope.launch {
+            chatRepository.deleteMessage(currentChatId, messageId)
+        }
+    }
+
+    fun editMessage(messageId: String, newContent: String) {
+        val currentChatId = _chatId.value ?: return
+        viewModelScope.launch {
+            chatRepository.editMessage(currentChatId, messageId, newContent)
+        }
+    }
+
+    fun sendFile(fileUri: Uri) {
+        val currentChatId = _chatId.value ?: return
+        viewModelScope.launch {
+            val fileType = chatRepository.getFileType(fileUri)
+            chatRepository.uploadFile(currentChatId, fileUri, fileType).onSuccess {
+                chatRepository.sendMessage(currentChatId, it)
+            }
         }
     }
 }
