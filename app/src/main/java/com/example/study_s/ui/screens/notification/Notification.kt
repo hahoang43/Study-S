@@ -1,6 +1,3 @@
-// ĐƯỜNG DẪN: ui/screens/notification/NotificationScreen.kt
-// NỘI DUNG HOÀN CHỈNH - PHIÊN BẢN CUỐI CÙNG
-
 package com.example.study_s.ui.screens.notification
 
 import androidx.compose.foundation.Image
@@ -17,8 +14,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -27,28 +24,60 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.Notification
+import com.example.study_s.R // ✅ ĐẢM BẢO BẠN ĐÃ IMPORT DÒNG NÀY
+import com.example.study_s.ui.screens.components.BottomNavBar
+import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.NotificationViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+// Composable chính của màn hình
 @Composable
 fun NotificationScreen(
-    navController: NavController, // ✅ 1. NHẬN NavController
+    navController: NavController,
     viewModel: NotificationViewModel = viewModel()
 ) {
     val notifications by viewModel.notifications.collectAsState()
+    // Lấy route hiện tại để truyền vào BottomNavBar
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
 
+    // ✅ SỬ DỤNG SCAFFOLD ĐỂ CHỨA TOPBAR, BOTTOMBAR VÀ NỘI DUNG
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Hoạt động", fontWeight = FontWeight.Bold) })
+            // Gọi TopBar bạn đã cung cấp
+            TopBar(
+                onChatClick = { /*TODO: Xử lý khi nhấn vào chat*/ },
+                onSearchClick = { /*TODO: Xử lý khi nhấn vào tìm kiếm*/ },
+                onNotificationClick = { /*TODO: Xử lý khi nhấn vào thông báo*/ }
+            )
+        },
+        bottomBar = {
+            // Gọi BottomNavBar bạn đã cung cấp
+            BottomNavBar(
+                navController = navController,
+                currentRoute = currentRoute
+            )
         }
-    ) { paddingValues ->
+    ) { innerPadding -> // `innerPadding` là khoảng trống an toàn do Scaffold cung cấp
+        // LazyColumn chứa danh sách thông báo sẽ nằm ở đây
         LazyColumn(
+            // Áp dụng `innerPadding` để nội dung không bị TopBar và BottomBar che mất
             modifier = Modifier
-                .padding(paddingValues)
+                .padding(innerPadding)
                 .fillMaxSize()
         ) {
+            // Thêm tiêu đề "Hoạt động" vào đầu danh sách
+            item {
+                Text(
+                    text = "Hoạt động",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+                )
+            }
+
+            // Hiển thị danh sách thông báo hoặc thông báo trống
             if (notifications.isEmpty()) {
                 item {
                     Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
@@ -57,48 +86,49 @@ fun NotificationScreen(
                 }
             } else {
                 items(notifications, key = { it.notificationId }) { notification ->
-                    NotificationItem(
+                    NotificationItem( // Dùng lại NotificationItem bạn đã có
                         notification = notification,
-                        // ✅ 2. TRUYỀN HÀNH ĐỘNG CLICK VÀO ITEM
                         onItemClick = {
                             viewModel.onNotificationClicked(notification, navController)
                         }
                     )
+                    // Thêm đường kẻ ngang giữa các mục
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 }
             }
         }
     }
 }
 
+// Composable cho mỗi mục thông báo (giữ nguyên như file bạn đã gửi)
 @Composable
 fun NotificationItem(
     notification: Notification,
-    onItemClick: () -> Unit // ✅ 3. NHẬN HÀNH ĐỘNG CLICK
+    onItemClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onItemClick) // Áp dụng hành động click
+            .clickable(onClick = onItemClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ✅ 4. HIỂN THỊ CHẤM ĐỎ DỰA TRÊN `isRead`
         if (!notification.isRead) {
             Box(
                 modifier = Modifier
                     .size(8.dp)
-                    .background(Color.Red, CircleShape)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
             )
             Spacer(Modifier.width(8.dp))
         } else {
-            // Thêm spacer để các item đã đọc và chưa đọc thẳng hàng
             Spacer(Modifier.width(16.dp))
         }
 
         Image(
             painter = rememberAsyncImagePainter(
-                model = notification.actorAvatarUrl ?: "https://i.pravatar.cc/150",
-                placeholder = rememberAsyncImagePainter("https://i.pravatar.cc/150")
+                model = notification.actorAvatarUrl,
+                placeholder = painterResource(id = R.drawable.ic_profile),
+                error = painterResource(id = R.drawable.ic_profile)
             ),
             contentDescription = "Avatar",
             modifier = Modifier
@@ -111,19 +141,16 @@ fun NotificationItem(
 
         Text(
             text = buildAnnotatedString {
-                // ✅ THÊM LOGIC "WHEN"
                 when (notification.type) {
                     "schedule_reminder" -> {
-                        // Hiển thị đặc biệt cho lời nhắc lịch học
                         withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
-                            append("🔔 Lời nhắc từ Study_S") // Hoặc notification.actorName
+                            append("🔔 Lời nhắc từ Study_S")
                         }
                         withStyle(style = SpanStyle(fontSize = 15.sp)) {
-                            append("\n${notification.message}") // Thêm xuống dòng cho rõ ràng
+                            append("\n${notification.message}")
                         }
                     }
                     "like", "comment", "follow" -> {
-                        // Logic cũ của bạn cho các thông báo từ người dùng
                         withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
                             append(notification.actorName ?: "Ai đó")
                         }
@@ -133,16 +160,14 @@ fun NotificationItem(
                         }
                     }
                     else -> {
-                        // Hiển thị mặc định nếu có loại thông báo lạ
                         append(notification.message)
                     }
                 }
             },
             modifier = Modifier.weight(1f),
-            lineHeight = 20.sp // Giúp văn bản có 2 dòng hiển thị đẹp hơn
+            lineHeight = 20.sp
         )
 
-        // Thumbnail ảnh bài viết (nếu có)
         notification.postImageUrl?.let {
             Spacer(Modifier.width(12.dp))
             Image(

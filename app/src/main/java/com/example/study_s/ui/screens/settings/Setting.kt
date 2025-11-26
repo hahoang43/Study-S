@@ -528,39 +528,49 @@ fun SettingsLogoutItem(
 }
 @Composable
 fun DangerZoneSection(onDeleteAccountClicked: () -> Unit) {
-    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 24.dp)) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onDeleteAccountClicked)
-                .padding(vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            shape = MaterialTheme.shapes.large,
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface
+            ),
+            elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.DeleteForever,
-                contentDescription = "Xóa tài khoản",
-                tint = MaterialTheme.colorScheme.error
-            )
-            Spacer(modifier = Modifier.size(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Xóa tài khoản",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.error
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onDeleteAccountClicked)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = "Xóa tài khoản",
+                    tint = MaterialTheme.colorScheme.error
                 )
-                Text(
-                    text = "Hành động này không thể hoàn tác.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                Spacer(modifier = Modifier.size(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Xóa tài khoản",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Text(
+                        text = "Hành động này không thể hoàn tác.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                    )
+                }
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.error
                 )
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.error
-            )
         }
     }
 }
