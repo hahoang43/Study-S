@@ -1,4 +1,3 @@
-
 package com.example.study_s.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -22,7 +21,7 @@ class ChatListViewModel(
     private val _chats = MutableStateFlow<List<Chat>>(emptyList())
     private val _users = MutableStateFlow<Map<String, UserModel>>(emptyMap())
 
-    val chats: StateFlow<List<Pair<Chat, UserModel?>>> = 
+    val chats: StateFlow<List<Pair<Chat, UserModel?>>> =
         _chats.combine(_users) { chats, users ->
             chats.map { chat ->
                 val otherUserId = chat.members.firstOrNull { it != userRepository.getCurrentUserId() }
@@ -55,6 +54,27 @@ class ChatListViewModel(
                 if (it != null) {
                     _users.value = _users.value + (userId to it)
                 }
+            }
+        }
+    }
+
+    /**
+     * Yêu cầu Repository đánh dấu cuộc trò chuyện đã được đọc.
+     * @param chatId ID của cuộc trò chuyện cần cập nhật.
+     */
+    fun markChatAsRead(chatId: String) {
+        // Không cần kiểm tra userId ở đây vì Repository đã xử lý
+        viewModelScope.launch {
+            try {
+                // Lỗi "Unresolved reference" sẽ xảy ra ở dòng này
+                // nếu hàm markChatAsRead chưa tồn tại trong ChatListRepository
+                chatListRepository.markChatAsRead(chatId)
+
+                // Bạn không cần làm gì thêm ở đây, vì Firestore listener
+                // trong getChats() sẽ tự động nhận thấy sự thay đổi và cập nhật UI.
+            } catch (e: Exception) {
+                // Xử lý lỗi nếu cần, ví dụ: log lỗi
+                println("Failed to mark chat as read: ${e.message}")
             }
         }
     }

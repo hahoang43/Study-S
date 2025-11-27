@@ -31,6 +31,8 @@ class MyApplication : Application() {
         // =========================================================================
         val config = mapOf(
             "cloud_name" to "dzhiudnhu",
+            "api_key" to "877213433711958",          // <-- ✅ BỔ SUNG DÒNG NÀY
+            "api_secret" to "yX_V2OZ6JB0GsYPwdkPKO8Aiinc",
             "secure" to true
         )
         // Lưu ý: Không cần gọi MediaManager.init() nữa nếu bạn đã cấu hình nó trong ViewModel

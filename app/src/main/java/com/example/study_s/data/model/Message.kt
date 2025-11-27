@@ -14,5 +14,6 @@ data class Message(
     val type: String = "text", // "text", "image", "file"
     val url: String? = null,
     val fileName: String? = null,
-    val fileSize: Long? = null
+    val fileSize: Long? = null,
+    val readBy: Map<String, Boolean> = emptyMap()
 )
