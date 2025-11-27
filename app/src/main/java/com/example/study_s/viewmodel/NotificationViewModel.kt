@@ -1,6 +1,7 @@
 package com.example.study_s.viewmodel
 
 import android.util.Log
+import androidx.core.util.remove
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
@@ -13,51 +14,92 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.firestore.ListenerRegistration
+import com.example.study_s.data.repository.NotificationRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 class NotificationViewModel : ViewModel() {
-
+    private val repository = NotificationRepository()
     private val db = FirebaseFirestore.getInstance()
     private val userId = FirebaseAuth.getInstance().currentUser?.uid
 
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
-    val notifications = _notifications.asStateFlow()
+    val notifications: StateFlow<List<Notification>> = repository.getNotificationsFlow()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = emptyList()
+        )
+    val unreadNotificationCount: StateFlow<Int> = notifications
+        .map { notificationList ->
+            notificationList.count { !it.isRead } // Đếm các thông báo có isRead = false
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = 0 // Giá trị ban đầu là 0
+        )
+
+
+    // Biến để giữ "trình lắng nghe" của Firestore, giúp chúng ta có thể hủy nó đi
+    private var notificationListener: ListenerRegistration? = null
+
 
     init {
-        loadNotifications()
+        // ✅ THAY ĐỔI: Thay vì load 1 lần, chúng ta bắt đầu "lắng nghe"
+        listenForNotifications()
     }
 
-    private fun loadNotifications() {
-        if (userId == null) return
+    // ✅ HÀM MỚI: DÙNG addSnapshotListener ĐỂ LẮNG NGHE DỮ LIỆU REAL-TIME
+    private fun listenForNotifications() {
+        if (userId == null) {
+            Log.w("NotificationVM", "User ID is null. Cannot listen for notifications.")
+            return
+        }
 
-        viewModelScope.launch {
-            try {
-                val snapshot = db.collection("notifications")
-                    .whereEqualTo("userId", userId)
-                    .orderBy("createdAt", Query.Direction.DESCENDING)
-                    .get()
-                    .await()
+        // Hủy trình lắng nghe cũ đi nếu nó đang tồn tại, để tránh việc lắng nghe nhiều lần
+        notificationListener?.remove()
 
-                // ✅ LOGIC QUAN TRỌNG NHẤT NẰM Ở ĐÂY
-                // Chuyển đổi các document thành đối tượng Notification
-                // và gán ID của document vào trường notificationId
-                _notifications.value = snapshot.documents.mapNotNull { doc ->
+        // Query giống hệt như hàm loadNotifications() cũ của bạn
+        val query = db.collection("notifications")
+            .whereEqualTo("userId", userId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+
+        // Đây là trái tim của giải pháp
+        notificationListener = query.addSnapshotListener { snapshot, error ->
+            // Xử lý nếu có lỗi từ Firestore
+            if (error != null) {
+                Log.e("NotificationVM", "Listen for notifications failed.", error)
+                return@addSnapshotListener
+            }
+
+            // Nếu snapshot tồn tại (có dữ liệu trả về)
+            if (snapshot != null) {
+                // Chuyển đổi dữ liệu và cập nhật StateFlow
+                // Dùng lại logic gán ID của bạn, rất tốt!
+                val notificationList = snapshot.documents.mapNotNull { doc ->
                     doc.toObject(Notification::class.java)?.apply {
-                        this.notificationId = doc.id // Gán ID để làm key cho LazyColumn
+                        this.notificationId = doc.id
                     }
                 }
-                Log.d("NotificationVM", "Loaded ${_notifications.value.size} notifications.")
-
-            } catch (e: Exception) {
-                Log.e("NotificationVM", "Error loading notifications", e)
+                _notifications.value = notificationList
+                Log.d("NotificationVM", "Real-time update! Notifications count: ${notificationList.size}")
             }
         }
     }
 
-    fun onNotificationClicked(notification: Notification, navController: NavController) {
-        // Đánh dấu là đã đọc
-        markAsRead(notification.notificationId)
 
-        // Điều hướng dựa trên loại thông báo
+    // ✅ BƯỚC 3: SỬA LẠI HÀM onNotificationClicked
+    fun onNotificationClicked(notification: Notification, navController: NavController) {
+        if (!notification.isRead) {
+            // Bây giờ hàm này sẽ gọi hàm `markAsRead` đã được sửa đổi
+            markAsRead(notification.notificationId)
+        }
+        // Logic điều hướng giữ nguyên
         when (notification.type) {
             "like", "comment" -> {
                 notification.postId?.let { postId ->
@@ -70,33 +112,28 @@ class NotificationViewModel : ViewModel() {
                 }
             }
             "schedule_reminder" -> {
-                // Đối với lời nhắc, điều hướng đến màn hình Lịch
                 navController.navigate(Routes.Schedule)
             }
-            // Thêm các trường hợp khác nếu cần
         }
     }
 
+    // ✅ BƯỚC 4: SỬA LẠI HOÀN TOÀN HÀM markAsRead
+    // Hàm này giờ sẽ gọi đến Repository
     private fun markAsRead(notificationId: String) {
         if (notificationId.isBlank()) return
 
         viewModelScope.launch {
-            try {
-                db.collection("notifications").document(notificationId)
-                    .update("isRead", true)
-                    .await()
-
-                // Cập nhật lại UI để mất chấm đỏ
-                _notifications.value = _notifications.value.map {
-                    if (it.notificationId == notificationId) {
-                        it.copy(isRead = true)
-                    } else {
-                        it
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("NotificationVM", "Error marking notification as read", e)
-            }
+            // GỌI HÀM CỦA REPOSITORY
+            repository.markAsRead(notificationId)
+            // Chúng ta không cần làm gì thêm ở đây, vì `listenForNotifications`
+            // sẽ tự động nhận thấy sự thay đổi và cập nhật UI.
         }
+    }
+
+    // Hàm onCleared() giữ nguyên, đã rất tốt
+    override fun onCleared() {
+        super.onCleared()
+        notificationListener?.remove()
+        Log.d("NotificationVM", "ViewModel cleared and listener removed.")
     }
 }

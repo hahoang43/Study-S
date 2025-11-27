@@ -14,6 +14,6 @@ data class Notification(
     val postId: String? = null,            // ID bài viết liên quan (nếu có)
     val postImageUrl: String? = null,      // Ảnh bài viết liên quan (nếu có)
     val createdAt: Timestamp = Timestamp.now(), // Thời gian tạo
-    val isRead: Boolean = false            // Đã đọc hay chưa
+    val isRead: Boolean = false
 )
     

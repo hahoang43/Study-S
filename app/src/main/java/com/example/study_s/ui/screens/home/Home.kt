@@ -31,18 +31,19 @@ import com.example.study_s.ui.screens.components.PostItem
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch // <-- 3. IMPORT
 import kotlinx.coroutines.flow.collectLatest // <-- THÊM IMPORT NÀY// ...
-
+import com.example.study_s.viewmodel.MainViewModel
 @Composable
 fun HomeScreen(
     navController: NavController,
-    viewModel: PostViewModel = viewModel()
+    viewModel: PostViewModel = viewModel(),
+    mainViewModel: MainViewModel
 ) {
     val posts by viewModel.posts.collectAsState()
     val lazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
+    val unreadCount by mainViewModel.unreadNotificationCount.collectAsState()
     LaunchedEffect(Unit) {
         // Luôn lắng nghe các sự kiện yêu cầu cuộn lên đầu
         viewModel.scrollToTopEvent.collectLatest {
@@ -65,7 +66,8 @@ fun HomeScreen(
             TopBar(
                 onNotificationClick = { navController.navigate(Routes.Notification) },
                 onSearchClick = { navController.navigate(Routes.Search) },
-                onChatClick = { navController.navigate(Routes.Message) }
+                onChatClick = { navController.navigate(Routes.Message) },
+                notificationCount = unreadCount
             )
         },
 
@@ -156,5 +158,6 @@ fun CreatePostTrigger(navController: NavController, modifier: Modifier = Modifie
 @Composable
 fun HomeScreenPreview() {
     val navController = rememberNavController()
-    HomeScreen(navController = navController)
+    val mainViewModel: MainViewModel = viewModel()
+    HomeScreen(navController = navController, mainViewModel = mainViewModel)
 }

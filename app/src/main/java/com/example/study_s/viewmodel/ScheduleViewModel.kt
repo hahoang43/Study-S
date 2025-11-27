@@ -1,6 +1,3 @@
-// ĐƯỜNG DẪN: app/src/main/java/com/example/study_s/viewmodel/ScheduleViewModel.kt
-// BẢN NÂNG CẤP HOÀN CHỈNH
-
 package com.example.study_s.viewmodel
 
 import android.app.Application

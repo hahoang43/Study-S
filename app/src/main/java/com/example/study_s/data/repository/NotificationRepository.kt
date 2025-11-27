@@ -18,8 +18,12 @@ import org.json.JSONObject
 import java.io.IOException
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 class NotificationRepository {
-
+    private val auth = FirebaseAuth.getInstance()
     private val client = OkHttpClient()
     private val db = FirebaseFirestore.getInstance()
     private val notificationCollection = db.collection("notifications")
@@ -191,6 +195,7 @@ class NotificationRepository {
             sendPushNotification(token, title, body)
         }
     }
+
     // ✅ HÀM MỚI: ĐÁNH DẤU MỘT THÔNG BÁO LÀ ĐÃ ĐỌC
     suspend fun markAsRead(notificationId: String) {
         // Chỉ thực hiện nếu ID không rỗng
@@ -205,6 +210,32 @@ class NotificationRepository {
         } catch (e: Exception) {
             Log.e("NotificationRepo", "Error marking notification as read", e)
         }
+    }
+    fun getNotificationsFlow(): Flow<List<Notification>> = callbackFlow {
+        val userId = auth.currentUser?.uid
+        if (userId == null) {
+            trySend(emptyList()).isSuccess
+            awaitClose { }
+            return@callbackFlow
+        }
+
+        val query = notificationCollection
+            .whereEqualTo("userId", userId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                close(error)
+                return@addSnapshotListener
+            }
+            if (snapshot != null) {
+                val notifications = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Notification::class.java)?.apply { notificationId = doc.id }
+                }
+                trySend(notifications).isSuccess
+            }
+        }
+        awaitClose { listener.remove() }
     }
 }
 

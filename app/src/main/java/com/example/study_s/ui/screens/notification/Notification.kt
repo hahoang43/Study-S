@@ -31,26 +31,30 @@ import com.example.study_s.R // ✅ ĐẢM BẢO BẠN ĐÃ IMPORT DÒNG NÀY
 import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.NotificationViewModel
-
+import com.example.study_s.viewmodel.MainViewModel
 // Composable chính của màn hình
 @Composable
 fun NotificationScreen(
     navController: NavController,
-    viewModel: NotificationViewModel = viewModel()
+    viewModel: NotificationViewModel = viewModel(),
+    mainViewModel: MainViewModel
 ) {
     val notifications by viewModel.notifications.collectAsState()
     // Lấy route hiện tại để truyền vào BottomNavBar
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-
+    val unreadCount by viewModel.unreadNotificationCount.collectAsState()
     // ✅ SỬ DỤNG SCAFFOLD ĐỂ CHỨA TOPBAR, BOTTOMBAR VÀ NỘI DUNG
     Scaffold(
         topBar = {
-            // Gọi TopBar bạn đã cung cấp
             TopBar(
-                onChatClick = { /*TODO: Xử lý khi nhấn vào chat*/ },
-                onSearchClick = { /*TODO: Xử lý khi nhấn vào tìm kiếm*/ },
-                onNotificationClick = { /*TODO: Xử lý khi nhấn vào thông báo*/ }
+                onChatClick = { /*...*/ },
+                onSearchClick = { /*...*/ },
+                // Chuyển hướng đến chính màn hình này khi nhấn chuông
+                onNotificationClick = { navController.navigate("notification") },
+                // TRUYỀN SỐ LƯỢNG VÀO TOPBAR
+                notificationCount = unreadCount
             )
         },
         bottomBar = {

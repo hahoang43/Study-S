@@ -20,7 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 /**
  * TopBar hoàn chỉnh, kết hợp các điểm tốt nhất từ cả hai phiên bản.
  * - Sử dụng CenterAlignedTopAppBar để căn giữa tiêu đề.
@@ -33,7 +34,8 @@ fun TopBar(
     onNavIconClick: () -> Unit = {},
     onNotificationClick: () -> Unit,
     onSearchClick: () -> Unit,
-    onChatClick: () -> Unit
+    onChatClick: () -> Unit,
+    notificationCount: Int=0
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -63,13 +65,28 @@ fun TopBar(
                     tint = MaterialTheme.colorScheme.onSurface
                 )
             }
+            // ✅ SỬA LẠI HOÀN TOÀN NÚT NOTIFICATION
             IconButton(onClick = onNotificationClick) {
-                Icon(
-                    imageVector = Icons.Default.Notifications,
-                    contentDescription = "Thông báo",
-                    modifier = Modifier.size(28.dp),
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+                // BadgedBox sẽ bao bọc Icon chuông
+                BadgedBox(
+                    badge = {
+                        // Chỉ hiển thị badge nếu số lượng > 0
+                        if (notificationCount > 0) {
+                            Badge { // Composable để vẽ cái huy hiệu màu đỏ
+                                // Hiển thị số lượng bên trong huy hiệu
+                                Text(text = notificationCount.toString())
+                            }
+                        }
+                    }
+                ) {
+                    // Icon chuông bây giờ nằm bên trong BadgedBox
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Thông báo",
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

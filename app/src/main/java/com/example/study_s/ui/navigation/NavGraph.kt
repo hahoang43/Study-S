@@ -50,7 +50,7 @@ import com.example.study_s.viewmodel.SearchViewModel
 import com.example.study_s.viewmodel.SearchViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 import java.net.URLDecoder
-
+import com.example.study_s.viewmodel.MainViewModel
 @Composable
 fun NavGraph(navController: NavHostController) {
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
@@ -59,7 +59,7 @@ fun NavGraph(navController: NavHostController) {
     val postRepository = remember { PostRepository() }
     val groupRepository = remember { GroupRepository() }
     val libraryRepository = remember { LibraryRepository() }
-
+    val mainViewModel: MainViewModel = viewModel()
     NavHost(
         navController = navController,
         startDestination = Routes.Splash
@@ -93,7 +93,7 @@ fun NavGraph(navController: NavHostController) {
             )
         }
         composable(Routes.VerifyCode) { VerifyCodeScreen(navController) }
-        postGraph(navController, postViewModel)
+        postGraph(navController, postViewModel, mainViewModel)
 
 
         // ========== CÁC MÀN HÌNH CHÍNH ==========
@@ -110,8 +110,12 @@ fun NavGraph(navController: NavHostController) {
             }
         }
         composable(Routes.Notification) {
-            NotificationScreen(navController = navController)
+            NotificationScreen(
+                navController = navController,
+                mainViewModel = mainViewModel
+                )
         }
+
         composable(
             route = Routes.Schedule,
             // ✅ THÊM KHỐI NÀY
@@ -230,11 +234,19 @@ fun NavGraph(navController: NavHostController) {
         composable(Routes.Support) { SupportScreen(navController) }
     }
 }
-fun NavGraphBuilder.postGraph(navController: NavHostController, postViewModel: PostViewModel) {
+fun NavGraphBuilder.postGraph(
+    navController: NavHostController,
+    postViewModel: PostViewModel,
+    mainViewModel: MainViewModel
+    ) {
     navigation(startDestination = Routes.Home, route = "post_flow") {
 
         composable(Routes.Home) {
-            HomeScreen(navController = navController, viewModel = postViewModel)
+            HomeScreen(
+                navController = navController,
+                viewModel = postViewModel,
+                mainViewModel= mainViewModel
+            )
         }
 
         composable(Routes.NewPost) {
