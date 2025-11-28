@@ -2,7 +2,7 @@ package com.example.study_s.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.study_s.data.model.Chat
+import com.example.study_s.data.model.ChatModel
 import com.example.study_s.data.model.UserModel
 import com.example.study_s.data.repository.ChatListRepository
 import com.example.study_s.data.repository.UserRepository
@@ -18,10 +18,10 @@ class ChatListViewModel(
     private val userRepository: UserRepository = UserRepository()
 ) : ViewModel() {
 
-    private val _chats = MutableStateFlow<List<Chat>>(emptyList())
+    private val _chats = MutableStateFlow<List<ChatModel>>(emptyList())
     private val _users = MutableStateFlow<Map<String, UserModel>>(emptyMap())
 
-    val chats: StateFlow<List<Pair<Chat, UserModel?>>> =
+    val chats: StateFlow<List<Pair<ChatModel, UserModel?>>> =
         _chats.combine(_users) { chats, users ->
             chats.map { chat ->
                 val otherUserId = chat.members.firstOrNull { it != userRepository.getCurrentUserId() }

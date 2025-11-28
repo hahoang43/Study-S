@@ -1,6 +1,6 @@
 package com.example.study_s.data.repository
 
-import com.example.study_s.data.model.Chat
+import com.example.study_s.data.model.ChatModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -30,7 +30,7 @@ class ChatListRepository {
         }
     }
 
-    fun getChats(): Flow<List<Chat>> = callbackFlow {
+    fun getChats(): Flow<List<ChatModel>> = callbackFlow {
         val currentUserId = getCurrentUserId()
         if (currentUserId == null) {
             close(Exception("User not logged in")) // Thoát sớm nếu user chưa đăng nhập
@@ -48,7 +48,7 @@ class ChatListRepository {
                 }
 
                 // Firestore sẽ báo lỗi ở dòng này nếu data class không khớp
-                val chats = snapshot?.toObjects(Chat::class.java) ?: emptyList()
+                val chats = snapshot?.toObjects(ChatModel::class.java) ?: emptyList()
                 trySend(chats)
             }
 

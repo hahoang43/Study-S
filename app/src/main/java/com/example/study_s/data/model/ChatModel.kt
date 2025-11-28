@@ -4,9 +4,9 @@ import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
-data class Chat(
+data class ChatModel(
     @DocumentId val id: String = "", // <-- THÊM DÒNG NÀY
     val members: List<String> = emptyList(),
-    val lastMessage: Message? = null,
+    val lastMessage: MessageModel? = null,
     @ServerTimestamp val createdAt: Date? = null // <-- THÊM DÒNG NÀY
 )

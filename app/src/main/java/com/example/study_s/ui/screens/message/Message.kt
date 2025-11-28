@@ -41,7 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.study_s.R
-import com.example.study_s.data.model.Chat
+import com.example.study_s.data.model.ChatModel
 import com.example.study_s.data.model.UserModel
 import com.example.study_s.util.formatTimestamp
 import com.example.study_s.viewmodel.ChatListViewModel
@@ -92,7 +92,7 @@ fun MessageListScreen(navController: NavController, chatListViewModel: ChatListV
 
 @Composable
 fun MessageItem(
-    chat: Chat,
+    chat: ChatModel,
     user: UserModel?,
     navController: NavController,
     chatListViewModel: ChatListViewModel // Nhận ViewModel để xử lý logic

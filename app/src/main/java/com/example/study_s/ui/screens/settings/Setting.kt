@@ -73,6 +73,7 @@ import com.example.study_s.viewmodel.ProfileViewModelFactory
 import com.example.study_s.viewmodel.SettingsViewModel
 import com.example.study_s.viewmodel.SettingsViewModelFactory
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ContactSupport
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -253,7 +254,7 @@ fun SettingScreen(
 
             SettingsGroup(title = "Hỗ trợ") {
                 SettingsItem(
-                    icon = Icons.Default.Shield,
+                    icon = Icons.Default.ContactSupport,
                     title = "Hỗ trợ",
                     onClick = { navController.navigate(Routes.Support) }
                 )

@@ -4,7 +4,7 @@ import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.study_s.data.model.Message
+import com.example.study_s.data.model.MessageModel
 import com.example.study_s.data.model.UserModel
 import com.example.study_s.data.repository.ChatRepository
 import com.example.study_s.data.repository.UserRepository
@@ -21,8 +21,8 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val chatRepository: ChatRepository = ChatRepository(application.applicationContext)
     private val userRepository: UserRepository = UserRepository()
 
-    private val _messages = MutableStateFlow<List<Message>>(emptyList())
-    val messages: StateFlow<List<Message>> = _messages.asStateFlow()
+    private val _messages = MutableStateFlow<List<MessageModel>>(emptyList())
+    val messages: StateFlow<List<MessageModel>> = _messages.asStateFlow()
 
     private val _chatId = MutableStateFlow<String?>(null)
     val chatId: StateFlow<String?> = _chatId.asStateFlow()
@@ -62,7 +62,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         val currentUserId = userRepository.getCurrentUserId() ?: return
 
         viewModelScope.launch {
-            val message = Message(
+            val message = MessageModel(
                 senderId = currentUserId,
                 content = text,
                 type = "text"
@@ -85,6 +85,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun deleteChat() {
+        val currentChatId = _chatId.value ?: return
+        viewModelScope.launch {
+            chatRepository.deleteChat(currentChatId)
+        }
+    }
+
     // ✅ SỬA 2: Hàm sendFile bây giờ gọi trực tiếp từ chatRepository
     fun sendFile(fileUri: Uri) {
         val currentChatId = _chatId.value ?: return
@@ -100,7 +107,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     else -> "file"
                 }
 
-                val message = Message(
+                val message = MessageModel(
                     content = cloudinaryResult.url,
                     type = messageType,
                     fileName = cloudinaryResult.originalFilename,

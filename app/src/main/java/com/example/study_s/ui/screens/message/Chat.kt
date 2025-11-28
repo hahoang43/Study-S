@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -39,6 +38,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilePresent
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
@@ -73,7 +73,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
-import com.example.study_s.data.model.Message
+import com.example.study_s.data.model.MessageModel
 import com.example.study_s.viewmodel.ChatViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
@@ -106,13 +106,17 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
     // States for message actions
-    var messageToAction by remember { mutableStateOf<Message?>(null) }
+    var messageToAction by remember { mutableStateOf<MessageModel?>(null) }
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var editingText by remember { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+
+    var showDeleteChatDialog by remember { mutableStateOf(false) }
+    var showOptionsMenu by remember { mutableStateOf(false) }
+
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
@@ -187,6 +191,26 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
         )
     }
 
+    if (showDeleteChatDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteChatDialog = false },
+            title = { Text("Xóa cuộc trò chuyện") },
+            text = { Text("Toàn bộ lịch sử trò chuyện sẽ bị xóa vĩnh viễn. Bạn có chắc chắn không?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        chatViewModel.deleteChat()
+                        showDeleteChatDialog = false
+                        navController.popBackStack()
+                    }
+                ) { Text("Xóa") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteChatDialog = false }) { Text("Hủy") }
+            }
+        )
+    }
+
 
     Scaffold(
         topBar = {
@@ -213,6 +237,25 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
                         )
+                    }
+                },
+                actions = {
+                    Box {
+                        IconButton(onClick = { showOptionsMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
+                        }
+                        DropdownMenu(
+                            expanded = showOptionsMenu,
+                            onDismissRequest = { showOptionsMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Xóa cuộc trò chuyện") },
+                                onClick = {
+                                    showDeleteChatDialog = true
+                                    showOptionsMenu = false
+                                }
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -379,7 +422,7 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
-    message: Message,
+    message: MessageModel,
     isCurrentUser: Boolean,
     showAvatar: Boolean,
     avatarUrl: String?,
