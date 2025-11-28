@@ -73,9 +73,9 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     fun processScheduleWithReminder(schedule: ScheduleModel, option: ReminderOption) {
         viewModelScope.launch {
             // Bước 1: Thêm/Cập nhật lịch học vào Firestore
-            val scheduleId = repository.addSchedule(schedule) // Repository sẽ tự xử lý thêm mới hoặc cập nhật
-            if (scheduleId.isNotEmpty()) {
-                val processedSchedule = schedule.copy(scheduleId = scheduleId)
+            val finalScheduleId = repository.saveOrUpdateSchedule(schedule) // Repository sẽ tự xử lý thêm mới hoặc cập nhật
+            if (finalScheduleId.isNotEmpty()) {
+                val processedSchedule = schedule.copy(scheduleId = finalScheduleId)
 
                 // Bước 2: Dựa vào lựa chọn để đặt báo thức
                 if (option.minutes > 0) {

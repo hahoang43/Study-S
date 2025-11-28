@@ -50,7 +50,8 @@ import java.util.*
 fun ScheduleScreen(
     navController: NavHostController,
     // ✅ 1. KHỞI TẠO VIEWMODEL
-    viewModel: ScheduleViewModel = viewModel()
+    viewModel: ScheduleViewModel = viewModel(),
+
 ) {
     // ✅ 2. LẤY DỮ LIỆU HOÀN TOÀN TỪ VIEWMODEL
     val currentMonth by viewModel.currentMonth.collectAsState()
@@ -73,6 +74,7 @@ fun ScheduleScreen(
             }
         }
     }
+
 
     Scaffold(
         topBar = {

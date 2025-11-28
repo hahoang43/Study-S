@@ -1,5 +1,5 @@
 package com.example.study_s.ui.screens.components
-
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubble
@@ -72,9 +72,14 @@ fun TopBar(
                     badge = {
                         // Chỉ hiển thị badge nếu số lượng > 0
                         if (notificationCount > 0) {
-                            Badge { // Composable để vẽ cái huy hiệu màu đỏ
-                                // Hiển thị số lượng bên trong huy hiệu
-                                Text(text = notificationCount.toString())
+                            Badge(
+                                // ✅ THÊM MODIFIER NÀY VÀO ĐỂ TINH CHỈNH VỊ TRÍ
+                                modifier = Modifier.offset(x = (-4).dp, y = 6.dp)
+                            ) {
+                                Text(
+                                    text = if (notificationCount > 99) "99+" else notificationCount.toString(),
+                                    fontSize = 10.sp // Giảm cỡ chữ một chút cho đẹp hơn
+                                )
                             }
                         }
                     }
