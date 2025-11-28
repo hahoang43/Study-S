@@ -51,6 +51,7 @@ import com.example.study_s.viewmodel.SearchViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 import java.net.URLDecoder
 import com.example.study_s.viewmodel.MainViewModel
+
 @Composable
 fun NavGraph(navController: NavHostController) {
     val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
@@ -60,19 +61,19 @@ fun NavGraph(navController: NavHostController) {
     val groupRepository = remember { GroupRepository() }
     val libraryRepository = remember { LibraryRepository() }
     val mainViewModel: MainViewModel = viewModel()
+
     NavHost(
         navController = navController,
         startDestination = Routes.Splash
     ) {
 
-        // ========== CÁC ROUTE CƠ BẢN & AUTH ==========
+        // ========== AUTH ==========
         composable(Routes.Splash) { SplashScreen(navController) }
+
         composable(Routes.Login) {
-            LoginScreen(
-                navController = navController,
-                authViewModel = authViewModel
-            )
+            LoginScreen(navController = navController, authViewModel = authViewModel)
         }
+
         composable(
             route = "${Routes.Register}?name={name}&email={email}",
             arguments = listOf(
@@ -86,17 +87,24 @@ fun NavGraph(navController: NavHostController) {
             val decodedEmail = URLDecoder.decode(email, "UTF-8")
             RegisterScreen(navController, authViewModel, decodedName, decodedEmail)
         }
+
+        // ✅ Forgot password
         composable(Routes.ForgotPassword) {
             ForgotPasswordScreen(
-                onBackToLogin = { navController.popBackStack() },
-                onResetPassword = { _ -> navController.navigate(Routes.VerifyCode) }
+                onBackToLogin = {
+                    navController.navigate(Routes.Login) {
+                        popUpTo(Routes.Login) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                }
             )
         }
+
         composable(Routes.VerifyCode) { VerifyCodeScreen(navController) }
+
         postGraph(navController, postViewModel, mainViewModel)
 
-
-        // ========== CÁC MÀN HÌNH CHÍNH ==========
+        // ========== MESSAGE ==========
         composable(Routes.Message) { MessageListScreen(navController) }
         composable(
             route = "chat/{targetUserId}",
@@ -109,16 +117,15 @@ fun NavGraph(navController: NavHostController) {
                 navController.popBackStack()
             }
         }
+
+        // ========== NOTIFICATION ==========
         composable(Routes.Notification) {
-            NotificationScreen(
-                navController = navController,
-                mainViewModel = mainViewModel
-                )
+            NotificationScreen(navController = navController, mainViewModel = mainViewModel)
         }
 
+        // ========== SCHEDULE ==========
         composable(
             route = Routes.Schedule,
-            // ✅ THÊM KHỐI NÀY
             deepLinks = listOf(
                 navDeepLink { uriPattern = "app://example.study_s/${Routes.Schedule}" }
             )
@@ -126,7 +133,7 @@ fun NavGraph(navController: NavHostController) {
             ScheduleScreen(navController)
         }
 
-        // ========== BÀI VIẾT (POST) ==========
+        // ========== POST ==========
         composable(Routes.NewPost) { PostScreen(navController) }
         composable(Routes.SavedPosts) { SavedPostsScreen(navController = navController) }
         composable(
@@ -137,7 +144,7 @@ fun NavGraph(navController: NavHostController) {
             PostDetailScreen(postId = postId, navController = navController)
         }
 
-     // ========== HỒ SƠ (PROFILE) ==========
+        // ========== PROFILE ==========
         composable(
             route = "${Routes.Profile}?userId={userId}",
             arguments = listOf(
@@ -162,13 +169,13 @@ fun NavGraph(navController: NavHostController) {
                 )
             }
         }
+
         composable(
             route = "other_profile/{userId}",
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) { backStackEntry ->
             val userId = backStackEntry.arguments?.getString("userId")
             if (userId != null) {
-                // Kiểm tra để đảm bảo không mở trang của chính mình bằng route này
                 val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
                 if (userId == currentUserId) {
                     navController.navigate(Routes.Profile) {
@@ -182,7 +189,9 @@ fun NavGraph(navController: NavHostController) {
                 navController.popBackStack()
             }
         }
+
         composable(Routes.EditProfile) { EditProfileScreen(navController) }
+
         composable(
             route = "${Routes.FollowList}/{userId}/{listType}",
             arguments = listOf(
@@ -195,8 +204,7 @@ fun NavGraph(navController: NavHostController) {
             FollowListScreen(navController = navController, userId = userId, listType = listType)
         }
 
-
-        // ========== NHÓM (GROUP) ==========
+        // ========== GROUP ==========
         composable(Routes.GroupList) { GroupScreen(navController) }
         composable(Routes.GroupCreate) { GroupCreateScreen(navController) }
         composable(
@@ -207,15 +215,13 @@ fun NavGraph(navController: NavHostController) {
             ChatGroupScreen(navController = navController, groupId = groupId)
         }
 
-
-        // ========== THƯ VIỆN (LIBRARY) ==========
+        // ========== LIBRARY ==========
         composable(Routes.Library) { LibraryScreen(navController) }
         composable(Routes.UploadFile) {
             UploadFileScreen(navController = navController, fileUrl = null, fileName = null)
         }
 
-
-        // ========== TÌM KIẾM (SEARCH) ==========
+        // ========== SEARCH ==========
         composable(Routes.Search) {
             val searchFactory = SearchViewModelFactory(
                 userRepository,
@@ -227,33 +233,31 @@ fun NavGraph(navController: NavHostController) {
             SearchScreen(navController = navController, viewModel = searchViewModel)
         }
 
-
-        // ========== CÀI ĐẶT (SETTINGS) ==========
+        // ========== SETTINGS ==========
         composable(Routes.Settings) { SettingScreen(navController) }
         composable(Routes.Policy) { PolicyScreen(navController) }
         composable(Routes.Support) { SupportScreen(navController) }
     }
 }
+
 fun NavGraphBuilder.postGraph(
     navController: NavHostController,
     postViewModel: PostViewModel,
     mainViewModel: MainViewModel
-    ) {
+) {
     navigation(startDestination = Routes.Home, route = "post_flow") {
 
         composable(Routes.Home) {
             HomeScreen(
                 navController = navController,
                 viewModel = postViewModel,
-                mainViewModel= mainViewModel
+                mainViewModel = mainViewModel
             )
         }
 
         composable(Routes.NewPost) {
             PostScreen(navController, viewModel = postViewModel)
         }
-
-
 
         composable(
             route = "${Routes.EditPost}/{postId}",
@@ -274,9 +278,11 @@ fun NavGraphBuilder.postGraph(
         composable(Routes.MyPosts) {
             MyPostsScreen(navController, viewModel = postViewModel)
         }
+
         composable(Routes.SavedPosts) {
             SavedPostsScreen(navController = navController, viewModel = postViewModel)
         }
+
         composable(
             route = "${Routes.PostDetail}/{postId}",
             arguments = listOf(navArgument("postId") { type = NavType.StringType })
