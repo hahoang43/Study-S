@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -48,6 +49,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -115,6 +118,13 @@ fun ChatGroupScreen(
 
     val listState = rememberLazyListState()
 
+    val refreshData = {
+        if (currentUserId != null) {
+            groupViewModel.getGroupById(groupId)
+            group?.pendingMembers?.let { groupViewModel.loadPendingMemberDetails(it) }
+        }
+    }
+
     LaunchedEffect(key1 = groupChatViewModel) {
         groupChatViewModel.userRemoved.collectLatest { removedUserId ->
             if (removedUserId == currentUserId) {
@@ -131,12 +141,6 @@ fun ChatGroupScreen(
     LaunchedEffect(messages) {
         if (messages.isNotEmpty()) {
             listState.animateScrollToItem(0)
-        }
-    }
-
-    val refreshData = {
-        if (currentUserId != null) {
-            groupViewModel.getGroupById(groupId)
         }
     }
 
@@ -295,7 +299,7 @@ fun JoinGroupOverlay(groupName: String, isPending: Boolean, onJoinClick: () -> U
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = if (isPending) "Vui lòng chờ duyệt" else "\"$groupName\"",
+            text = if (isPending) "Vui lòng chờ duyệt" else groupName,
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -444,8 +448,19 @@ fun GroupChatTopBar(
         actions = {
             if (isMember) {
                 Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = "More Options")
+                    BadgedBox(
+                        badge = {
+                            if (isAdmin && pendingMembers.isNotEmpty()) {
+                                Badge()
+                            }
+                        }
+                    ) {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Filled.MoreVert,
+                                contentDescription = "More Options"
+                            )
+                        }
                     }
                     DropdownMenu(
                         expanded = showMenu,

@@ -2,8 +2,10 @@ package com.example.study_s.ui.screens.components
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -50,7 +52,7 @@ fun TopBar(
         navigationIcon = {
             IconButton(onClick = onChatClick) {
                 Icon(
-                    imageVector = Icons.Default.ChatBubble,
+                    imageVector = Icons.Default.Message,
                     contentDescription = "Chat",
                     tint = MaterialTheme.colorScheme.onSurface
                 )

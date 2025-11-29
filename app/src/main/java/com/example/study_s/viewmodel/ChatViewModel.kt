@@ -42,16 +42,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     fun loadChat(targetUserId: String) {
         viewModelScope.launch {
-            userRepository.checkMutualFollow(targetUserId).onSuccess { isMutual ->
-                if (isMutual) {
-                    chatRepository.getOrCreateChat(targetUserId).onSuccess { chatId ->
-                        _chatId.value = chatId
-                        chatRepository.getMessages(chatId).collect {
-                            _messages.value = it
-                        }
-                    }
-                } else {
-                    println("Cannot message user: not a mutual follow.")
+            // Bỏ qua kiểm tra checkMutualFollow
+            chatRepository.getOrCreateChat(targetUserId).onSuccess { chatId ->
+                _chatId.value = chatId
+                chatRepository.getMessages(chatId).collect {
+                    _messages.value = it
                 }
             }
         }

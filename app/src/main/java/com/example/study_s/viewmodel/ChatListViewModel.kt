@@ -58,6 +58,16 @@ class ChatListViewModel(
         }
     }
 
+    fun deleteChats(chatIds: Set<String>) {
+        viewModelScope.launch {
+            try {
+                chatListRepository.deleteChats(chatIds)
+            } catch (e: Exception) {
+                println("Failed to delete chats: ${e.message}")
+            }
+        }
+    }
+
     /**
      * Yêu cầu Repository đánh dấu cuộc trò chuyện đã được đọc.
      * @param chatId ID của cuộc trò chuyện cần cập nhật.

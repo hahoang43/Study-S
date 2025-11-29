@@ -1,7 +1,8 @@
 package com.example.study_s.ui.screens.message
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,17 +19,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,24 +61,77 @@ import com.google.firebase.ktx.Firebase
 @Composable
 fun MessageListScreen(navController: NavController, chatListViewModel: ChatListViewModel = viewModel()) {
     val chatsWithUsers by chatListViewModel.chats.collectAsState()
+    var inSelectionMode by remember { mutableStateOf(false) }
+    var selectedChatIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
+
+    fun exitSelectionMode() {
+        inSelectionMode = false
+        selectedChatIds = emptySet()
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Xóa cuộc trò chuyện?") },
+            text = { Text("Bạn có chắc chắn muốn xóa ${selectedChatIds.size} cuộc trò chuyện đã chọn không? Hành động này không thể hoàn tác.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    chatListViewModel.deleteChats(selectedChatIds)
+                    showDeleteConfirmation = false
+                    exitSelectionMode()
+                }) {
+                    Text("Xóa")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Tin nhắn", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+            if (inSelectionMode) {
+                TopAppBar(
+                    title = { Text("${selectedChatIds.size} đã chọn") },
+                    navigationIcon = {
+                        IconButton(onClick = { exitSelectionMode() }) {
+                            Icon(Icons.Default.Close, contentDescription = "Đóng")
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { showDeleteConfirmation = true },
+                            enabled = selectedChatIds.isNotEmpty()
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Xóa")
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        titleContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
-            )
+            } else {
+                TopAppBar(
+                    title = { Text("Tin nhắn", fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                )
+            }
         },
     ) { padding ->
         LazyColumn(
@@ -78,62 +140,84 @@ fun MessageListScreen(navController: NavController, chatListViewModel: ChatListV
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            items(chatsWithUsers) { (chat, user) ->
+            items(chatsWithUsers, key = { it.first.id }) { (chat, user) ->
                 MessageItem(
                     chat = chat,
                     user = user,
                     navController = navController,
-                    chatListViewModel = chatListViewModel // Truyền ViewModel xuống
+                    chatListViewModel = chatListViewModel,
+                    isSelected = chat.id in selectedChatIds,
+                    inSelectionMode = inSelectionMode,
+                    onToggleSelection = {
+                        selectedChatIds = if (chat.id in selectedChatIds) {
+                            selectedChatIds - chat.id
+                        } else {
+                            selectedChatIds + chat.id
+                        }.also {
+                            if (it.isEmpty()) {
+                                inSelectionMode = false
+                            }
+                        }
+                    },
+                    onStartSelection = {
+                        if (!inSelectionMode) {
+                            inSelectionMode = true
+                            selectedChatIds = setOf(chat.id)
+                        }
+                    }
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageItem(
     chat: ChatModel,
     user: UserModel?,
     navController: NavController,
-    chatListViewModel: ChatListViewModel // Nhận ViewModel để xử lý logic
+    chatListViewModel: ChatListViewModel,
+    isSelected: Boolean,
+    inSelectionMode: Boolean,
+    onToggleSelection: () -> Unit,
+    onStartSelection: () -> Unit
 ) {
     val currentUserId = Firebase.auth.currentUser?.uid
-
-    // 1. KIỂM TRA TRẠNG THÁI CHƯA ĐỌC
-    val isUnread = currentUserId != null && // 1. Đảm bảo user đã đăng nhập
+    val isUnread = currentUserId != null &&
             chat.lastMessage != null &&
             chat.lastMessage.senderId != currentUserId &&
-            // 2. Chỉ kiểm tra readBy khi user ID không null
             (chat.lastMessage.readBy[currentUserId] == false || chat.lastMessage.readBy[currentUserId] == null)
 
-    // 2. CHỌN CÁC THUỘC TÍNH UI DỰA TRÊN TRẠNG THÁI `isUnread`
-    val fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal
-    val textColor = if (isUnread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-    val backgroundColor = if (isUnread) {
-        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
-    } else {
-        Color.Transparent
-    }
-
-    val clickableModifier = if (user != null) {
-        Modifier.clickable {
-            // Khi click vào, đánh dấu cuộc trò chuyện đã đọc và điều hướng
-            chatListViewModel.markChatAsRead(chat.id)
-            navController.navigate("chat/${user.userId}")
-        }
-    } else {
-        Modifier
+    val fontWeight = if (isUnread && !isSelected) FontWeight.Bold else FontWeight.Normal
+    val textColor = if (isUnread && !isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+    val dynamicBackgroundColor = when {
+        isSelected -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+        // Giữ lại màu nền cho tin nhắn chưa đọc, nhưng bạn có thể thay đổi nếu muốn
+        isUnread -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) 
+        else -> MaterialTheme.colorScheme.surface
     }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(clickableModifier)
-            .background(backgroundColor) // Áp dụng màu nền
+            .combinedClickable(
+                onClick = {
+                    if (inSelectionMode) {
+                        onToggleSelection()
+                    } else {
+                        if (user != null) {
+                            chatListViewModel.markChatAsRead(chat.id)
+                            navController.navigate("chat/${user.userId}")
+                        }
+                    }
+                },
+                onLongClick = onStartSelection
+            )
+            .background(dynamicBackgroundColor)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Avatar
         Box {
             AsyncImage(
                 model = user?.avatarUrl ?: R.drawable.ic_profile,
@@ -143,11 +227,26 @@ fun MessageItem(
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Selected",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Cột chứa Tên và Tin nhắn
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = user?.name ?: "User",
@@ -159,7 +258,7 @@ fun MessageItem(
             Text(
                 text = chat.lastMessage?.content ?: "",
                 color = textColor,
-                fontWeight = fontWeight, // In đậm nếu chưa đọc
+                fontWeight = fontWeight,
                 fontSize = 14.sp,
                 maxLines = 1
             )
@@ -167,19 +266,17 @@ fun MessageItem(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Cột chứa Thời gian và Chấm báo hiệu
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.Center) {
             chat.lastMessage?.timestamp?.let {
                 Text(
                     text = formatTimestamp(it),
                     color = textColor,
                     fontSize = 13.sp,
-                    fontWeight = fontWeight // In đậm nếu chưa đọc
+                    fontWeight = fontWeight
                 )
             }
-            if (isUnread) {
+            if (isUnread && !isSelected) {
                 Spacer(modifier = Modifier.height(4.dp))
-                // Chấm tròn báo hiệu tin nhắn mới
                 Box(
                     modifier = Modifier
                         .size(12.dp)

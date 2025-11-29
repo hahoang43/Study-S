@@ -30,6 +30,15 @@ class ChatListRepository {
         }
     }
 
+    suspend fun deleteChats(chatIds: Set<String>) {
+        val batch = db.batch()
+        chatIds.forEach {
+            val docRef = chatsCollection.document(it)
+            batch.delete(docRef)
+        }
+        batch.commit().await()
+    }
+
     fun getChats(): Flow<List<ChatModel>> = callbackFlow {
         val currentUserId = getCurrentUserId()
         if (currentUserId == null) {
