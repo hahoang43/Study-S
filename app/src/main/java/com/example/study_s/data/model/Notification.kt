@@ -2,18 +2,21 @@ package com.example.study_s.data.model
 
 import com.google.firebase.Timestamp
 import com.google.firebase.firestore.PropertyName
+
 data class Notification(
-    @get:PropertyName("notificationId") @set:PropertyName("notificationId") var notificationId: String = "",
-    // ID của thông báo
-    val userId: String = "",               // ID của người nhận thông báo
-    val actorId: String = "",              // ID của người gây ra hành động (người like, follow)
-    val actorName: String? = null,         // Tên của người gây ra hành động
-    val actorAvatarUrl: String? = null,    // Avatar của người gây ra hành động
-    val type: String = "",                 // Loại thông báo: "like", "follow", "comment"
-    val message: String = "",              // Nội dung thông báo, ví dụ: "đã bắt đầu theo dõi bạn."
-    val postId: String? = null,            // ID bài viết liên quan (nếu có)
-    val postImageUrl: String? = null,      // Ảnh bài viết liên quan (nếu có)
-    val createdAt: Timestamp = Timestamp.now(), // Thời gian tạo
-    val isRead: Boolean = false
+    @get:PropertyName("notificationId") @set:PropertyName("notificationId")
+    var notificationId: String = "",
+
+    val userId: String = "",
+    val actorId: String = "",
+    val actorName: String? = null,
+    val actorAvatarUrl: String? = null,
+    val type: String = "",
+    val message: String = "",
+    val postId: String? = null,
+    val postImageUrl: String? = null,
+    val createdAt: Timestamp = Timestamp.now(),
+
+    @get:PropertyName("isRead") @set:PropertyName("isRead")
+    var isRead: Boolean = false
 )
-    
