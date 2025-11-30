@@ -112,7 +112,7 @@ fun NavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             val targetUserId = backStackEntry.arguments?.getString("targetUserId")
             if (!targetUserId.isNullOrBlank()) {
-                ChatScreen(navController = navController, targetUserId = targetUserId)
+                ChatScreen(navController = navController, targetUserId = targetUserId, chatId = targetUserId)
             } else {
                 navController.popBackStack()
             }

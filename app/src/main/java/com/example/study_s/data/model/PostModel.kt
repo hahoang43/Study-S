@@ -24,7 +24,8 @@ data class PostModel(
     val authorName: String = "",
     val authorAvatarUrl: String? = null,
     val contentLowercase: String = content.lowercase(),
-
+    val imageUrls: List<String> = emptyList(),
+    val bookmarks: List<String> = emptyList(),    // ✅ ĐẢM BẢO CÓ DÒNG NÀY
     @get:Exclude
     var postId: String = "" // Sửa 'val' thành 'var' để có thể gán lại ID
 ) {
