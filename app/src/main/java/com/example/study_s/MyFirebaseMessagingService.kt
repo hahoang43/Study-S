@@ -1,5 +1,3 @@
-// ĐƯỜNG DẪN: com/example/study_s/MyFirebaseMessagingService.kt
-
 package com.example.study_s
 
 import android.Manifest

@@ -1,27 +1,46 @@
+// ĐƯỜNG DẪN: ui/screens/auth/RegisterScreen.kt
+
 package com.example.study_s.ui.screens.auth
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.example.study_s.R
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
@@ -35,16 +54,19 @@ fun RegisterScreen(
     nameFromGoogle: String,
     emailFromGoogle: String
 ) {
-    // === PHẦN LOGIC === (Giữ nguyên)
+    // === PHẦN LOGIC ===
     val isLinkingAccount = nameFromGoogle.isNotEmpty() && emailFromGoogle.isNotEmpty()
     var fullName by remember { mutableStateOf(nameFromGoogle) }
     var userEmail by remember { mutableStateOf(emailFromGoogle) }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var showPassword by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
+
     val authState by authViewModel.state.collectAsState()
     val context = LocalContext.current
 
+    // LaunchedEffect xử lý kết quả (Giữ nguyên)
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
@@ -63,155 +85,204 @@ fun RegisterScreen(
         }
     }
 
-    // === PHẦN GIAO DIỆN ===
-    Scaffold { paddingValues ->
-        // Sử dụng Arrangement.Center để căn giữa nội dung theo chiều dọc
-        Column(
+    // === PHẦN GIAO DIỆN MỚI ===
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.logo_study),
+            contentDescription = "Background",
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Nhóm tiêu đề và mô tả để dễ quản lý
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                .alpha(0.08f),
+            contentScale = ContentScale.Crop
+        )
+
+        Scaffold(
+            containerColor = Color.Transparent, // Làm nền Scaffold trong suốt để thấy ảnh nền
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(horizontal = 24.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // --- Phần tiêu đề ---
                 Text(
-                    text = if (isLinkingAccount) "Hoàn Tất Đăng Ký" else "Đăng Ký",
-                    style = MaterialTheme.typography.headlineMedium,
+                    text = if (isLinkingAccount) "Hoàn Tất Hồ Sơ" else "Tạo tài khoản",
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Serif
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                if (isLinkingAccount) {
-                    Text(
-                        text = "Chào mừng bạn! Vui lòng đặt mật khẩu và điền các thông tin còn lại.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = if (isLinkingAccount) "Chỉ một bước nữa thôi, hãy đặt mật khẩu cho tài khoản của bạn."
+                    else "Chào mừng bạn đến với Study-S!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(40.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
+                // --- Các trường nhập liệu (phong cách mới) ---
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { fullName = it },
+                    label = { Text("Họ và tên") },
+                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Full Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isLinkingAccount,
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = userEmail,
+                    onValueChange = { userEmail = it },
+                    label = { Text("Email") },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isLinkingAccount,
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Mật khẩu") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password") },
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = "Toggle password visibility"
+                            )
+                        }
+                    },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-            // --- Các trường nhập liệu ---
-            OutlinedTextField(
-                value = fullName,
-                onValueChange = { fullName = it },
-                label = { Text("Họ và tên") },
-                placeholder = { Text("Tên của bạn") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLinkingAccount,
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = userEmail,
-                onValueChange = { userEmail = it },
-                label = { Text("Email") },
-                placeholder = { Text("Nhập Email của bạn") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLinkingAccount,
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Mật khẩu") },
-                placeholder = { Text("Tối thiểu 6 ký tự") },
-                trailingIcon = {
-                    val icon = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility
-                    IconButton(onClick = { showPassword = !showPassword }) {
-                        Icon(imageVector = icon, contentDescription = "Toggle password visibility")
+                // ✅ Ô xác nhận mật khẩu đã có con mắt
+                OutlinedTextField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = { Text("Xác nhận mật khẩu") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Confirm Password") },
+                    trailingIcon = {
+                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            Icon(
+                                imageVector = if (confirmPasswordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                contentDescription = "Toggle confirm password visibility"
+                            )
+                        }
+                    },
+                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    isError = password != confirmPassword && confirmPassword.isNotEmpty(),
+                    supportingText = {
+                        if (password != confirmPassword && confirmPassword.isNotEmpty()) {
+                            Text("Mật khẩu xác nhận không khớp.")
+                        }
                     }
-                },
-                visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+                )
 
-            OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
-                label = { Text("Xác nhận mật khẩu") },
-                placeholder = { Text("Nhập lại mật khẩu") },
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                isError = password != confirmPassword && confirmPassword.isNotEmpty(),
-                supportingText = {
-                    if (password != confirmPassword && confirmPassword.isNotEmpty()) {
-                        Text("Mật khẩu xác nhận không khớp.")
-                    }
-                }
-            )
+                Spacer(modifier = Modifier.height(40.dp))
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // --- Nút đăng ký / Hoàn tất ---
-            Button(
-                onClick = {
-                    if (password.length < 6) {
-                        Toast.makeText(context, "Mật khẩu phải có ít nhất 6 ký tự.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-                    if (password != confirmPassword) {
-                        Toast.makeText(context, "Mật khẩu xác nhận không khớp.", Toast.LENGTH_SHORT).show()
-                        return@Button
-                    }
-
-                    if (isLinkingAccount) {
-                        authViewModel.linkPasswordToCurrentUser(password)
-                    } else {
-                        if (fullName.isBlank() || userEmail.isBlank()) {
-                            Toast.makeText(context, "Vui lòng điền đủ họ tên và email.", Toast.LENGTH_SHORT).show()
+                // --- Nút đăng ký ---
+                Button(
+                    onClick = {
+                        if (password.length < 6) {
+                            Toast.makeText(context, "Mật khẩu phải có ít nhất 6 ký tự.", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
-                        authViewModel.signUp(fullName, userEmail, password)
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                enabled = authState !is AuthState.Loading,
-            ) {
-                if (authState is AuthState.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary
+                        if (password != confirmPassword) {
+                            Toast.makeText(context, "Mật khẩu xác nhận không khớp.", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        if (isLinkingAccount) {
+                            authViewModel.linkPasswordToCurrentUser(password)
+                        } else {
+                            if (fullName.isBlank() || userEmail.isBlank()) {
+                                Toast.makeText(context, "Vui lòng điền đủ họ tên và email.", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            authViewModel.signUp(fullName, userEmail, password)
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(50)), // Bo tròn mạnh
+                    enabled = authState !is AuthState.Loading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF00897B) // Màu xanh teal giống ảnh mẫu
                     )
-                } else {
-                    Text(if (isLinkingAccount) "Hoàn Tất" else "Đăng Ký")
+                ) {
+                    if (authState is AuthState.Loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                    } else {
+                        Text(
+                            text = if (isLinkingAccount) "HOÀN TẤT" else "ĐĂNG KÝ",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // --- Nút quay lại ---
-            TextButton(
-                onClick = { navController.popBackStack() },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Quay lại")
+                // --- Nút quay lại ---
+                TextButton(onClick = { navController.popBackStack() }) {
+                    Text(
+                        "Quay lại",
+                        fontSize = 15.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
 }
 
-// Sửa lại Preview để không bị lỗi
-@Preview(showBackground = true)
+// Sửa lại Preview để xem giao diện mới
+@Preview(showBackground = true, name = "Register - Normal")
 @Composable
 fun RegisterScreenPreview() {
-    // Để xem trước, chúng ta cần truyền vào các tham số giả
-    RegisterScreen(
-        navController = rememberNavController(),
-        authViewModel = viewModel(factory = AuthViewModelFactory()), // Cần ViewModel giả
-        nameFromGoogle = "", // Giả lập đăng ký thường
-        emailFromGoogle = ""
-    )
+    MaterialTheme {
+        RegisterScreen(
+            navController = rememberNavController(),
+            authViewModel = viewModel(factory = AuthViewModelFactory()),
+            nameFromGoogle = "",
+            emailFromGoogle = ""
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Register - Google Link")
+@Composable
+fun RegisterScreenLinkPreview() {
+    MaterialTheme {
+        RegisterScreen(
+            navController = rememberNavController(),
+            authViewModel = viewModel(factory = AuthViewModelFactory()),
+            nameFromGoogle = "Son Goku",
+            emailFromGoogle = "goku.saiyan@dbz.com"
+        )
+    }
 }

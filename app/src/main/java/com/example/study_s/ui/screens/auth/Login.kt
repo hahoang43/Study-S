@@ -1,3 +1,4 @@
+// ĐƯỜNG DẪN: ui/screens/auth/LoginScreen.kt
 
 package com.example.study_s.ui.screens.auth
 
@@ -19,9 +20,13 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -40,27 +45,17 @@ import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
 import com.example.study_s.viewmodel.AuthViewModelFactory
 import com.google.android.gms.auth.api.identity.BeginSignInRequest
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.net.URLEncoder
-
-
-
-
-// PHẦN CODE CÒN LẠI CỦA BẠN BẮT ĐẦU TỪ ĐÂY
-// @Composable
-// fun LoginScreen(...) { ... }
-
-
 @Composable
 fun LoginScreen(
     navController: NavController,
     authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
 ) {
-
-    // === PHẦN 1: KHAI BÁO STATE VÀ LOGIC ===
 
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -70,7 +65,6 @@ fun LoginScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    // Google Sign-In Launcher
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
@@ -81,251 +75,213 @@ fun LoginScreen(
                         .getSignInCredentialFromIntent(result.data)
                     authViewModel.signInWithGoogle(credentials.googleIdToken ?: "")
                 } catch (e: Exception) {
-                    Toast.makeText(context, "Lỗi lấy thông tin Google: ${e.message}", Toast.LENGTH_LONG).show()
+                    val errorMessage = when (e) {
+                        is ApiException -> "Lỗi từ Google API: ${e.statusCode}"
+                        else -> e.message ?: "Lỗi không xác định"
+                    }
+                    Toast.makeText(context, "Lỗi lấy thông tin Google: $errorMessage", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
 
-    // LaunchedEffect để xử lý kết quả đăng nhập và điều hướng
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
-                // ĐĂNG NHẬP THÀNH CÔNG
                 Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
-
-                // KIỂM TRA XEM NGƯỜI DÙNG CÓ MẬT KHẨU HAY CHƯA
                 val user = FirebaseAuth.getInstance().currentUser
                 val hasPasswordProvider = user?.providerData?.any { it.providerId == "password" } == true
 
                 if (hasPasswordProvider) {
-                    // Nếu đã có mật khẩu, vào thẳng Home
-                    navController.navigate(Routes.Home) {
-                        popUpTo(0) { inclusive = true }
-                    }
+                    navController.navigate(Routes.Home) { popUpTo(0) { inclusive = true } }
                 } else {
-                    // Nếu chưa có mật khẩu (đăng nhập Google lần đầu),
-                    // chuyển đến màn hình Register và truyền thông tin
                     val name = user?.displayName ?: ""
-                    val email = user?.email ?: ""
+                    val userEmail = user?.email ?: ""
                     val encodedName = URLEncoder.encode(name, "UTF-8")
-                    val encodedEmail = URLEncoder.encode(email, "UTF-8")
+                    val encodedEmail = URLEncoder.encode(userEmail, "UTF-8")
                     navController.navigate("${Routes.Register}?name=$encodedName&email=$encodedEmail") {
                         popUpTo(0) { inclusive = true }
                     }
                 }
-                // Quan trọng: Reset lại state để không bị lặp lại hiệu ứng
                 authViewModel.resetState()
             }
             is AuthState.Error -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_LONG).show()
                 authViewModel.resetState()
             }
-            else -> { /* Không làm gì với Idle và Loading */ }
+            else -> { /* No-op */ }
         }
     }
 
-    // === PHẦN 2: GIAO DIỆN (LẤY TỪ LoginScreenContent) ===
-
-    Surface(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        Column(
+        Image(
+            painter = painterResource(id = R.drawable.logo_study),
+            contentDescription = "Background",
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .alpha(0.08f),
+            contentScale = ContentScale.Crop
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.Transparent
         ) {
-            Spacer(modifier = Modifier.height(50.dp))
-            // Header
-            Text(
-                text = "STUDY-S",
-                color = MaterialTheme.colorScheme.onSurface, // Dùng màu của theme
-                fontWeight = FontWeight.Bold,
-                fontSize = 38.sp,
-                fontFamily = FontFamily.Serif
-            )
-            Spacer(modifier = Modifier.height(60.dp))
-            Text(
-                text = "Đăng nhập",
-                fontSize = 25.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "Vui lòng nhập tên đăng nhập hoặc email",
-                fontSize = 15.sp,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Email input
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("Nhập tên đăng nhập hoặc email") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
-                singleLine = true
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Password input
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Nhập mật khẩu") },
-                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password Icon") },
-                trailingIcon = {
-                    val icon = if (passwordVisible) R.drawable.ic_visibility_off else R.drawable.ic_visibility
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            painter = painterResource(id = icon),
-                            contentDescription = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu"
-                        )
-                    }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                singleLine = true
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            TextButton(
-                onClick = { navController.navigate(Routes.ForgotPassword) },
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text("Quên mật khẩu", fontSize = 14.sp)
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Login button
-            Button(
-                onClick = { authViewModel.signInWithEmail(email, password) },
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6D4C41), // Dark Brown
-                    contentColor = Color.White
-                )
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text("Đăng nhập", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-            }
 
-            if (authState is AuthState.Loading) {
-                Spacer(modifier = Modifier.height(16.dp))
-                CircularProgressIndicator(modifier = Modifier.size(32.dp))
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Divider(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(50.dp))
                 Text(
-                    text = " Hoặc ",
-                    color = Color.Gray,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-                Divider(modifier = Modifier.weight(1f))
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Google Login Button
-            OutlinedButton(
-                onClick = {
-                    coroutineScope.launch {
-                        try {
-                            val googleSignInRequest = com.google.android.gms.auth.api.identity.BeginSignInRequest.builder()
-                                .setGoogleIdTokenRequestOptions(
-                                    com.google.android.gms.auth.api.identity.BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
-                                        .setSupported(true)
-                                        .setServerClientId(context.getString(R.string.default_web_client_id))
-                                        .setFilterByAuthorizedAccounts(false)
-                                        .build()
-                                )
-                                .setAutoSelectEnabled(true)
-                                .build()
-                            val signInIntent = Identity.getSignInClient(context).beginSignIn(googleSignInRequest).await()
-                            launcher.launch(IntentSenderRequest.Builder(signInIntent.pendingIntent.intentSender).build())
-                        } catch (e: Exception) {
-                            Toast.makeText(context, "Lỗi cấu hình Google Sign-In: ${e.message}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(1.dp, Color.Gray),
-                colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.google_logo),
-                    contentDescription = "Google logo",
-                    modifier = Modifier.size(36.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Đăng nhập bằng Google",
-                    color = Color.Black,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Facebook button
-            Button(
-                onClick = { /* TODO */ },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(8.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF1877F2), // Facebook Blue
-                    contentColor = Color.White
-                )
-            ) {
-                Text(
-                    "f",
+                    text = "STUDY-S",
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
+                    fontSize = 38.sp,
+                    fontFamily = FontFamily.Serif
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Đăng nhập bằng Facebook", color = Color.White, fontSize = 16.sp)
-            }
+                Spacer(modifier = Modifier.height(60.dp))
+                Text(text = "Đăng nhập", fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(text = "Vui lòng nhập tên đăng nhập hoặc email", fontSize = 15.sp, textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Spacer(modifier = Modifier.height(20.dp))
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Nhập tên đăng nhập hoặc email") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email Icon") },
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Chưa có tài khoản?", fontSize = 14.sp)
-                TextButton(onClick = { navController.navigate(Routes.Register) }) {
-                    Text("Đăng ký ngay")
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Nhập mật khẩu") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Password Icon") },
+                    trailingIcon = {
+                        val icon = if (passwordVisible) R.drawable.ic_visibility_off else R.drawable.ic_visibility
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                painter = painterResource(id = icon),
+                                contentDescription = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    singleLine = true
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                TextButton(
+                    onClick = { navController.navigate(Routes.ForgotPassword) },
+                    modifier = Modifier.align(Alignment.End)
+                ) {
+                    Text("Quên mật khẩu", fontSize = 14.sp)
                 }
-            }
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.weight(1f))
-            
+                Button(
+                    onClick = { authViewModel.signInWithEmail(email, password) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF6D4C41),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("Đăng nhập", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                }
+
+                if (authState is AuthState.Loading) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Divider(modifier = Modifier.weight(1f))
+                    Text(text = " Hoặc ", color = Color.Gray, modifier = Modifier.padding(horizontal = 8.dp))
+                    Divider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                OutlinedButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            try {
+                                val googleSignInRequest = BeginSignInRequest.builder()
+                                    .setGoogleIdTokenRequestOptions(
+                                        BeginSignInRequest.GoogleIdTokenRequestOptions.builder()
+                                            .setSupported(true)
+                                            .setServerClientId(context.getString(R.string.default_web_client_id))
+                                            .setFilterByAuthorizedAccounts(false)
+                                            .build()
+                                    )
+                                    .setAutoSelectEnabled(true)
+                                    .build()
+                                val signInIntent = Identity.getSignInClient(context).beginSignIn(googleSignInRequest).await()
+                                launcher.launch(IntentSenderRequest.Builder(signInIntent.pendingIntent.intentSender).build())
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Lỗi cấu hình Google Sign-In: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color.Gray),
+                    colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.White)
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.google_logo),
+                        contentDescription = "Google logo",
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Đăng nhập bằng Google", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Chưa có tài khoản?", fontSize = 14.sp)
+                    TextButton(onClick = { navController.navigate(Routes.Register) }) {
+                        Text("Đăng ký ngay")
+                    }
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     }
 }
