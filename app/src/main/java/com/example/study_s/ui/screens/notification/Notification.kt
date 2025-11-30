@@ -26,13 +26,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.rememberAsyncImagePainter
+import com.example.study_s.R
 import com.example.study_s.data.model.Notification
-import com.example.study_s.R // ✅ ĐẢM BẢO BẠN ĐÃ IMPORT DÒNG NÀY
 import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.ui.screens.components.TopBar
-import com.example.study_s.viewmodel.NotificationViewModel
 import com.example.study_s.viewmodel.MainViewModel
-// Composable chính của màn hình
+import com.example.study_s.viewmodel.NotificationViewModel
+import androidx.compose.runtime.mutableStateOf   // 👈 THÊM
+import androidx.compose.runtime.remember      // 👈 THÊM
+import androidx.compose.runtime.setValue
 @Composable
 fun NotificationScreen(
     navController: NavController,
@@ -40,39 +42,32 @@ fun NotificationScreen(
     mainViewModel: MainViewModel
 ) {
     val notifications by viewModel.notifications.collectAsState()
-    // Lấy route hiện tại để truyền vào BottomNavBar
+    val unreadCount by viewModel.unreadNotificationCount.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val unreadCount by viewModel.unreadNotificationCount.collectAsState()
-    // ✅ SỬ DỤNG SCAFFOLD ĐỂ CHỨA TOPBAR, BOTTOMBAR VÀ NỘI DUNG
+
     Scaffold(
         topBar = {
             TopBar(
-                onChatClick = { /*...*/ },
-                onSearchClick = { /*...*/ },
-                // Chuyển hướng đến chính màn hình này khi nhấn chuông
+                onChatClick = { /* ... */ },
+                onSearchClick = { /* ... */ },
                 onNotificationClick = { navController.navigate("notification") },
-                // TRUYỀN SỐ LƯỢNG VÀO TOPBAR
                 notificationCount = unreadCount
             )
         },
         bottomBar = {
-            // Gọi BottomNavBar bạn đã cung cấp
             BottomNavBar(
                 navController = navController,
                 currentRoute = currentRoute
             )
         }
-    ) { innerPadding -> // `innerPadding` là khoảng trống an toàn do Scaffold cung cấp
-        // LazyColumn chứa danh sách thông báo sẽ nằm ở đây
+    ) { innerPadding ->
         LazyColumn(
-            // Áp dụng `innerPadding` để nội dung không bị TopBar và BottomBar che mất
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // Thêm tiêu đề "Hoạt động" vào đầu danh sách
             item {
                 Text(
                     text = "Hoạt động",
@@ -81,30 +76,36 @@ fun NotificationScreen(
                 )
             }
 
-            // Hiển thị danh sách thông báo hoặc thông báo trống
             if (notifications.isEmpty()) {
                 item {
-                    Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier.fillParentMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text("Chưa có hoạt động nào")
                     }
                 }
             } else {
-                items(notifications, key = { it.notificationId }) { notification ->
-                    NotificationItem( // Dùng lại NotificationItem bạn đã có
+                items(
+                    items = notifications,
+                    key = { it.notificationId }
+                ) { notification ->
+                    NotificationItem(
                         notification = notification,
                         onItemClick = {
                             viewModel.onNotificationClicked(notification, navController)
                         }
                     )
-                    // Thêm đường kẻ ngang giữa các mục
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
                 }
             }
         }
     }
 }
 
-// Composable cho mỗi mục thông báo (giữ nguyên như file bạn đã gửi)
+
 @Composable
 fun NotificationItem(
     notification: Notification,
@@ -113,7 +114,7 @@ fun NotificationItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onItemClick)
+            .clickable { onItemClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -127,7 +128,6 @@ fun NotificationItem(
         } else {
             Spacer(Modifier.width(16.dp))
         }
-
         Image(
             painter = rememberAsyncImagePainter(
                 model = notification.actorAvatarUrl,
@@ -147,15 +147,26 @@ fun NotificationItem(
             text = buildAnnotatedString {
                 when (notification.type) {
                     "schedule_reminder" -> {
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
+                        withStyle(
+                            style = SpanStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        ) {
                             append("🔔 Lời nhắc từ Study_S")
                         }
                         withStyle(style = SpanStyle(fontSize = 15.sp)) {
                             append("\n${notification.message}")
                         }
                     }
+
                     "like", "comment", "follow" -> {
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold, fontSize = 15.sp)) {
+                        withStyle(
+                            style = SpanStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        ) {
                             append(notification.actorName ?: "Ai đó")
                         }
                         withStyle(style = SpanStyle(fontSize = 15.sp)) {
@@ -163,9 +174,8 @@ fun NotificationItem(
                             append(notification.message)
                         }
                     }
-                    else -> {
-                        append(notification.message)
-                    }
+
+                    else -> append(notification.message)
                 }
             },
             modifier = Modifier.weight(1f),

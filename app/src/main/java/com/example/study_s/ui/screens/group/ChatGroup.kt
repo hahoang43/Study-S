@@ -18,6 +18,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,9 +62,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -76,9 +79,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -121,7 +126,6 @@ fun ChatGroupScreen(
     val refreshData = {
         if (currentUserId != null) {
             groupViewModel.getGroupById(groupId)
-            group?.pendingMembers?.let { groupViewModel.loadPendingMemberDetails(it) }
         }
     }
 
@@ -144,10 +148,23 @@ fun ChatGroupScreen(
         }
     }
 
-    LaunchedEffect(groupId) {
-        refreshData()
+    LaunchedEffect(groupId, currentUserId) {
         if (currentUserId != null) {
+            groupViewModel.getGroupById(groupId)
             groupChatViewModel.listenToGroupMessages(groupId)
+        }
+    }
+
+    LaunchedEffect(group) {
+        group?.members?.let { memberIds ->
+            if (memberIds.isNotEmpty()) {
+                groupViewModel.loadMemberDetails(memberIds)
+            }
+        }
+        group?.pendingMembers?.let { pendingIds ->
+            if (pendingIds.isNotEmpty()) {
+                groupViewModel.loadPendingMemberDetails(pendingIds)
+            }
         }
     }
 
@@ -199,11 +216,13 @@ fun ChatGroupScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 16.dp),
                     reverseLayout = true,
-                    state = listState
+                    state = listState,
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(messages) { message ->
+                        val sender = members.find { it.userId == message.senderId }
                         if (message.senderId == "system") {
                             SystemMessageItem(message = message)
                         } else if (currentUserId != null) {
@@ -212,7 +231,8 @@ fun ChatGroupScreen(
                                 currentUserId = currentUserId,
                                 navController = navController,
                                 groupChatViewModel = groupChatViewModel,
-                                groupId = groupId
+                                groupId = groupId,
+                                sender = sender
                             )
                         }
                     }
@@ -603,6 +623,7 @@ fun BannedMembersDialog(bannedMembers: List<UserModel>, onDismiss: () -> Unit, o
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MessageInput(
     onSendMessage: (String) -> Unit,
@@ -688,69 +709,82 @@ fun MessageInput(
         }
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shadowElevation = 4.dp
     ) {
-        Box {
-            IconButton(onClick = { showAttachmentMenu = true }) {
-                Icon(
-                    imageVector = Icons.Default.AttachFile,
-                    contentDescription = "Attach File"
-                )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box {
+                IconButton(onClick = { showAttachmentMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = "Attach File",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                DropdownMenu(
+                    expanded = showAttachmentMenu,
+                    onDismissRequest = { showAttachmentMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Tải ảnh lên") },
+                        onClick = {
+                            showAttachmentMenu = false
+                            launchPicker("image")
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Image,
+                                contentDescription = "Upload Image"
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Tải tệp lên") },
+                        onClick = {
+                            showAttachmentMenu = false
+                            launchPicker("file")
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
+                                contentDescription = "Upload File"
+                            )
+                        }
+                    )
+                }
             }
-            DropdownMenu(
-                expanded = showAttachmentMenu,
-                onDismissRequest = { showAttachmentMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Tải ảnh lên") },
-                    onClick = {
-                        showAttachmentMenu = false
-                        launchPicker("image")
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = "Upload Image"
-                        )
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Tải tệp lên") },
-                    onClick = {
-                        showAttachmentMenu = false
-                        launchPicker("file")
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
-                            contentDescription = "Upload File"
-                        )
-                    }
-                )
-            }
-        }
-        TextField(
-            value = text,
-            onValueChange = { text = it },
-            modifier = Modifier.weight(1f),
-            placeholder = { Text("Nhập tin nhắn...") },
-            shape = RoundedCornerShape(24.dp)
-        )
-        IconButton(onClick = {
-            if (text.isNotBlank()) {
-                onSendMessage(text)
-                text = ""
-            }
-        }) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Send Message",
-                tint = MaterialTheme.colorScheme.primary
+            TextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Nhập tin nhắn...") },
+                colors = TextFieldDefaults.colors(
+                    unfocusedIndicatorColor = Color.Transparent,
+                    focusedIndicatorColor = Color.Transparent
+                ),
+                shape = RoundedCornerShape(24.dp)
             )
+            IconButton(
+                onClick = {
+                    if (text.isNotBlank()) {
+                        onSendMessage(text)
+                        text = ""
+                    }
+                },
+                enabled = text.isNotBlank()
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Send Message",
+                    tint = if (text.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }
@@ -763,13 +797,18 @@ fun MessageItem(
     currentUserId: String,
     navController: NavHostController,
     groupChatViewModel: GroupChatViewModel,
-    groupId: String
+    groupId: String,
+    sender: UserModel?
 ) {
     val isCurrentUser = message.senderId == currentUserId
     val arrangement = if (isCurrentUser) Arrangement.End else Arrangement.Start
     val context = LocalContext.current
     var showMenu by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
+
+    fun navigateToProfile() {
+        navController.navigate("${Routes.Profile}?userId=${message.senderId}")
+    }
 
     if (showEditDialog) {
         EditMessageDialog(
@@ -782,15 +821,37 @@ fun MessageItem(
         )
     }
 
-    Row(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 4.dp), horizontalArrangement = arrangement) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = arrangement,
+        verticalAlignment = Alignment.Bottom
+    ) {
+        if (!isCurrentUser) {
+            AsyncImage(
+                model = sender?.avatarUrl,
+                contentDescription = "User Avatar",
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .clickable { navigateToProfile() },
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
         Box(
             modifier = Modifier
                 .widthIn(max = 280.dp)
                 .background(
-                    color = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                    shape = RoundedCornerShape(12.dp)
+                    color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = RoundedCornerShape(
+                        topStart = 16.dp,
+                        topEnd = 16.dp,
+                        bottomStart = if (isCurrentUser) 16.dp else 0.dp,
+                        bottomEnd = if (isCurrentUser) 0.dp else 16.dp
+                    )
                 )
                 .padding(12.dp)
         ) {
@@ -799,9 +860,9 @@ fun MessageItem(
                     Text(
                         text = message.senderName,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp,
-                        modifier = Modifier.clickable { navController.navigate("${Routes.Profile}?userId=${message.senderId}") }
+                        modifier = Modifier.clickable { navigateToProfile() }
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                 }
@@ -809,7 +870,7 @@ fun MessageItem(
                     "text" -> {
                         Text(
                             text = message.content,
-                            color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                            color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 16.sp,
                             modifier = Modifier.pointerInput(Unit) {
                                 detectTapGestures(
@@ -872,7 +933,7 @@ fun MessageItem(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = message.content,
-                                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -946,10 +1007,10 @@ fun SystemMessageItem(message: MessageGroupModel) {
     ) {
         Text(
             text = message.content,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.bodySmall,
+            fontStyle = FontStyle.Italic,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
-                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(8.dp))
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         )
     }
