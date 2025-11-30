@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,8 +65,11 @@ import com.example.study_s.R
 import com.example.study_s.data.model.PostModel
 import com.example.study_s.data.repository.LibraryRepository
 import com.example.study_s.viewmodel.PostViewModel
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
+
+import com.example.study_s.viewmodel.AuthViewModel
+import com.example.study_s.viewmodel.AuthViewModelFactory
 
 // Hàm hỗ trợ để lấy tên tệp từ Uri (Giữ nguyên)
 fun getFileName(uri: Uri, context: Context): String? {
@@ -97,12 +102,14 @@ fun getFileName(uri: Uri, context: Context): String? {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
+fun PostScreen(
     navController: NavController,
-    viewModel: PostViewModel = viewModel(),
-    postToEdit: PostModel? = null // ✅ Thêm tham số mới, mặc định là null (tạo mới)
+    postViewModel: PostViewModel = viewModel(),
+    authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory()),
+    postToEdit: PostModel? = null
 ) {
     // Xác định chế độ: true nếu đang chỉnh sửa, false nếu tạo mới
+    val currentUser by authViewModel.currentUser.collectAsState()
     val isEditMode = postToEdit != null
 
     // --- Khởi tạo State với dữ liệu có sẵn nếu là chế độ chỉnh sửa ---
@@ -118,13 +125,15 @@ fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
     var fileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
 
-
-    val currentUser = FirebaseAuth.getInstance().currentUser
     val context = LocalContext.current
     var isLoading by remember { mutableStateOf(false) }
     var uploadProgress by remember { mutableStateOf(0f) }
     val coroutineScope = rememberCoroutineScope()
     val libraryRepository = remember { LibraryRepository() }
+    // Làm mới dữ liệu người dùng khi vào màn hình
+    LaunchedEffect(Unit) {
+        authViewModel.reloadCurrentUser()
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -149,7 +158,6 @@ fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
     Scaffold(
         topBar = {
             TopAppBar(
-                // ✅ Tiêu đề và nút thay đổi theo chế độ
                 title = { Text(if (isEditMode) "Chỉnh sửa bài đăng" else "Tạo bài đăng") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
@@ -159,7 +167,8 @@ fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
                 actions = {
                     Button(
                         onClick = {
-                            if (currentUser != null) {
+                            val user = currentUser
+                            if (user != null) {
                                 coroutineScope.launch {
                                     isLoading = true
                                     uploadProgress = 0f
@@ -169,42 +178,37 @@ fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
 
                                         val uriToUpload = imageUri ?: fileUri
                                         if (uriToUpload != null) {
-                                            // Nếu có chọn file/ảnh mới -> Tải lên
                                             val fileName = selectedFileName ?: getFileName(uriToUpload, context) ?: "file"
                                             val mimeType = context.contentResolver.getType(uriToUpload) ?: "*/*"
-                                            // ...
-                                            val uploadResultUrl = libraryRepository.uploadFile(context, uriToUpload, fileName, mimeType, currentUser.uid, currentUser.displayName ?: "User") { progressInt ->
+                                            val uploadResultUrl = libraryRepository.uploadFile(context, uriToUpload, fileName, mimeType, user.uid, user.displayName ?: "User") { progressInt ->
                                                 uploadProgress = progressInt / 100f
                                             }
 
-                                            // Gán URL/tên file mới
-                                            if (imageUri != null) newImageUrl = uploadResultUrl
+                                            newImageUrl = uploadResultUrl
+                                            if (imageUri != null) newFileName = null
                                             if (fileUri != null) newFileName = selectedFileName
                                         }
 
                                         if (isEditMode) {
-                                            // ✅ L LOGIC CẬP NHẬT
                                             val updatedPost = postToEdit!!.copy(
                                                 content = postContent,
                                                 imageUrl = newImageUrl,
                                                 fileName = newFileName
                                             )
-                                            viewModel.updatePost(updatedPost) {
+                                            postViewModel.updatePost(updatedPost) {
                                                 Toast.makeText(context, "Cập nhật thành công!", Toast.LENGTH_SHORT).show()
                                                 navController.popBackStack()
                                             }
                                         } else {
-                                            // ✅ LOGIC TẠO MỚI (giữ nguyên)
                                             val newPost = PostModel(
-                                                authorId = currentUser.uid,
+                                                authorId = user.uid,
                                                 content = postContent,
                                                 imageUrl = newImageUrl,
                                                 fileName = newFileName
                                             )
-                                            viewModel.createNewPost(newPost)
+                                            postViewModel.createNewPost(newPost)
                                             navController.popBackStack()
                                         }
-
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Thao tác thất bại: ${e.message}", Toast.LENGTH_LONG).show()
                                         e.printStackTrace()
@@ -214,11 +218,10 @@ fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
                                 }
                             }
                         },
-                        // ✅ Điều kiện enabled vẫn giữ nguyên
-                        enabled = (postContent.isNotBlank() || imageUri != null || fileUri != null || existingImageUrl != null || existingFileName != null) && currentUser != null && !isLoading,
+                        enabled = (postContent.isNotBlank() || imageUri != null || fileUri != null || existingImageUrl != null) && currentUser != null && !isLoading,
                         shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text(if (isEditMode) "Lưu" else "Đăng", fontSize = 16.sp) // ✅ Text của nút thay đổi
+                        Text(if (isEditMode) "Lưu" else "Đăng", fontSize = 16.sp)
                     }
                 }
             )
@@ -234,16 +237,22 @@ fun PostScreen( // ✅ Đổi tên hàm thành PostScreen chung
             ) {
                 // ... Giao diện người dùng (giữ nguyên)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Image(
-                        painter = rememberAsyncImagePainter(model = currentUser?.photoUrl ?: R.drawable.avatar1),
+                    AsyncImage(
+                        model = currentUser?.photoUrl, // Lấy URL từ state mới nhất
                         contentDescription = "Avatar",
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        // Hiển thị ảnh mặc định này khi `model` là null hoặc có lỗi
+                        placeholder = painterResource(id = R.drawable.ic_profile),
+                        error = painterResource(id = R.drawable.ic_profile)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(currentUser?.displayName ?: "Người dùng", fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = if (currentUser != null) currentUser?.displayName ?: "Đang tải..." else "Đang tải...",
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(

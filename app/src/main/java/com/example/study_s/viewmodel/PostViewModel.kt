@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+
 class PostViewModel(
     private val postRepository: PostRepository = PostRepository(),
     private val userRepository: UserRepository = UserRepository(),
@@ -48,32 +49,46 @@ class PostViewModel(
     private val _scrollToTopEvent = MutableSharedFlow<Unit>()
     val scrollToTopEvent = _scrollToTopEvent.asSharedFlow()
 
+    fun refreshUserCache(userId: String) {
+        viewModelScope.launch {
+            // Lấy bản đồ cache hiện tại
+            val currentCache = _userModelCache.value.toMutableMap()
+            // Kiểm tra xem người dùng có trong cache không
+            if (currentCache.containsKey(userId)) {
+                // Nếu có, xóa họ ra
+                currentCache.remove(userId)
+                // Cập nhật lại StateFlow với bản đồ đã bị xóa
+                _userModelCache.value = currentCache
+                Log.d("PostViewModel", "Cache for user $userId has been refreshed.")
+            }
+        }
+    }
 
-    fun addComment(postId: String, newComment: CommentModel) { // ✅ ĐỊNH NGHĨA HÀM CHUẨN
-        // Lấy userId từ đối tượng newComment thay vì gọi lại FirebaseAuth
-        val userId = newComment.authorId
-        if (userId.isBlank()) {
-            viewModelScope.launch { _errorEvent.emit("Lỗi xác thực người dùng.") }
+    fun addComment(postId: String, content: String) {
+        val userId = currentUserId
+        if (userId == null) {
+            viewModelScope.launch { _errorEvent.emit("Bạn cần đăng nhập để bình luận.") }
             return
         }
 
+        val newComment = CommentModel(
+            postId = postId,
+            authorId = userId,
+            content = content
+        )
+
         viewModelScope.launch {
             try {
-                // Bước 1: Truyền thẳng đối tượng newComment xuống Repository
-                // Repository sẽ chịu trách nhiệm thêm các trường server-side (như timestamp)
-                // và lưu vào Firestore.
                 postRepository.addComment(postId, newComment)
-
-                // Bước 2: Tải lại toàn bộ trạng thái để UI cập nhật
                 reloadStates(postId)
 
-                // Bước 3 (Tùy chọn): Gửi thông báo
                 val post = _selectedPost.value ?: return@launch
                 val actor = userRepository.getUserProfile(userId).getOrNull()
                 val postOwner = userRepository.getUserProfile(post.authorId).getOrNull()
 
                 if (actor != null && postOwner != null) {
-                    notificationRepository.sendCommentNotification(post, actor, postOwner, newComment.content)
+                    // SỬA LỖI Ở ĐÂY: Dùng trực tiếp biến 'content' thay vì 'newComment.content'
+                    notificationRepository.sendCommentNotification(post, actor, postOwner, content)
                 }
 
             } catch (e: Exception) {

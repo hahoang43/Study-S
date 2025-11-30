@@ -101,17 +101,17 @@ fun SettingScreen(
     var showChangePasswordDialog by remember { mutableStateOf(false) }
     val actionState = profileViewModel.actionState
     val context = LocalContext.current
-    // ✅ BƯỚC 1: Lắng nghe thông tin người dùng từ AuthViewModel
+    //  BƯỚC 1: Lắng nghe thông tin người dùng từ AuthViewModel
     val currentUser by authViewModel.currentUser.collectAsState()
 
     val isDarkTheme by settingsViewModel.isDarkTheme.collectAsState()
-    // ✅ LẮNG NGHE TRẠNG THÁI TỪ ACCOUNT VIEWMODEL
+    //  LẮNG NGHE TRẠNG THÁI TỪ ACCOUNT VIEWMODEL
     val deletionState by accountViewModel.deletionState.collectAsState()
     val errorMessage by accountViewModel.errorMessage.collectAsState()
 
-    // ✅ BƯỚC 2: Yêu cầu làm mới dữ liệu mỗi khi màn hình được mở
+    // BƯỚC 2: Yêu cầu làm mới dữ liệu mỗi khi màn hình được mở
     LaunchedEffect(Unit) {
-        authViewModel.reloadUserData()
+        authViewModel.reloadCurrentUser()
 
         authViewModel.event.collect { event ->
             when (event) {
@@ -123,7 +123,7 @@ fun SettingScreen(
             }
         }
     }
-    // ✅ XỬ LÝ SỰ KIỆN XÓA TÀI KHOẢN
+    //  XỬ LÝ SỰ KIỆN XÓA TÀI KHOẢN
     LaunchedEffect(deletionState) {
         when (deletionState) {
             AccountDeletionState.SUCCESS -> {
@@ -158,7 +158,7 @@ fun SettingScreen(
                 Toast.makeText(context, actionState.message, Toast.LENGTH_LONG).show()
                 showChangePasswordDialog = false
                 profileViewModel.resetActionState()
-                authViewModel.reloadUserData()
+                authViewModel.reloadCurrentUser()
             }
 
             is ProfileActionState.Failure -> {
@@ -179,7 +179,6 @@ fun SettingScreen(
             isLoading = actionState is ProfileActionState.Loading
         )
     }
-    // ✅✅✅ DÁN ĐOẠN CODE NÀY VÀO ĐÂY ✅✅✅
     // KIỂM TRA TRẠNG THÁI VÀ HIỂN THỊ DIALOG XÁC THỰC LẠI
     if (deletionState == AccountDeletionState.REQUIRES_REAUTH ||
         deletionState == AccountDeletionState.DELETING ||
@@ -205,7 +204,7 @@ fun SettingScreen(
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
         ) {
-            // ✅ BƯỚC 3: Truyền dữ liệu động từ `currentUser` vào `UserProfileSection`
+            // BƯỚC 3: Truyền dữ liệu động từ `currentUser` vào `UserProfileSection`
             UserProfileSection(
                 username = currentUser?.displayName ?: "Đang tải...",
                 email = currentUser?.email ?: "",

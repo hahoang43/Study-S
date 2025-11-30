@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -38,8 +39,8 @@ import com.example.study_s.viewmodel.PostViewModel
 import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Locale
-
-// hàm downloadFile không đổi
+import coil.compose.AsyncImage
+import com.example.study_s.R
 fun downloadFile(context: Context, url: String, fileName: String) {
     Log.d("DownloadDebug", "Đang thử tải URL: $url")
     try {
@@ -78,7 +79,6 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
     val isSaved = remember(post.savedBy) {
         currentUserId?.let { post.savedBy.contains(it) } ?: false
     }
-    // KIỂM TRA QUYỀN SỞ HỮU BÀI VIẾT
     val isAuthor = currentUserId != null && currentUserId == post.authorId
 
     var showMenu by remember { mutableStateOf(false) }
@@ -108,15 +108,19 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = rememberAsyncImagePainter(authorAvatar ?: "https://i.pravatar.cc/150?img=5"),
+                AsyncImage(
+                    model = authorAvatar, // Truyền trực tiếp URL, có thể là null
                     contentDescription = "Avatar của ${authorName}",
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.secondaryContainer)
                         .clickable { onProfileClick() },
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    // Hiển thị ảnh này khi đang tải hoặc khi URL là null
+                    placeholder = painterResource(id = R.drawable.ic_profile),
+                    // Hiển thị ảnh này nếu có lỗi khi tải
+                    error = painterResource(id = R.drawable.ic_profile)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {

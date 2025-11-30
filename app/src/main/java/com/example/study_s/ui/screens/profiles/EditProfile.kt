@@ -1,3 +1,5 @@
+// ĐƯỜNG DẪN: ui/screens/profiles/EditProfileScreen.kt
+
 package com.example.study_s.ui.screens.profiles
 
 import android.net.Uri
@@ -43,27 +45,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import com.example.study_s.R
-import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.study_s.viewmodel.ProfileUiState // NOTE: Thêm import
-import com.example.study_s.viewmodel.ProfileViewModel // NOTE: Thêm import
+// ✅ BƯỚC 1: THÊM CÁC IMPORT CẦN THIẾT
+import com.example.study_s.viewmodel.AuthViewModel
+import com.example.study_s.viewmodel.PostViewModel
+import com.example.study_s.viewmodel.ProfileUiState
+import com.example.study_s.viewmodel.ProfileViewModel
 import com.example.study_s.viewmodel.ProfileViewModelFactory
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
     navController: NavController,
-    viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory())
+    viewModel: ProfileViewModel = viewModel(factory = ProfileViewModelFactory()),
+    // ✅ BƯỚC 2: NHẬN CÁC VIEWMODEL TOÀN CỤC ĐƯỢC TRUYỀN TỪ NAVGRAPH
+    authViewModel: AuthViewModel,
+    postViewModel: PostViewModel
 ) {
 
-    // NOTE 2: Sửa các state để chúng được điều khiển bởi ViewModel
+    // NOTE: TẤT CẢ LOGIC HIỆN TẠI CỦA BẠN ĐỀU ĐƯỢC GIỮ NGUYÊN
     val uiState = viewModel.profileUiState
     var name by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
@@ -71,15 +81,13 @@ fun EditProfileScreen(
     var initialAvatarUrl by remember { mutableStateOf<String?>(null) } // Ảnh cũ từ server
     var isLoading by remember { mutableStateOf(false) } // State để quản lý trạng thái loading
 
-    // NOTE 3: Thêm LaunchedEffect để tải dữ liệu người dùng khi màn hình được mở
     LaunchedEffect(Unit) {
         viewModel.loadCurrentUserProfile()
     }
-    // NOTE 4: Thêm LaunchedEffect để cập nhật các ô nhập liệu sau khi dữ liệu được tải về
+
     LaunchedEffect(uiState) {
         if (uiState is ProfileUiState.Success) {
             val user = (uiState as ProfileUiState.Success).userModel
-            // Chỉ cập nhật lần đầu để tránh ghi đè lên những gì người dùng đang gõ
             if (name.isEmpty() && initialAvatarUrl == null) {
                 name = user.name
                 bio = user.bio ?: ""
@@ -93,7 +101,6 @@ fun EditProfileScreen(
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        // Gán ảnh mới được chọn vào state
         imageUri = uri
     }
 
@@ -118,19 +125,16 @@ fun EditProfileScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 16.dp), // Tăng padding ngang
+                .padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(16.dp))
 
-            // -- VÙNG ẢNH ĐẠI DIỆN ĐƯỢC CẢI TIẾN --
             Box(
-                contentAlignment = Alignment.BottomEnd, // Đặt icon camera ở góc dưới bên phải
+                contentAlignment = Alignment.BottomEnd,
                 modifier = Modifier.clickable { imagePickerLauncher.launch("image/*") }
             ) {
                 AsyncImage(
-                    // NOTE 5: Sửa logic hiển thị ảnh
-                    // Ưu tiên ảnh mới chọn (imageUri), rồi đến ảnh cũ (initialAvatarUrl), cuối cùng là ảnh mặc định
                     model = imageUri ?: initialAvatarUrl,
                     placeholder = painterResource(id = R.drawable.profile_placeholder),
                     error = painterResource(id = R.drawable.profile_placeholder),
@@ -167,7 +171,6 @@ fun EditProfileScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // -- CÁC TRƯỜNG NHẬP LIỆU ĐƯỢC CẢI TIẾN --
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start
@@ -179,7 +182,6 @@ fun EditProfileScreen(
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Trường nhập liệu cho Tên
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -195,14 +197,13 @@ fun EditProfileScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Trường nhập liệu cho Tiểu sử
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
                     label = { Text("Tiểu sử") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(150.dp), // Set chiều cao cố định để dễ dàng nhập liệu
+                        .height(150.dp),
                     shape = MaterialTheme.shapes.large,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -211,9 +212,8 @@ fun EditProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f)) // Đẩy nút "Lưu" xuống dưới
+            Spacer(modifier = Modifier.weight(1f))
 
-            // Nút Lưu thay đổi
             Button(
                 onClick = {
                     isLoading = true
@@ -221,6 +221,18 @@ fun EditProfileScreen(
                         isLoading = false
                         scope.launch {
                             if (success) {
+                                // --------------------------------------------------
+                                // ✅ BƯỚC 3: KẾT NỐI VỚI HỆ THỐNG TOÀN CỤC KHI LƯU THÀNH CÔNG
+                                // --------------------------------------------------
+                                val userId = FirebaseAuth.getInstance().currentUser?.uid
+                                if (userId != null) {
+                                    // Ra lệnh cho PostViewModel xóa cache để các bài viết cũ cập nhật.
+                                    postViewModel.refreshUserCache(userId)
+                                    // Ra lệnh cho AuthViewModel tải lại dữ liệu user cho toàn ứng dụng.
+                                    authViewModel.reloadCurrentUser()
+                                }
+                                // --------------------------------------------------
+
                                 snackbarHostState.showSnackbar("Đã lưu thay đổi!")
                                 navController.popBackStack()
                             } else {
@@ -248,8 +260,11 @@ fun EditProfileScreen(
     }
 }
 
+// Preview này sẽ báo lỗi vì NavGraph giờ yêu cầu ViewModel.
+// Bạn có thể tạm thời comment nó đi hoặc sửa lại nếu cần.
 @Preview(showBackground = true, device = "id:pixel_7")
 @Composable
 fun EditProfileScreenPreview() {
-    EditProfileScreen(navController = rememberNavController())
+    // Để chạy preview, cần cung cấp các ViewModel giả.
+    // VD: EditProfileScreen(navController = rememberNavController(), authViewModel = ..., postViewModel = ...)
 }

@@ -1,14 +1,13 @@
-// ĐƯỜNG DẪN: ui/screens/post/PostDetailScreen.kt
-// NỘI DUNG HOÀN CHỈNH, ĐÃ SỬA LỖI VÀ THÊM CHỨC NĂNG SỬA/XÓA BÌNH LUẬN
+
 
 package com.example.study_s.ui.screens.post
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -28,14 +27,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import coil.compose.rememberAsyncImagePainter
+import coil.compose.AsyncImage
+import com.example.study_s.R
 import com.example.study_s.data.model.CommentModel
 import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.ui.screens.components.PostItem
@@ -48,27 +47,26 @@ import java.util.Locale
 @Composable
 fun PostDetailScreen(
     postId: String,
-    viewModel: PostViewModel = viewModel(),
-    navController: NavController
+    navController: NavController,
+    postViewModel: PostViewModel = viewModel() // Đổi tên cho nhất quán
 ) {
-    LaunchedEffect(postId) {
-        viewModel.selectPostAndLoadComments(postId)
-    }
-
-    val post by viewModel.selectedPost.collectAsState()
-
-    // State để quản lý việc nhập/sửa bình luận
-    var commentInput by remember { mutableStateOf("") }
-    var commentToEdit by remember { mutableStateOf<CommentModel?>(null) }
-    val comments by viewModel.comments.collectAsState()
+    val post by postViewModel.selectedPost.collectAsState()
+    val comments by postViewModel.comments.collectAsState()
     val lazyListState = rememberLazyListState()
 
+    var commentInput by remember { mutableStateOf("") }
+    var commentToEdit by remember { mutableStateOf<CommentModel?>(null) }
+
+    LaunchedEffect(postId) {
+        postViewModel.selectPostAndLoadComments(postId)
+    }
+
     LaunchedEffect(comments.size) {
-        // Chỉ cuộn khi danh sách không rỗng
         if (comments.isNotEmpty()) {
-            // Lấy index của item cuối cùng
-            val lastIndex = comments.size - 1 + 3 // 3 items cố định ở trên: Post, Divider, Title
-            lazyListState.animateScrollToItem(index = lastIndex)
+            val lastIndex = lazyListState.layoutInfo.totalItemsCount - 1
+            if (lastIndex >= 0) {
+                lazyListState.animateScrollToItem(index = lastIndex)
+            }
         }
     }
 
@@ -83,43 +81,32 @@ fun PostDetailScreen(
                             contentDescription = "Quay lại"
                         )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
-                )
+                }
             )
         },
         bottomBar = {
-            // ✅ HIỂN THỊ GIAO DIỆN SỬA HOẶC THÊM MỚI TÙY VÀO STATE
             if (commentToEdit != null) {
-                // Giao diện sửa bình luận
                 EditCommentBar(
                     initialText = commentToEdit!!.content,
                     onConfirm = { newContent ->
-                        viewModel.updateComment(commentToEdit!!.postId, commentToEdit!!.commentId, newContent)
-                        commentToEdit = null // Xong, đóng giao diện sửa
+                        postViewModel.updateComment(commentToEdit!!.postId, commentToEdit!!.commentId, newContent)
+                        commentToEdit = null
                     },
                     onCancel = {
-                        commentToEdit = null // Hủy sửa
+                        commentToEdit = null
                     }
                 )
             } else {
-                // Giao diện thêm bình luận mới
+                // ✅ BƯỚC 1: SỬA LẠI LOGIC GỬI BÌNH LUẬN
                 BottomCommentBar(
                     commentText = commentInput,
                     onCommentChanged = { commentInput = it },
                     onSendClick = {
-                        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-                        if (currentUserId != null && commentInput.isNotBlank()) {
-                            val newComment = CommentModel(
-                                postId = postId,
-                                authorId = currentUserId,
-                                content = commentInput
-                            )
-
-                        viewModel.addComment(postId, newComment)
-                        commentInput = ""
+                        val content = commentInput.trim()
+                        if (content.isNotBlank()) {
+                            // Chỉ truyền postId và content, ViewModel sẽ tự xử lý phần còn lại
+                            postViewModel.addComment(postId, content)
+                            commentInput = ""
                         }
                     }
                 )
@@ -131,68 +118,58 @@ fun PostDetailScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surface)
         ) {
             item {
                 post?.let { postData ->
                     PostItem(
                         post = postData,
                         navController = navController,
-                        viewModel = viewModel,
-                        isClickable = false
+                        viewModel = postViewModel
+                        // Xóa isClickable không cần thiết
                     )
-                } ?: run {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+                } ?: Box(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
                 }
             }
+
             item {
-                Divider(
-                    thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-            item {
+                Divider(thickness = 1.dp, modifier = Modifier.padding(top = 8.dp))
                 Text(
                     "Bình luận (${comments.size})",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    color = MaterialTheme.colorScheme.onSurface
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                 )
             }
-            items(comments) { comment ->
-                CommentItem(
-                    comment = comment,
-                    viewModel = viewModel,
-                    navController = navController,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    // ✅ Callback để mở giao diện sửa
-                    onEditClick = { selectedComment ->
-                        commentToEdit = selectedComment
-                    }
-                )
+
+            items(comments, key = { it.commentId }) { comment ->
+                Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                    CommentItem(
+                        comment = comment,
+                        viewModel = postViewModel,
+                        navController = navController,
+                        onEditClick = { selectedComment ->
+                            commentToEdit = selectedComment
+                        }
+                    )
+                }
             }
             item { Spacer(modifier = Modifier.height(8.dp)) }
         }
     }
 }
 
-/* ======================= COMMENT ITEM (ĐÃ CẬP NHẬT) ======================= */
+
+/* ======================= COMMENT ITEM (ĐÃ SỬA LỖI AVATAR) ======================= */
 @Composable
 fun CommentItem(
     comment: CommentModel,
     viewModel: PostViewModel,
     navController: NavController,
-    modifier: Modifier = Modifier,
-    onEditClick: (CommentModel) -> Unit // ✅ Thêm Callback để xử lý sự kiện sửa
+    onEditClick: (CommentModel) -> Unit
 ) {
     val userCache by viewModel.userCache.collectAsState()
     val author = userCache[comment.authorId]
@@ -200,36 +177,35 @@ fun CommentItem(
     val isMyComment = currentUserId != null && currentUserId == comment.authorId
     var showMenu by remember { mutableStateOf(false) }
 
-    // Lấy thông tin người dùng nếu chưa có trong cache
     LaunchedEffect(comment.authorId) {
         if (author == null && comment.authorId.isNotBlank()) {
             viewModel.fetchUser(comment.authorId)
         }
     }
 
-    Row(modifier = modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
-        Image(
-            painter = rememberAsyncImagePainter(
-                model = author?.avatarUrl ?: "https://i.pravatar.cc/150?img=3"
-            ),
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.Top) {
+        // ✅ BƯỚC 2: SỬA LỖI AVATAR, DÙNG ASYNCIMAGE VỚI PLACEHOLDER
+        AsyncImage(
+            model = author?.avatarUrl,
             contentDescription = "Avatar",
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
                 .clickable {
-                    if (isMyComment) {
-                        navController.navigate(Routes.Profile)
+                    if (!isMyComment) {
+                        navController.navigate("${Routes.Profile}?userId=${comment.authorId}")
                     } else {
-                        navController.navigate("${Routes.OtherProfile}/${comment.authorId}")
+                        navController.navigate(Routes.Profile)
                     }
                 },
-            contentScale = ContentScale.Crop
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(id = R.drawable.ic_profile),
+            error = painterResource(id = R.drawable.ic_profile)
         )
 
         Spacer(Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            // Tên và ngày tháng
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = author?.name ?: "Đang tải...",
@@ -247,7 +223,6 @@ fun CommentItem(
                 )
             }
             Spacer(Modifier.height(2.dp))
-            // Nội dung bình luận
             Text(
                 text = comment.content,
                 fontSize = 15.sp,
@@ -255,7 +230,6 @@ fun CommentItem(
             )
         }
 
-        // ✅ CHỈ HIỂN THỊ MENU NẾU LÀ TÁC GIẢ BÌNH LUẬN
         if (isMyComment) {
             Box {
                 IconButton(onClick = { showMenu = true }, modifier = Modifier.size(24.dp)) {
@@ -269,7 +243,7 @@ fun CommentItem(
                     DropdownMenuItem(
                         text = { Text("Sửa bình luận") },
                         onClick = {
-                            onEditClick(comment) // Gọi callback để mở giao diện sửa
+                            onEditClick(comment)
                             showMenu = false
                         },
                         leadingIcon = {
@@ -296,7 +270,8 @@ fun CommentItem(
     }
 }
 
-/* ======================= BOTTOM COMMENT BAR (Thêm mới/Sửa) ======================= */
+
+/* ======================= BOTTOM COMMENT BAR (Giữ nguyên) ======================= */
 @Composable
 fun BottomCommentBar(
     commentText: String,
@@ -336,7 +311,8 @@ fun BottomCommentBar(
     }
 }
 
-// ✅ GIAO DIỆN SỬA BÌNH LUẬN
+
+/* ======================= EDIT COMMENT BAR (Giữ nguyên) ======================= */
 @Composable
 fun EditCommentBar(
     initialText: String,

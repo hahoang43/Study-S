@@ -163,6 +163,9 @@ fun NavGraph(navController: NavHostController) {
             } else {
                 ProfileScreen(
                     navController = navController,
+                    authViewModel = authViewModel,
+                    postViewModel = postViewModel,
+                    // profileViewModel bên trong ProfileScreen sẽ tự được khởi tạo, không cần truyền
                     onNavigateToFollowList = { uid, listType ->
                         navController.navigate("${Routes.FollowList}/$uid/$listType")
                     }
@@ -190,7 +193,15 @@ fun NavGraph(navController: NavHostController) {
             }
         }
 
-        composable(Routes.EditProfile) { EditProfileScreen(navController) }
+        composable(Routes.EditProfile) {
+        EditProfileScreen(
+                navController = navController,
+        authViewModel = authViewModel,
+        postViewModel = postViewModel
+        // Lưu ý: editProfileViewModel bên trong EditProfileScreen sẽ tự được khởi tạo theo giá trị mặc định,
+        // nên chúng ta không cần truyền nó ở đây.
+        )
+    }
 
         composable(
             route = "${Routes.FollowList}/{userId}/{listType}",
@@ -248,15 +259,24 @@ fun NavGraphBuilder.postGraph(
     navigation(startDestination = Routes.Home, route = "post_flow") {
 
         composable(Routes.Home) {
+            val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
             HomeScreen(
                 navController = navController,
-                viewModel = postViewModel,
-                mainViewModel = mainViewModel
+                postViewModel = postViewModel,
+                mainViewModel = mainViewModel,
+                authViewModel = authViewModel
             )
         }
 
         composable(Routes.NewPost) {
-            PostScreen(navController, viewModel = postViewModel)
+            // Khởi tạo AuthViewModel để truyền vào
+            val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
+            PostScreen(
+                navController = navController,
+                postViewModel = postViewModel, // Sửa tên tham số
+                authViewModel = authViewModel    // Truyền AuthViewModel vào
+                // Tham số postToEdit là null vì đây là tạo bài mới
+            )
         }
 
         composable(
@@ -265,9 +285,11 @@ fun NavGraphBuilder.postGraph(
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getString("postId")
             if (postId != null) {
+                val authViewModel: AuthViewModel = viewModel(factory = AuthViewModelFactory())
                 EditPostScreen(
                     navController = navController,
-                    viewModel = postViewModel,
+                    postViewModel = postViewModel, // Sửa tên tham số
+                    authViewModel = authViewModel,   // Truyền AuthViewModel vào
                     postId = postId
                 )
             } else {
@@ -276,9 +298,11 @@ fun NavGraphBuilder.postGraph(
         }
 
         composable(Routes.MyPosts) {
-            MyPostsScreen(navController, viewModel = postViewModel)
+            MyPostsScreen(
+                navController = navController,
+                postViewModel = postViewModel
+            )
         }
-
         composable(Routes.SavedPosts) {
             SavedPostsScreen(navController = navController, viewModel = postViewModel)
         }
@@ -288,7 +312,7 @@ fun NavGraphBuilder.postGraph(
             arguments = listOf(navArgument("postId") { type = NavType.StringType })
         ) { backStackEntry ->
             val postId = backStackEntry.arguments?.getString("postId") ?: ""
-            PostDetailScreen(postId = postId, navController = navController, viewModel = postViewModel)
+            PostDetailScreen(postId = postId, navController = navController, postViewModel = postViewModel)
         }
     }
 }
