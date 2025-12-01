@@ -80,10 +80,11 @@ fun GroupScreen(
 
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
 
-    LaunchedEffect(currentUserId) {
+    LaunchedEffect(currentUserId, selectedTabIndex) {
         if (currentUserId != null) {
             groupViewModel.loadUserGroups(currentUserId)
         }
+        groupViewModel.loadAllGroups()
     }
 
     LaunchedEffect(error) {
@@ -171,7 +172,7 @@ fun GroupScreen(
                         .padding(horizontal = 16.dp),
                     contentPadding = PaddingValues(top = 16.dp)
                 ) {
-                    items(groupsToShow) { group ->
+                    items(groupsToShow, key = { it.groupId }) { group ->
                         GroupItem(
                             group = group,
                             navController = navController,
@@ -192,7 +193,16 @@ fun GroupItem(
 ) {
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val isMember = group.members.contains(currentUserId) || group.createdBy == currentUserId
-    var requestSent by remember { mutableStateOf(group.pendingMembers.contains(currentUserId)) }
+
+    // Nguồn chân lý từ ViewModel
+    val isPendingFromVM = group.pendingMembers.contains(currentUserId)
+    // Trạng thái lạc quan (optimistic) ở UI
+    var isPendingOptimistic by remember { mutableStateOf(isPendingFromVM) }
+
+    // Đồng bộ trạng thái lạc quan với nguồn chân lý khi nó thay đổi
+    LaunchedEffect(isPendingFromVM) {
+        isPendingOptimistic = isPendingFromVM
+    }
 
     Box(
         modifier = Modifier
@@ -218,21 +228,23 @@ fun GroupItem(
                     if (group.groupId.isNotEmpty()) {
                         if (isMember) {
                             navController.navigate("${Routes.GroupChat}/${group.groupId}")
-                        } else {
+                        } else if (!isPendingOptimistic) {
+                            // Cập nhật lên ViewModel
                             groupViewModel.joinGroup(group.groupId, currentUserId)
-                            requestSent = true
+                            // Cập nhật UI ngay lập tức
+                            isPendingOptimistic = true
                         }
                     }
                 },
-                enabled = !requestSent,
+                enabled = isMember || !isPendingOptimistic,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isMember) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
-                    contentColor = if (isMember) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onPrimary
+                    containerColor = if (isMember) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.primary,
+                    contentColor = if (isMember) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onPrimary
                 ),
                 shape = RoundedCornerShape(50),
                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                Text(if (isMember) "Chat" else if (requestSent) "Đã gửi yêu cầu tham gia" else "Tham gia")
+                Text(if (isMember) "Chat" else if (isPendingOptimistic) "Đã gửi yêu cầu" else "Tham gia")
             }
         }
     }

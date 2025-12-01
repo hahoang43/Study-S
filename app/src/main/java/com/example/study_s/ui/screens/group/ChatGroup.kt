@@ -12,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -38,16 +40,20 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -468,19 +474,19 @@ fun GroupChatTopBar(
         actions = {
             if (isMember) {
                 Box {
-                    BadgedBox(
-                        badge = {
-                            if (isAdmin && pendingMembers.isNotEmpty()) {
-                                Badge()
-                            }
-                        }
-                    ) {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(
-                                imageVector = Icons.Filled.MoreVert,
-                                contentDescription = "More Options"
-                            )
-                        }
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(
+                            imageVector = Icons.Filled.Menu,
+                            contentDescription = "More Options"
+                        )
+                    }
+                    if (isAdmin && pendingMembers.isNotEmpty()) {
+                        Badge(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .offset(x = 8.dp, y = (-8).dp)
+                                .size(12.dp)
+                        )
                     }
                     DropdownMenu(
                         expanded = showMenu,
@@ -493,7 +499,7 @@ fun GroupChatTopBar(
                                 showMembersDialog = true
                                 showMenu = false
                             },
-                            leadingIcon = { Icon(Icons.Filled.People, contentDescription = null) }
+                            leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) }
                         )
 
                         if (isAdmin) {
@@ -722,7 +728,7 @@ fun MessageInput(
             Box {
                 IconButton(onClick = { showAttachmentMenu = true }) {
                     Icon(
-                        imageVector = Icons.Default.AttachFile,
+                        imageVector = Icons.Default.Add,
                         contentDescription = "Attach File",
                         modifier = Modifier.size(24.dp)
                     )
@@ -875,9 +881,7 @@ fun MessageItem(
                             modifier = Modifier.pointerInput(Unit) {
                                 detectTapGestures(
                                     onLongPress = {
-                                        if (isCurrentUser) {
-                                            showMenu = true
-                                        }
+                                        showMenu = true
                                     }
                                 )
                             }
@@ -895,9 +899,7 @@ fun MessageItem(
                                     .pointerInput(Unit) {
                                         detectTapGestures(
                                             onLongPress = {
-                                                if (isCurrentUser) {
-                                                    showMenu = true
-                                                }
+                                                showMenu = true
                                             }
                                         )
                                     },
@@ -946,6 +948,25 @@ fun MessageItem(
                 expanded = showMenu,
                 onDismissRequest = { showMenu = false }
             ) {
+                if (message.type == "image" || message.type == "file") {
+                    DropdownMenuItem(
+                        text = { Text("Tải xuống") },
+                        onClick = {
+                            message.fileUrl?.let { url ->
+                                val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+                                val request = DownloadManager.Request(url.toUri())
+                                    .setTitle(message.content)
+                                    .setDescription("Đang tải xuống")
+                                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                                    .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, message.content)
+                                downloadManager.enqueue(request)
+                                Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
+                            }
+                            showMenu = false
+                        },
+                        leadingIcon = { Icon(Icons.Default.Download, contentDescription = "Download") }
+                    )
+                }
                 if (message.type == "text" && isCurrentUser) {
                     DropdownMenuItem(
                         text = { Text("Chỉnh sửa") },
@@ -1048,7 +1069,7 @@ fun MembersDialog(
                         ) {
                             Text(text = member.name, fontWeight = FontWeight.Bold)
                             if (group.createdBy == member.userId) {
-                                Text(text = "Admin", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                                Text(text = "Quản trị nhóm", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
                             }
                         }
 
