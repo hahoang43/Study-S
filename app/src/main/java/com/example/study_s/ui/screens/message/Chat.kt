@@ -1,12 +1,6 @@
 package com.example.study_s.ui.screens.message
-// Thêm các import này vào đầu file Chat.kt
-import com.example.study_s.util.downloadFile
-import com.example.study_s.util.isFileDownloaded
-import com.example.study_s.util.openFile
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.FolderOpen
+
 import android.app.Application
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -14,18 +8,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -34,150 +17,119 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.AttachFile
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FilePresent
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.MessageModel
+import com.example.study_s.util.downloadFile
+// import com.example.study_s.util.isFileDownloaded  // Không cần nữa
+// import com.example.study_s.util.openFile // Không cần nữa
 import com.example.study_s.viewmodel.ChatViewModel
+import com.example.study_s.viewmodel.ChatViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import java.text.CharacterIterator
 import java.text.StringCharacterIterator
-import androidx.lifecycle.ViewModelProvider
-import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.ViewModel
-
-class ChatViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(ChatViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return ChatViewModel(application) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel: ChatViewModel = viewModel()) {
-    // Lấy application context
-    val context = LocalContext.current.applicationContext as Application
-    // Sử dụng factory để tạo ViewModel
-    val chatViewModel: ChatViewModel = viewModel(factory = ChatViewModelFactory(context))
-
-    val messages by chatViewModel.messages.collectAsState()
-    val targetUser by chatViewModel.targetUser.collectAsState(initial = null)
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-
-    // States for message actions
-    var messageToAction by remember { mutableStateOf<MessageModel?>(null) }
-    var showEditDialog by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var editingText by remember { mutableStateOf("") }
-    val lazyListState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
-    val focusManager = LocalFocusManager.current
-
-    var showDeleteChatDialog by remember { mutableStateOf(false) }
-    var showOptionsMenu by remember { mutableStateOf(false) }
-
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri: Uri? ->
-            uri?.let { chatViewModel.sendFile(it) }
-        }
+fun ChatScreen(
+    chatId: String,
+    targetUserId: String,
+    navController: NavController
+) {
+    val context = LocalContext.current
+    val chatViewModel: ChatViewModel = viewModel(
+        factory = ChatViewModelFactory(context.applicationContext as Application, chatId, targetUserId)
     )
 
-    LaunchedEffect(targetUserId) {
-        chatViewModel.loadChat(targetUserId)
-        chatViewModel.loadTargetUserData(targetUserId)
+    val messages by chatViewModel.messages.collectAsState()
+    val targetUser by chatViewModel.targetUser.collectAsState()
+    val uploadState by chatViewModel.uploadState.collectAsState()
+
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val lazyListState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
+
+    var showOptionsMenu by remember { mutableStateOf(false) }
+    var showDeleteChatDialog by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+    var messageToAction by remember { mutableStateOf<MessageModel?>(null) }
+    var editingText by remember { mutableStateOf("") }
+    var showAttachmentMenu by remember { mutableStateOf(false) }
+
+
+    // Launcher để chọn ảnh
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { chatViewModel.sendFile(it, "image") }
     }
 
-    LaunchedEffect(messages) {
+    // Launcher để chọn file bất kỳ
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let { chatViewModel.sendFile(it, "file") }
+    }
+    LaunchedEffect(targetUserId) {
+        chatViewModel.loadTargetUserData(targetUserId)
+        chatViewModel.loadChat(targetUserId)
+    }
+    // Tự động cuộn xuống tin nhắn mới nhất
+    LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
             lazyListState.animateScrollToItem(messages.size - 1)
         }
     }
 
-
-    if (showEditDialog) {
+    // Dialog xác nhận xóa cuộc trò chuyện
+    if (showDeleteChatDialog) {
         AlertDialog(
-            onDismissRequest = { showEditDialog = false },
-            title = { Text("Sửa tin nhắn") },
-            text = {
-                OutlinedTextField(
-                    value = editingText,
-                    onValueChange = { editingText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Nội dung tin nhắn") }
-                )
-            },
+            onDismissRequest = { showDeleteChatDialog = false },
+            title = { Text("Xác nhận xóa") },
+            text = { Text("Bạn có chắc chắn muốn xóa toàn bộ cuộc trò chuyện này không? Hành động này không thể hoàn tác.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        messageToAction?.let {
-                            chatViewModel.editMessage(it.id, editingText)
-                        }
-                        showEditDialog = false
-                        messageToAction = null
+                        chatViewModel.deleteChat() // Gọi hàm xóa trong ViewModel
+                        showDeleteChatDialog = false
+                        navController.popBackStack()
                     },
-                    enabled = editingText.isNotBlank()
-                ) {
-                    Text("Lưu")
-                }
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Xóa") }
             },
             dismissButton = {
-                Button(onClick = { showEditDialog = false }) {
-                    Text("Hủy")
-                }
+                TextButton(onClick = { showDeleteChatDialog = false }) { Text("Hủy") }
             }
         )
     }
 
+    // Dialog xác nhận xóa tin nhắn
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Xóa tin nhắn") },
-            text = { Text("Bạn có chắc chắn muốn xóa tin nhắn này không?") },
+            title = { Text("Xác nhận xóa") },
+            text = { Text("Bạn có muốn xóa tin nhắn này?") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         messageToAction?.let { chatViewModel.deleteMessage(it.id) }
                         showDeleteDialog = false
@@ -191,26 +143,32 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
         )
     }
 
-    if (showDeleteChatDialog) {
+    // Dialog sửa tin nhắn
+    if (showEditDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteChatDialog = false },
-            title = { Text("Xóa cuộc trò chuyện") },
-            text = { Text("Toàn bộ lịch sử trò chuyện sẽ bị xóa vĩnh viễn. Bạn có chắc chắn không?") },
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Sửa tin nhắn") },
+            text = {
+                OutlinedTextField(
+                    value = editingText,
+                    onValueChange = { editingText = it },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
-                        chatViewModel.deleteChat()
-                        showDeleteChatDialog = false
-                        navController.popBackStack()
+                        messageToAction?.let { chatViewModel.editMessage(it.id, editingText) }
+                        showEditDialog = false
+                        messageToAction = null
                     }
-                ) { Text("Xóa") }
+                ) { Text("Lưu") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteChatDialog = false }) { Text("Hủy") }
+                TextButton(onClick = { showEditDialog = false }) { Text("Hủy") }
             }
         )
     }
-
 
     Scaffold(
         topBar = {
@@ -218,17 +176,18 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
-                            painter = rememberAsyncImagePainter(model = targetUser?.avatarUrl ?: ""),
+                            painter = rememberAsyncImagePainter(model = targetUser?.avatarUrl),
                             contentDescription = "Avatar",
                             modifier = Modifier
                                 .size(40.dp)
-                                .clip(CircleShape),
-                            contentScale = ContentScale.Crop
+                                .clip(CircleShape)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(text = targetUser?.name ?: "Đang tải...", fontWeight = FontWeight.Bold)
-                        }
+                        Text(
+                            text = targetUser?.name ?: "Đang tải...",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 },
                 navigationIcon = {
@@ -265,38 +224,91 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
             )
         },
         bottomBar = {
-            var messageText by remember { mutableStateOf("") }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
-                    Icon(imageVector = Icons.Default.AttachFile, contentDescription = "Attach file")
+            Column {
+                // Hiển thị thanh tiến trình tải lên
+                if (uploadState is ChatViewModel.UploadState.Uploading) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Đang gửi tệp...", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
-                OutlinedTextField(
-                    value = messageText,
-                    onValueChange = { messageText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Nhập tin nhắn...") },
-                    shape = RoundedCornerShape(24.dp)
-                )
-                IconButton(
-                    onClick = {
-                        if (messageText.isNotBlank() && currentUserId != null) {
-                            chatViewModel.sendMessage(messageText)
-                            messageText = ""
-                            focusManager.clearFocus()
-                        }
-                    },
-                    enabled = messageText.isNotBlank()
+
+                // Thanh nhập liệu và các nút
+                var messageText by remember { mutableStateOf("") }
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shadowElevation = 8.dp
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Send"
-                    )
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp, vertical = 8.dp)
+                            .navigationBarsPadding(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Nút đính kèm tệp
+                        Box {
+                            IconButton(onClick = { showAttachmentMenu = true }) {
+                                Icon(Icons.Default.Add, contentDescription = "Đính kèm")
+                            }
+                            DropdownMenu(
+                                expanded = showAttachmentMenu,
+                                onDismissRequest = { showAttachmentMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Gửi ảnh") },
+                                    leadingIcon = { Icon(Icons.Default.Image, "Ảnh") },
+                                    onClick = {
+                                        imagePickerLauncher.launch("image/*")
+                                        showAttachmentMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Gửi tệp") },
+                                    leadingIcon = { Icon(Icons.Default.AttachFile, "Tệp") },
+                                    onClick = {
+                                        filePickerLauncher.launch("*/*")
+                                        showAttachmentMenu = false
+                                    }
+                                )
+                            }
+                        }
+
+                        // Ô nhập liệu
+                        OutlinedTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Nhập tin nhắn...") },
+                            shape = RoundedCornerShape(24.dp),
+                            colors = TextFieldDefaults.colors(
+                                focusedIndicatorColor = MaterialTheme.colorScheme.surface,
+                                unfocusedIndicatorColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+
+                        // Nút gửi
+                        IconButton(
+                            onClick = {
+                                if (messageText.isNotBlank()) {
+                                    chatViewModel.sendMessage(messageText)
+                                    messageText = ""
+                                    focusManager.clearFocus()
+                                }
+                            },
+                            enabled = messageText.isNotBlank() && uploadState !is ChatViewModel.UploadState.Uploading
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Gửi"
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -315,14 +327,10 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
                 val previousMessage = messages.getOrNull(index - 1)
                 val showAvatar = !isCurrentUser && (previousMessage == null || previousMessage.senderId != message.senderId)
 
-                // ✅ THAY ĐỔI LỚN Ở ĐÂY
-                // Box giờ đây chỉ bọc DropdownMenu và nội dung của nó, không còn fillMaxWidth nữa
                 Box(
                     modifier = Modifier.fillMaxWidth(),
-                    // Căn chỉnh nội dung của Box sang phải hoặc trái
                     contentAlignment = if (isCurrentUser) Alignment.CenterEnd else Alignment.CenterStart
                 ) {
-                    // Box này hoạt động như một "anchor" (điểm neo) cho DropdownMenu
                     Box {
                         MessageBubble(
                             message = message,
@@ -330,87 +338,53 @@ fun ChatScreen(navController: NavController, targetUserId: String, chatViewModel
                             showAvatar = showAvatar,
                             avatarUrl = if (showAvatar) targetUser?.avatarUrl else null,
                             onLongPress = {
-                                // Chỉ cho phép hành động nếu là người dùng hiện tại
-                                if (isCurrentUser) {
-                                    messageToAction = message
-                                }
+                                messageToAction = message
                             },
-                            onClick = {
-                                // Xử lý sự kiện click cho tin nhắn tệp
-                                if (message.type != "text" && message.fileName != null) {
-                                    if (isFileDownloaded(message.fileName)) {
-                                        openFile(context, message.fileName)
-                                    }
-                                    // Nếu muốn tự động tải khi nhấn vào mà chưa có file,
-                                    // bạn có thể thêm logic downloadFile ở đây.
-                                }
-                            }
+                            onClick = {}
                         )
 
+                        // ✅ THAY ĐỔI: ĐƠN GIẢN HÓA MENU NGỮ CẢNH
                         DropdownMenu(
                             expanded = messageToAction == message,
                             onDismissRequest = { messageToAction = null }
                         ) {
-                            // Nếu là tin nhắn văn bản
-                            if (message.type == "text") {
+                            val fileName = message.fileName
+                            // Kiểm tra xem tin nhắn có phải là tệp hoặc ảnh không
+                            if (fileName != null && (message.type == "file" || message.type == "image")) {
+                                // Luôn hiển thị tùy chọn "Tải về"
                                 DropdownMenuItem(
-                                    text = { Text("Sửa") },
-                                    leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "Sửa") },
+                                    text = { Text("Tải về") },
+                                    leadingIcon = { Icon(Icons.Default.Download, "Tải về") },
                                     onClick = {
-                                        editingText = messageToAction?.content ?: ""
-                                        showEditDialog = true
+                                        scope.launch {
+                                            downloadFile(context, message.content, fileName, null)
+                                        }
+                                        messageToAction = null
                                     }
                                 )
-                            } else { // Nếu là tin nhắn tệp (ảnh, video, file)
-                                val fileName = message.fileName
-                                if (fileName != null) {
-                                    if (isFileDownloaded(fileName)) {
-                                        DropdownMenuItem(
-                                            text = { Text("Mở tệp") },
-                                            leadingIcon = {
-                                                Icon(
-                                                    Icons.Default.FolderOpen,
-                                                    contentDescription = "Mở"
-                                                )
-                                            },
-                                            onClick = {
-                                                openFile(context, fileName)
-                                                messageToAction = null
-                                            }
-                                        )
-                                    } else {
-                                        DropdownMenuItem(
-                                            text = { Text("Tải về") },
-                                            leadingIcon = {
-                                                Icon(
-                                                    Icons.Default.Download,
-                                                    contentDescription = "Tải về"
-                                                )
-                                            },
-                                            onClick = {
-                                                // ✅ Sử dụng scope để gọi suspend function
-                                                scope.launch {
-                                                    downloadFile(
-                                                        context,
-                                                        message.content,
-                                                        fileName,
-                                                        null // Bạn có thể truyền MimeType ở đây nếu có
-                                                    )
-                                                }
-                                                messageToAction = null
-                                            }
-                                        )
-                                    }
-                                }
                             }
 
-                            DropdownMenuItem(
-                                text = { Text("Xóa") },
-                                leadingIcon = { Icon(Icons.Default.DeleteOutline, contentDescription = "Delete") },
-                                onClick = {
-                                    showDeleteDialog = true
+                            // Chỉ hiển thị "Sửa" và "Xóa" cho tin nhắn của người dùng hiện tại
+                            if (isCurrentUser) {
+                                // Chỉ hiển thị "Sửa" cho tin nhắn văn bản
+                                if (message.type == "text") {
+                                    DropdownMenuItem(
+                                        text = { Text("Sửa") },
+                                        leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "Sửa") },
+                                        onClick = {
+                                            editingText = messageToAction?.content ?: ""
+                                            showEditDialog = true
+                                        }
+                                    )
                                 }
-                            )
+
+                                // Tùy chọn Xóa
+                                DropdownMenuItem(
+                                    text = { Text("Xóa") },
+                                    leadingIcon = { Icon(Icons.Default.DeleteOutline, "Xóa") },
+                                    onClick = { showDeleteDialog = true }
+                                )
+                            }
                         }
                     }
                 }
@@ -427,9 +401,8 @@ fun MessageBubble(
     showAvatar: Boolean,
     avatarUrl: String?,
     onLongPress: () -> Unit,
-    onClick: () -> Unit // Thêm tham số onClick
+    onClick: () -> Unit
 ) {
-    // Row giờ đây không cần fillMaxWidth nữa vì Box cha đã xử lý việc căn lề
     Row(
         modifier = Modifier
             .combinedClickable(
@@ -437,7 +410,6 @@ fun MessageBubble(
                 onLongClick = onLongPress
             )
             .padding(vertical = 2.dp),
-        // Không cần horizontalArrangement ở đây nữa
         verticalAlignment = Alignment.Bottom
     ) {
         if (showAvatar) {
@@ -451,7 +423,7 @@ fun MessageBubble(
                 contentScale = ContentScale.Crop
             )
         } else if (!isCurrentUser) {
-            Spacer(modifier = Modifier.width(40.dp))
+            Spacer(modifier = Modifier.width(32.dp))
         }
 
         if (showAvatar) Spacer(modifier = Modifier.width(8.dp))
@@ -479,10 +451,10 @@ fun MessageBubble(
                         model = message.content,
                         contentDescription = "Ảnh đã gửi",
                         modifier = Modifier
-                            .size(200.dp)
+                            .sizeIn(maxHeight = 300.dp, maxWidth = 250.dp)
                             .padding(4.dp)
                             .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Fit
                     )
                 }
                 "file" -> {
@@ -490,13 +462,19 @@ fun MessageBubble(
                         modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(imageVector = Icons.Default.FilePresent, contentDescription = "File")
+                        Icon(
+                            imageVector = Icons.Default.InsertDriveFile,
+                            contentDescription = "File",
+                            modifier = Modifier.size(32.dp)
+                        )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column {
                             Text(
                                 text = message.fileName ?: "Tệp đính kèm",
                                 fontWeight = FontWeight.Bold,
-                                color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             message.fileSize?.let {
                                 Text(

@@ -42,6 +42,11 @@ class ChatRepository (private val context: Context){
      * @param fileUri URI của file cần upload.
      * @return Result chứa CloudinaryResult nếu thành công, hoặc Exception nếu thất bại.
      */
+    data class UploadResult(
+        val url: String,
+        val originalFilename: String,
+        val bytes: Long
+    )
     suspend fun uploadFile(fileUri: Uri): Result<CloudinaryResult> {
         return suspendCancellableCoroutine { continuation ->
             // Sử dụng MediaManager để upload file
@@ -188,16 +193,21 @@ class ChatRepository (private val context: Context){
     suspend fun deleteChat(chatId: String): Result<Unit> {
         return try {
             val chatDocRef = chatsCollection.document(chatId)
+            val messagesCollection = chatDocRef.collection("messages")
 
-            // Xóa tất cả các tin nhắn trong cuộc trò chuyện
-            val messagesSnapshot = chatDocRef.collection("messages").get().await()
-            val batch = db.batch()
-            for (document in messagesSnapshot.documents) {
-                batch.delete(document.reference)
+            // Lấy tất cả document và chia thành các chunk nhỏ (ví dụ: 499)
+            val allMessages = messagesCollection.get().await()
+            if (!allMessages.isEmpty) {
+                allMessages.documents.chunked(499).forEach { chunk ->
+                    val batch = db.batch()
+                    chunk.forEach { document ->
+                        batch.delete(document.reference)
+                    }
+                    batch.commit().await()
+                }
             }
-            batch.commit().await()
 
-            // Xóa chính tài liệu trò chuyện
+            // Sau khi xóa hết sub-collection, xóa document cha
             chatDocRef.delete().await()
 
             Result.success(Unit)

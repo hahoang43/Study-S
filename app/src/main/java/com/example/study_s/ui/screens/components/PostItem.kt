@@ -296,7 +296,7 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
 
                 // COMMENT
                 Row(
-                    modifier = Modifier.clickable { navController.navigate("${Routes.PostDetail}/${post.postId}") },
+                    modifier = Modifier,
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {

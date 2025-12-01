@@ -23,13 +23,17 @@ import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.R
 import com.example.study_s.viewmodel.StragerViewModel
 import com.example.study_s.ui.navigation.Routes
+import com.example.study_s.ui.screens.components.PostItem
+import com.example.study_s.viewmodel.PostViewModel
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StragerProfileScreen(
     navController: NavController,
     userId: String,
-    stragerViewModel: StragerViewModel = viewModel()
+    stragerViewModel: StragerViewModel = viewModel(),
+    postViewModel: PostViewModel = viewModel()
 ) {
     val user by stragerViewModel.user.collectAsState()
     val posts by stragerViewModel.posts.collectAsState()
@@ -172,10 +176,12 @@ fun StragerProfileScreen(
                 }
 
                 // ========= LIST POSTS =========
-                items(posts) { post ->
-                    PostCardForProfile(
-                        post = post,
-                        navController = navController
+                items(posts) { postData ->
+                    PostItem(
+                        post = postData, // `postData` là một bài viết từ danh sách `posts`
+                        navController = navController,
+                        viewModel = postViewModel, // Truyền `postViewModel` vào
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
             }

@@ -14,7 +14,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 // Kế thừa từ AndroidViewModel để có thể sử dụng Application Context
-class ChatViewModel(application: Application) : AndroidViewModel(application) {
+class ChatViewModel(application: Application,
+                    private val chatId: String,
+                    private val targetUserId: String) : AndroidViewModel(application) {
 
     // ✅ SỬA 1: Khởi tạo ChatRepository với ApplicationContext.
     // Giờ đây ChatRepository sẽ đảm nhiệm cả việc upload file.
@@ -25,11 +27,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     val messages: StateFlow<List<MessageModel>> = _messages.asStateFlow()
 
     private val _chatId = MutableStateFlow<String?>(null)
-    val chatId: StateFlow<String?> = _chatId.asStateFlow()
 
     private val _targetUser = MutableStateFlow<UserModel?>(null)
     val targetUser: StateFlow<UserModel?> = _targetUser.asStateFlow()
-
+    // In ChatViewModel.kt
+    private val _uploadState = MutableStateFlow<UploadState>(UploadState.Idle)
+    val uploadState: StateFlow<UploadState> = _uploadState.asStateFlow()
     fun loadTargetUserData(userId: String) {
         viewModelScope.launch {
             userRepository.getUserProfile(userId).onSuccess { userProfile ->
@@ -86,35 +89,34 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             chatRepository.deleteChat(currentChatId)
         }
     }
-
+    sealed class UploadState {
+        object Idle : UploadState() // Trạng thái nghỉ
+        object Uploading : UploadState() // Đang tải lên
+        data class Error(val message: String) : UploadState() // Có lỗi
+    }
     // ✅ SỬA 2: Hàm sendFile bây giờ gọi trực tiếp từ chatRepository
-    fun sendFile(fileUri: Uri) {
-        val currentChatId = _chatId.value ?: return
-        viewModelScope.launch {
-            // 1. Upload file bằng ChatRepository
-            val uploadResult = chatRepository.uploadFile(fileUri)
+    fun sendFile(fileUri: Uri, type: String) {
+        val currentChatId = _chatId.value ?: return // Make sure you use _chatId.value
 
-            uploadResult.onSuccess { cloudinaryResult ->
-                // 2. Tạo đối tượng Message từ kết quả upload
-                val messageType = when (cloudinaryResult.resourceType) {
-                    "image" -> "image"
-                    "video" -> "video"
-                    else -> "file"
-                }
+        viewModelScope.launch {_uploadState.value = UploadState.Uploading // Bắt đầu tải
+            val result = chatRepository.uploadFile(fileUri)
 
+            result.onSuccess { uploadResult ->
                 val message = MessageModel(
-                    content = cloudinaryResult.url,
-                    type = messageType,
-                    fileName = cloudinaryResult.originalFilename,
-                    fileSize = cloudinaryResult.bytes
+                    senderId = userRepository.getCurrentUserId() ?: "",
+                    content = uploadResult.url, // URL để tải
+                    type = type,
+                    // ✅ LƯU ĐÚNG TÊN FILE VÀ KÍCH THƯỚC
+                    fileName = uploadResult.originalFilename, // Tên file gốc
+                    fileSize = uploadResult.bytes // Kích thước file
                 )
-
-                // 3. Gửi tin nhắn file bằng ChatRepository
+                // Pass the actual chatId string and the message object
                 chatRepository.sendMessage(currentChatId, message)
-
+                _uploadState.value = UploadState.Idle // Tải xong, quay về trạng thái nghỉ
             }.onFailure { exception ->
-                // Xử lý lỗi upload
+                // Xử lý lỗi, ví dụ: hiển thị thông báo
                 println("File upload failed: ${exception.message}")
+                _uploadState.value = UploadState.Error(exception.message ?: "Lỗi không xác định")
             }
         }
     }
