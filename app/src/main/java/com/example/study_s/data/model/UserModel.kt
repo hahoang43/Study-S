@@ -11,7 +11,8 @@ data class UserModel(val userId: String = "",
                      val bio: String? = "",
                      val followerCount: Int = 0,
                      val followingCount: Int = 0,
-                     @ServerTimestamp // Tự động gán thời gian tạo trên server
+                     val blockedUsers: List<String> = emptyList(),
+    @ServerTimestamp // Tự động gán thời gian tạo trên server
                     val createdAt: Date? = null,
                      val nameLowercase: String = name.lowercase(),
                      val searchKeywords: List<String> = emptyList(),

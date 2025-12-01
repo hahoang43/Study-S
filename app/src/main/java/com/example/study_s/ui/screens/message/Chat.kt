@@ -1,6 +1,13 @@
 package com.example.study_s.ui.screens.message
 
+import android.Manifest
 import android.app.Application
+import android.app.DownloadManager
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -25,10 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,17 +45,22 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.MessageModel
-import com.example.study_s.util.downloadFile
-// import com.example.study_s.util.isFileDownloaded  // Không cần nữa
-// import com.example.study_s.util.openFile // Không cần nữa
+import com.example.study_s.data.model.UserModel
+import com.example.study_s.util.createImageFile
 import com.example.study_s.viewmodel.ChatViewModel
 import com.example.study_s.viewmodel.ChatViewModelFactory
-import com.google.firebase.auth.FirebaseAuth
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.text.CharacterIterator
 import java.text.StringCharacterIterator
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     chatId: String,
@@ -62,56 +76,63 @@ fun ChatScreen(
     val targetUser by chatViewModel.targetUser.collectAsState()
     val uploadState by chatViewModel.uploadState.collectAsState()
 
-    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val currentUserId = Firebase.auth.currentUser?.uid
     val lazyListState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
 
     var showOptionsMenu by remember { mutableStateOf(false) }
     var showDeleteChatDialog by remember { mutableStateOf(false) }
+    var showBlockUserDialog by remember { mutableStateOf(false) }
+
+    var messageToAction by remember { mutableStateOf<MessageModel?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
-    var messageToAction by remember { mutableStateOf<MessageModel?>(null) }
     var editingText by remember { mutableStateOf("") }
-    var showAttachmentMenu by remember { mutableStateOf(false) }
 
-
-    // Launcher để chọn ảnh
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
+    val isBlockedByTarget by chatViewModel.isBlockedByTarget.collectAsState()
+    val haveIBlockedTarget by chatViewModel.haveIBlockedTarget.collectAsState()
+    // --- Launchers for permissions and activity results ---
+    val cameraPermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
+        if (isSuccess) {
+            imageUri?.let { chatViewModel.sendFile(it, "image") }
+        }
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            val uri = createImageFile(context)
+            if (uri != null) {
+                imageUri = uri
+                cameraLauncher.launch(uri)
+            }
+        }
+    }
+    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { chatViewModel.sendFile(it, "image") }
     }
-
-    // Launcher để chọn file bất kỳ
-    val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
+    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { chatViewModel.sendFile(it, "file") }
     }
-    LaunchedEffect(targetUserId) {
-        chatViewModel.loadTargetUserData(targetUserId)
-        chatViewModel.loadChat(targetUserId)
-    }
-    // Tự động cuộn xuống tin nhắn mới nhất
-    LaunchedEffect(messages.size) {
+
+    LaunchedEffect(messages) {
         if (messages.isNotEmpty()) {
             lazyListState.animateScrollToItem(messages.size - 1)
         }
     }
 
-    // Dialog xác nhận xóa cuộc trò chuyện
+    // --- Dialogs ---
     if (showDeleteChatDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteChatDialog = false },
-            title = { Text("Xác nhận xóa") },
+        AlertDialog(            onDismissRequest = { showDeleteChatDialog = false },
+            title = { Text("Xóa cuộc trò chuyện") },
             text = { Text("Bạn có chắc chắn muốn xóa toàn bộ cuộc trò chuyện này không? Hành động này không thể hoàn tác.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        chatViewModel.deleteChat() // Gọi hàm xóa trong ViewModel
+                        chatViewModel.deleteChat()
                         showDeleteChatDialog = false
-                        navController.popBackStack()
+                        navController.popBackStack() // Quay về màn hình trước sau khi xóa
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) { Text("Xóa") }
@@ -119,83 +140,110 @@ fun ChatScreen(
             dismissButton = {
                 TextButton(onClick = { showDeleteChatDialog = false }) { Text("Hủy") }
             }
-        )
-    }
-
-    // Dialog xác nhận xóa tin nhắn
-    if (showDeleteDialog) {
+        )    }
+    if (showBlockUserDialog) {
         AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Xác nhận xóa") },
-            text = { Text("Bạn có muốn xóa tin nhắn này?") },
+            onDismissRequest = { showBlockUserDialog = false },
+            title = { Text("Chặn người dùng") },
+            text = { Text("Bạn có chắc chắn muốn chặn ${targetUser?.name ?: "người này"} không? Bạn sẽ không thể gửi hoặc nhận tin nhắn từ họ nữa.") },
             confirmButton = {
                 Button(
                     onClick = {
-                        messageToAction?.let { chatViewModel.deleteMessage(it.id) }
-                        showDeleteDialog = false
-                        messageToAction = null
-                    }
-                ) { Text("Xóa") }
+                        chatViewModel.blockUser()
+                        showBlockUserDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Chặn") }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Hủy") }
+                TextButton(onClick = { showBlockUserDialog = false }) { Text("Hủy") }
             }
         )
     }
-
-    // Dialog sửa tin nhắn
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteDialog = false
+                messageToAction = null // Reset khi hủy
+            },
+            title = { Text("Xóa tin nhắn") },
+            text = { Text("Bạn có chắc chắn muốn xóa tin nhắn này không?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Gọi hàm deleteMessage trong ViewModel với ID của tin nhắn đã chọn
+                        messageToAction?.id?.let { chatViewModel.deleteMessage(it) }
+                        showDeleteDialog = false
+                        messageToAction = null // Reset sau khi thực hiện
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Xóa") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    messageToAction = null // Reset khi hủy
+                }) { Text("Hủy") }
+            }
+        )    }
     if (showEditDialog) {
         AlertDialog(
-            onDismissRequest = { showEditDialog = false },
+            onDismissRequest = {
+                showEditDialog = false
+                messageToAction = null // Reset khi hủy
+            },
             title = { Text("Sửa tin nhắn") },
             text = {
+                // TextField để người dùng nhập nội dung mới
                 OutlinedTextField(
                     value = editingText,
                     onValueChange = { editingText = it },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Nội dung mới") }
                 )
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        messageToAction?.let { chatViewModel.editMessage(it.id, editingText) }
+                        // Gọi hàm editMessage với ID và nội dung mới
+                        messageToAction?.id?.let { chatViewModel.editMessage(it, editingText) }
                         showEditDialog = false
-                        messageToAction = null
-                    }
+                        messageToAction = null // Reset sau khi thực hiện
+                    },
+                    enabled = editingText.isNotBlank() // Chỉ cho phép sửa khi có nội dung
                 ) { Text("Lưu") }
             },
             dismissButton = {
-                TextButton(onClick = { showEditDialog = false }) { Text("Hủy") }
+                TextButton(onClick = {
+                    showEditDialog = false
+                    messageToAction = null // Reset khi hủy
+                }) { Text("Hủy") }
             }
-        )
-    }
+        )    }
+
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            navController.navigate("profile/$targetUserId")
+                        }
+                    ) {
                         Image(
                             painter = rememberAsyncImagePainter(model = targetUser?.avatarUrl),
                             contentDescription = "Avatar",
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
+                            modifier = Modifier.size(40.dp).clip(CircleShape)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = targetUser?.name ?: "Đang tải...",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Text(text = targetUser?.name ?: "Đang tải...", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -214,6 +262,17 @@ fun ChatScreen(
                                     showOptionsMenu = false
                                 }
                             )
+                            DropdownMenuItem(
+                                text = { Text(if(haveIBlockedTarget) "Bỏ chặn người này" else "Chặn người này") },
+                                onClick = {
+                                    if(haveIBlockedTarget) {
+                                        chatViewModel.unblockUser() // Bạn cần thêm hàm này vào ViewModel
+                                    } else {
+                                        showBlockUserDialog = true
+                                    }
+                                    showOptionsMenu = false
+                                }
+                            )
                         }
                     }
                 },
@@ -223,9 +282,9 @@ fun ChatScreen(
                 )
             )
         },
+        // ✅ Cấu trúc `bottomBar` đã được sửa lại
         bottomBar = {
             Column {
-                // Hiển thị thanh tiến trình tải lên
                 if (uploadState is ChatViewModel.UploadState.Uploading) {
                     Row(
                         modifier = Modifier
@@ -233,81 +292,48 @@ fun ChatScreen(
                             .padding(horizontal = 16.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Đang gửi tệp...", style = MaterialTheme.typography.bodySmall)
+                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                     }
                 }
-
-                // Thanh nhập liệu và các nút
-                var messageText by remember { mutableStateOf("") }
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shadowElevation = 8.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 8.dp, vertical = 8.dp)
-                            .navigationBarsPadding(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Nút đính kèm tệp
-                        Box {
-                            IconButton(onClick = { showAttachmentMenu = true }) {
-                                Icon(Icons.Default.Add, contentDescription = "Đính kèm")
+                when {
+                    isBlockedByTarget -> {
+                        BlockedMessageBar(message = "Bạn không thể trả lời cuộc trò chuyện này.")
+                    }
+                    haveIBlockedTarget -> {
+                        BlockedMessageBar(
+                            message = "Bạn đã chặn ${targetUser?.name ?: "người này"}.",
+                            showUnblockButton = true,
+                            onUnblock = {
+                                chatViewModel.unblockUser() // Bạn cần thêm hàm này vào ViewModel
                             }
-                            DropdownMenu(
-                                expanded = showAttachmentMenu,
-                                onDismissRequest = { showAttachmentMenu = false }
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Gửi ảnh") },
-                                    leadingIcon = { Icon(Icons.Default.Image, "Ảnh") },
-                                    onClick = {
-                                        imagePickerLauncher.launch("image/*")
-                                        showAttachmentMenu = false
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Gửi tệp") },
-                                    leadingIcon = { Icon(Icons.Default.AttachFile, "Tệp") },
-                                    onClick = {
-                                        filePickerLauncher.launch("*/*")
-                                        showAttachmentMenu = false
-                                    }
-                                )
-                            }
-                        }
-
-                        // Ô nhập liệu
-                        OutlinedTextField(
-                            value = messageText,
-                            onValueChange = { messageText = it },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text("Nhập tin nhắn...") },
-                            shape = RoundedCornerShape(24.dp),
-                            colors = TextFieldDefaults.colors(
-                                focusedIndicatorColor = MaterialTheme.colorScheme.surface,
-                                unfocusedIndicatorColor = MaterialTheme.colorScheme.surface
-                            )
                         )
-
-                        // Nút gửi
-                        IconButton(
-                            onClick = {
-                                if (messageText.isNotBlank()) {
-                                    chatViewModel.sendMessage(messageText)
-                                    messageText = ""
-                                    focusManager.clearFocus()
+                    }
+                    else -> {
+                        // Di chuyển MessageInputBar vào đây
+                        MessageInputBar(
+                            onSendMessage = { text -> chatViewModel.sendMessage(text) },
+                            uploadState = uploadState,
+                            focusManager = focusManager,
+                            imagePickerLauncher = { imagePickerLauncher.launch("image/*") },
+                            cameraLauncher = {
+                                when {
+                                    cameraPermissionState.status.isGranted -> {
+                                        val uri = createImageFile(context)
+                                        if (uri != null) {
+                                            imageUri = uri
+                                            cameraLauncher.launch(uri)
+                                        }
+                                    }
+                                    cameraPermissionState.status.shouldShowRationale -> {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
+                                    else -> {
+                                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                    }
                                 }
                             },
-                            enabled = messageText.isNotBlank() && uploadState !is ChatViewModel.UploadState.Uploading
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Gửi"
-                            )
-                        }
+                            filePickerLauncher = { filePickerLauncher.launch("*/*") }
+                        )
                     }
                 }
             }
@@ -337,36 +363,28 @@ fun ChatScreen(
                             isCurrentUser = isCurrentUser,
                             showAvatar = showAvatar,
                             avatarUrl = if (showAvatar) targetUser?.avatarUrl else null,
-                            onLongPress = {
-                                messageToAction = message
-                            },
+                            onLongPress = { messageToAction = message },
                             onClick = {}
                         )
 
-                        // ✅ THAY ĐỔI: ĐƠN GIẢN HÓA MENU NGỮ CẢNH
                         DropdownMenu(
                             expanded = messageToAction == message,
                             onDismissRequest = { messageToAction = null }
                         ) {
                             val fileName = message.fileName
-                            // Kiểm tra xem tin nhắn có phải là tệp hoặc ảnh không
                             if (fileName != null && (message.type == "file" || message.type == "image")) {
-                                // Luôn hiển thị tùy chọn "Tải về"
                                 DropdownMenuItem(
                                     text = { Text("Tải về") },
                                     leadingIcon = { Icon(Icons.Default.Download, "Tải về") },
                                     onClick = {
                                         scope.launch {
-                                            downloadFile(context, message.content, fileName, null)
+                                            downloadFile(context, message.content, fileName)
                                         }
                                         messageToAction = null
                                     }
                                 )
                             }
-
-                            // Chỉ hiển thị "Sửa" và "Xóa" cho tin nhắn của người dùng hiện tại
                             if (isCurrentUser) {
-                                // Chỉ hiển thị "Sửa" cho tin nhắn văn bản
                                 if (message.type == "text") {
                                     DropdownMenuItem(
                                         text = { Text("Sửa") },
@@ -377,8 +395,6 @@ fun ChatScreen(
                                         }
                                     )
                                 }
-
-                                // Tùy chọn Xóa
                                 DropdownMenuItem(
                                     text = { Text("Xóa") },
                                     leadingIcon = { Icon(Icons.Default.DeleteOutline, "Xóa") },
@@ -393,6 +409,73 @@ fun ChatScreen(
     }
 }
 
+// ✅ Tách thanh nhập liệu ra thành một Composable riêng
+@Composable
+fun MessageInputBar(
+    onSendMessage: (String) -> Unit,
+    uploadState: ChatViewModel.UploadState,
+    focusManager: FocusManager,
+    imagePickerLauncher: () -> Unit,
+    cameraLauncher: () -> Unit,
+    filePickerLauncher: () -> Unit
+) {
+    var messageText by remember { mutableStateOf("") }
+    var showAttachmentMenu by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shadowElevation = 8.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 8.dp, vertical = 8.dp)
+                .navigationBarsPadding(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box {
+                IconButton(onClick = { showAttachmentMenu = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Đính kèm")
+                }
+                DropdownMenu(
+                    expanded = showAttachmentMenu,
+                    onDismissRequest = { showAttachmentMenu = false }
+                ) {
+                    DropdownMenuItem(text = { Text("Gửi ảnh") }, leadingIcon = { Icon(Icons.Default.Image, "Ảnh") }, onClick = { imagePickerLauncher(); showAttachmentMenu = false })
+                    DropdownMenuItem(text = { Text("Chụp ảnh") }, leadingIcon = { Icon(Icons.Default.CameraAlt, "Chụp ảnh") }, onClick = { cameraLauncher(); showAttachmentMenu = false })
+                    DropdownMenuItem(text = { Text("Gửi tệp") }, leadingIcon = { Icon(Icons.Default.AttachFile, "Tệp") }, onClick = { filePickerLauncher(); showAttachmentMenu = false })
+                }
+            }
+
+            OutlinedTextField(
+                value = messageText,
+                onValueChange = { messageText = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Nhập tin nhắn...") },
+                shape = RoundedCornerShape(24.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = MaterialTheme.colorScheme.surface,
+                    unfocusedIndicatorColor = MaterialTheme.colorScheme.surface
+                )
+            )
+
+            IconButton(
+                onClick = {
+                    if (messageText.isNotBlank()) {
+                        onSendMessage(messageText)
+                        messageText = ""
+                        focusManager.clearFocus()
+                    }
+                },
+                enabled = messageText.isNotBlank() && uploadState !is ChatViewModel.UploadState.Uploading
+            ) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Gửi")
+            }
+        }
+    }
+}
+
+
+// Các Composable `MessageBubble`, `BlockedMessageBar` và hàm `humanReadableByteCountSI` giữ nguyên như cũ...
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
@@ -492,7 +575,51 @@ fun MessageBubble(
         }
     }
 }
+@Composable
+fun BlockedMessageBar(
+    message: String,
+    showUnblockButton: Boolean = false,
+    onUnblock: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+            textAlign = TextAlign.Center
+        )
+        if (showUnblockButton) {
+            Spacer(modifier = Modifier.width(8.dp))
+            TextButton(onClick = onUnblock) {
+                Text("Bỏ chặn")
+            }
+        }
+    }
+}
 
+private fun downloadFile(context: Context, url: String, fileName: String) {
+    try {
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+        val request = DownloadManager.Request(Uri.parse(url))
+            .setTitle(fileName)
+            .setDescription("Đang tải xuống...")
+            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+        downloadManager.enqueue(request)
+        Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
+    } catch (e: Exception) {
+        Toast.makeText(context, "Tải xuống thất bại: ${e.message}", Toast.LENGTH_LONG).show()
+        e.printStackTrace()
+    }
+}
 
 fun humanReadableByteCountSI(bytes: Long): String {
     if (-1000 < bytes && bytes < 1000) {

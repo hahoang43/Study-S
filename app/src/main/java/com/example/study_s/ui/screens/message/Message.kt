@@ -188,6 +188,15 @@ fun MessageItem(
             chat.lastMessage != null &&
             chat.lastMessage.senderId != currentUserId &&
             (chat.lastMessage.readBy[currentUserId] == false || chat.lastMessage.readBy[currentUserId] == null)
+    // ✅ BƯỚC 1: XÁC ĐỊNH NGƯỜI GỬI LÀ BẠN HAY NGƯỜI KHÁC
+    val isSentByMe = chat.lastMessage?.senderId == currentUserId
+
+    // ✅ BƯỚC 2: TẠO NỘI DUNG HIỂN THỊ ĐỘNG
+    val lastMessageContent = when (chat.lastMessage?.type) {
+        "image" -> if (isSentByMe) "Bạn đã gửi một ảnh" else "${user?.name ?: "Họ"} đã gửi một ảnh"
+        "file" -> if (isSentByMe) "Bạn đã gửi một tệp tin" else "${user?.name ?: "Họ"} đã gửi một tệp tin"
+        else -> chat.lastMessage?.content ?: "" // Mặc định hiển thị nội dung text
+    }
 
     val fontWeight = if (isUnread && !isSelected) FontWeight.Bold else FontWeight.Normal
     val textColor = if (isUnread && !isSelected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
@@ -256,7 +265,7 @@ fun MessageItem(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = chat.lastMessage?.content ?: "",
+                text = lastMessageContent,
                 color = textColor,
                 fontWeight = fontWeight,
                 fontSize = 14.sp,
