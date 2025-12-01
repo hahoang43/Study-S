@@ -131,8 +131,8 @@ fun NotificationItem(
         Image(
             painter = rememberAsyncImagePainter(
                 model = notification.actorAvatarUrl,
-                placeholder = painterResource(id = R.drawable.ic_profile),
-                error = painterResource(id = R.drawable.ic_profile)
+                placeholder = painterResource(id = R.drawable.logo_study),
+                error = painterResource(id = R.drawable.logo_study)
             ),
             contentDescription = "Avatar",
             modifier = Modifier
@@ -146,17 +146,20 @@ fun NotificationItem(
         Text(
             text = buildAnnotatedString {
                 when (notification.type) {
-                    "schedule_reminder" -> {
+                    // GOM 2 LOẠI THÔNG BÁO HỆ THỐNG VÀO CHUNG MỘT CHỖ
+                    "schedule_reminder", "SYSTEM_ADMIN" -> {
                         withStyle(
                             style = SpanStyle(
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
                         ) {
-                            append("🔔 Lời nhắc từ Study_S")
+                            // ✅ DÙNG TITLE TỪ NOTIFICATION, NẾU KHÔNG CÓ THÌ MỚI DÙNG MẶC ĐỊNH
+                            append("🔔 ${notification.title ?: "Thông báo từ Study_S"}")
                         }
                         withStyle(style = SpanStyle(fontSize = 15.sp)) {
-                            append("\n${notification.message}")
+                            // ✅ DÙNG BODY TỪ NOTIFICATION
+                            append("\n${notification.body ?: notification.message}")
                         }
                     }
 

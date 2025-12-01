@@ -11,52 +11,99 @@ import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import java.util.Random
 
+private const val FCM_DEBUG_TAG = "FCM_DEBUG_SERVICE"
+
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
-    /**
-     * Được gọi khi có tin nhắn FCM mới đến từ server.
-     */
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        // Dữ liệu payload của thông báo được gửi từ server/app khác
-        val title = remoteMessage.data["title"]
-        val body = remoteMessage.data["body"]
+        Log.d(FCM_DEBUG_TAG, "--- onMessageReceived CALLED! ---")
+        Log.d(FCM_DEBUG_TAG, "Data payload: " + remoteMessage.data.toString())
 
-        Log.d("FCM_RECEIVE", "Received notification: Title='$title', Body='$body'")
+        val title = remoteMessage.notification?.title
+        val body = remoteMessage.notification?.body
 
         if (title != null && body != null) {
+            // 1. Luôn hiển thị thông báo đẩy
             showNotification(title, body)
+
+            // 2. Kiểm tra xem có lệnh "lưu vào lịch sử" không
+            val shouldSave = remoteMessage.data["saveToHistory"]
+            if (shouldSave == "true") {
+                Log.d(FCM_DEBUG_TAG, "Condition MET. Attempting to save to history...")
+                // 3. Gọi hàm lưu vào Firestore
+                saveNotificationToHistory(title, body)
+            }
         }
     }
 
     /**
-     * Được gọi khi Firebase cấp một token mới hoặc token hiện tại được làm mới.
-     * Đây chính là "địa chỉ nhà" của thiết bị.
+     * ✅ SỬA ĐỔI HÀM NÀY ĐỂ GHI VÀO COLLECTION GỐC "notifications"
      */
+    private fun saveNotificationToHistory(title: String, body: String) {
+        val currentUserId = Firebase.auth.currentUser?.uid
+
+        if (currentUserId == null) {
+            Log.e(FCM_DEBUG_TAG, "SAVE FAILED: userId is NULL. User must be logged in to receive history.")
+            return
+        }
+
+        Log.d(FCM_DEBUG_TAG, "SAVE ATTEMPT: Saving for userId: $currentUserId")
+
+        // Tạo một object Notification mới để lưu.
+        // Cấu trúc này phải khớp với cách NotificationRepository đang lưu thông báo like/comment.
+        val notificationPayload = hashMapOf(
+            "userId" to currentUserId,             // ✅ QUAN TRỌNG: Thêm userId để Repository có thể query
+            "type" to "SYSTEM_ADMIN",              // Loại thông báo mới
+            "title" to title,                      // Title từ thông báo đẩy
+            "body" to body,                        // Body từ thông báo đẩy
+            "message" to body,                     // Dùng body làm message chính để UI hiển thị
+            "isRead" to false,
+            "createdAt" to FieldValue.serverTimestamp(), // Dùng timestamp của server để sắp xếp
+            // Các trường khác có thể để null hoặc giá trị mặc định cho thông báo hệ thống
+            "actorId" to null,
+            "actorName" to "Study-S", // Tên hệ thống
+            "actorAvatarUrl" to null, // Bạn có thể đặt URL avatar mặc định của app ở đây
+            "postId" to null,
+            "postImageUrl" to null
+        )
+
+        // ✅ SỬA ĐỔI: Ghi vào collection gốc "notifications"
+        Firebase.firestore.collection("notifications")
+            .add(notificationPayload) // Dùng add() để Firestore tự tạo ID cho document
+            .addOnSuccessListener { documentReference ->
+                Log.d(FCM_DEBUG_TAG, ">>> SUCCESS! Admin Notification saved to ROOT 'notifications' collection. ID: ${documentReference.id} <<<")
+            }
+            .addOnFailureListener { e ->
+                Log.e(FCM_DEBUG_TAG, ">>> FIRESTORE SAVE FAILED! Error: ", e)
+            }
+    }
+
+    // --- CÁC HÀM CÒN LẠI GIỮ NGUYÊN, KHÔNG CẦN THAY ĐỔI ---
+
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCM_TOKEN", "New FCM Token generated: $token")
-        // Gửi token này lên Firestore để lưu lại cho người dùng đang đăng nhập.
         sendTokenToServer(token)
     }
 
     private fun sendTokenToServer(token: String) {
-        // Chỉ cập nhật token nếu có người dùng đang đăng nhập
         Firebase.auth.currentUser?.uid?.let { userId ->
             val userDocRef = Firebase.firestore.collection("users").document(userId)
             userDocRef.update("fcmToken", token)
                 .addOnSuccessListener {
-                    Log.d("FCM_TOKEN", "FCM token updated successfully on Firestore for user: $userId")
+                    Log.d("FCM_TOKEN", "FCM token updated successfully for user: $userId")
                 }
                 .addOnFailureListener { e ->
-                    Log.e("FCM_TOKEN", "Error updating FCM token on Firestore", e)
+                    Log.e("FCM_TOKEN", "Error updating FCM token", e)
                 }
         }
     }
@@ -65,39 +112,30 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val channelId = "default_notification_channel"
         val channelName = "Thông báo chung"
 
-        // Từ Android 8.0 (API 26) trở lên, thông báo phải thuộc về một "Channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             val channel = NotificationChannel(
                 channelId,
                 channelName,
-                NotificationManager.IMPORTANCE_HIGH // Ưu tiên cao để thông báo hiện lên
-            ).apply {
-                description = "Kênh cho các thông báo chung của ứng dụng"
-            }
+                NotificationManager.IMPORTANCE_HIGH
+            )
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Xây dựng giao diện của thông báo
         val builder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // THAY BẰNG ICON THÔNG BÁO CỦA BẠN
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // Thay bằng icon của bạn
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true) // Thông báo sẽ tự biến mất khi người dùng nhấn vào
+            .setAutoCancel(true)
 
-        // Hiển thị thông báo
         with(NotificationManagerCompat.from(this)) {
-            // Kiểm tra lại quyền trước khi hiển thị trên Android 13+
             if (ActivityCompat.checkSelfPermission(this@MyFirebaseMessagingService, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                // Nếu không có quyền, không làm gì cả. Việc xin quyền do Activity đảm nhiệm.
-                Log.w("FCM_SHOW", "Cannot show notification due to missing permission.")
                 return
             }
-            // Dùng ID ngẫu nhiên để các thông báo không ghi đè lên nhau
             val notificationId = Random().nextInt()
             notify(notificationId, builder.build())
-            Log.d("FCM_SHOW", "Notification shown with ID: $notificationId")
+            Log.d(FCM_DEBUG_TAG, "Notification shown with ID: $notificationId")
         }
     }
 }

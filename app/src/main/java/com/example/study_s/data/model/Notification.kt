@@ -6,6 +6,8 @@ import com.google.firebase.firestore.PropertyName
 data class Notification(
     @get:PropertyName("notificationId") @set:PropertyName("notificationId")
     var notificationId: String = "",
+    val title: String? = null,
+    val body: String? = null,
 
     val userId: String = "",
     val actorId: String = "",

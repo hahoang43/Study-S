@@ -22,6 +22,7 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import com.google.firebase.firestore.FieldValue
 class NotificationRepository {
     private val auth = FirebaseAuth.getInstance()
     private val client = OkHttpClient()
@@ -120,7 +121,7 @@ class NotificationRepository {
             type = "like",
             message = "đã thích bài viết của bạn.",
             postId = post.postId,
-            postImageUrl = post.imageUrl
+            postImageUrl = post.imageUrl,
         )
 
         // 1. Lưu vào Firestore
@@ -153,7 +154,7 @@ class NotificationRepository {
             type = "comment",
             message = "đã bình luận: \"$commentText\"",
             postId = post.postId,
-            postImageUrl = post.imageUrl
+            postImageUrl = post.imageUrl,
         )
 
         // 1. Lưu vào Firestore
@@ -181,7 +182,7 @@ class NotificationRepository {
             actorName = actor.name,
             actorAvatarUrl = actor.avatarUrl,
             type = "follow",
-            message = "đã bắt đầu theo dõi bạn."
+            message = "đã bắt đầu theo dõi bạn.",
             // Không cần postId và postImageUrl cho loại "follow"
         )
 
