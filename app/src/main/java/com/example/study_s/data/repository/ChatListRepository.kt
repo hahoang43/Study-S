@@ -15,18 +15,47 @@ class ChatListRepository {
     private val auth = FirebaseAuth.getInstance()
     private val chatsCollection = db.collection("chats")
 
-    // ✅ SỬA 1: Hợp nhất cách lấy user ID
     private fun getCurrentUserId(): String? {
         return auth.currentUser?.uid
     }
 
+    // ✅ NEW: Function to get the total unread message count
+    fun getUnreadMessagesCountFlow(): Flow<Int> = callbackFlow {
+        val currentUserId = getCurrentUserId()
+        if (currentUserId == null) {
+            trySend(0)
+            close(Exception("User not logged in"))
+            return@callbackFlow
+        }
+
+        val listenerRegistration = chatsCollection
+            .whereArrayContains("members", currentUserId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+
+                val unreadCount = snapshot?.documents?.count { doc ->
+                    val lastMessage = doc.get("lastMessage") as? Map<String, Any>
+                    val readBy = lastMessage?.get("readBy") as? Map<String, Boolean>
+                    // Count if the current user has NOT read the last message
+                    readBy?.get(currentUserId) == false
+                } ?: 0
+
+                trySend(unreadCount)
+            }
+
+        awaitClose { listenerRegistration.remove() }
+    }
+
+
     suspend fun markChatAsRead(chatId: String) {
-        val userId = getCurrentUserId() // Sử dụng hàm đã định nghĩa
+        val userId = getCurrentUserId()
         if (userId != null) {
-            // Đường dẫn "lastMessage.readBy.USER_ID" sẽ cập nhật giá trị của user đó trong map
             chatsCollection.document(chatId)
                 .update("lastMessage.readBy.$userId", true)
-                .await() // Dùng await() để đảm bảo coroutine chờ thao tác hoàn tất
+                .await()
         }
     }
 
@@ -42,13 +71,12 @@ class ChatListRepository {
     fun getChats(): Flow<List<ChatModel>> = callbackFlow {
         val currentUserId = getCurrentUserId()
         if (currentUserId == null) {
-            close(Exception("User not logged in")) // Thoát sớm nếu user chưa đăng nhập
+            close(Exception("User not logged in"))
             return@callbackFlow
         }
 
         val listenerRegistration = chatsCollection
             .whereArrayContains("members", currentUserId)
-            // ✅ SỬA 2: Đổi tên trường timestamp cho đúng với cấu trúc của bạn (nếu cần)
             .orderBy("lastMessage.timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -56,7 +84,6 @@ class ChatListRepository {
                     return@addSnapshotListener
                 }
 
-                // Firestore sẽ báo lỗi ở dòng này nếu data class không khớp
                 val chats = snapshot?.toObjects(ChatModel::class.java) ?: emptyList()
                 trySend(chats)
             }

@@ -1,5 +1,3 @@
-// ĐƯỜNG DẪN: ui/screens/home/HomeScreen.kt
-
 package com.example.study_s.ui.screens.home
 
 import androidx.compose.foundation.background
@@ -49,37 +47,30 @@ fun HomeScreen(
 ) {
     val currentUser by authViewModel.currentUser.collectAsState()
     val posts by postViewModel.posts.collectAsState()
-    val unreadCount by mainViewModel.unreadNotificationCount.collectAsState()
+    val unreadNotificationCount by mainViewModel.unreadNotificationCount.collectAsState()
+    val unreadMessageCount by mainViewModel.unreadMessageCount.collectAsState() // ✅ GET UNREAD MESSAGE COUNT
 
     val lazyListState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // ✅ BƯỚC 1: SỬ DỤNG LIFECYCLE OBSERVER ĐỂ TỰ ĐỘNG CẬP NHẬT
     val currentPostViewModel by rememberUpdatedState(postViewModel)
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            // Mỗi khi màn hình được RESUME (hiển thị lại cho người dùng)
             if (event == Lifecycle.Event.ON_RESUME) {
-                // Ra lệnh cho ViewModel tải lại danh sách bài viết.
-                // Việc này sẽ gián tiếp làm mới thông tin user trong các PostItem
-                // vì cache user đã bị xóa ở bước trước.
                 currentPostViewModel.loadPosts()
             }
         }
-        // Thêm observer vào vòng đời của màn hình
         lifecycleOwner.lifecycle.addObserver(observer)
 
-        // Gỡ observer khi màn hình bị hủy
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
-    // Lắng nghe sự kiện cuộn lên đầu trang
     LaunchedEffect(Unit) {
         postViewModel.scrollToTopEvent.collectLatest {
             scope.launch {
@@ -94,7 +85,8 @@ fun HomeScreen(
                 onNotificationClick = { navController.navigate(Routes.Notification) },
                 onSearchClick = { navController.navigate(Routes.Search) },
                 onChatClick = { navController.navigate(Routes.Message) },
-                notificationCount = unreadCount
+                notificationCount = unreadNotificationCount,
+                messageCount = unreadMessageCount // ✅ PASS COUNT TO TOPBAR
             )
         },
         bottomBar = {
@@ -117,10 +109,8 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                // ✅ BƯỚC 2: ĐẢM BẢO PHẦN "BẠN ĐANG NGHĨ GÌ" DÙNG DỮ LIỆU MỚI NHẤT
                 CreatePostTrigger(
                     navController = navController,
-                    // Lấy avatarUrl từ currentUser của AuthViewModel
                     avatarUrl = currentUser?.photoUrl?.toString(),
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
@@ -138,7 +128,7 @@ fun HomeScreen(
     }
 }
 
-// Composable này không cần thay đổi, nó đã đúng
+
 @Composable
 fun CreatePostTrigger(navController: NavController, avatarUrl: String?, modifier: Modifier = Modifier) {
     Card(

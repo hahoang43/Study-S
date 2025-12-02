@@ -22,6 +22,7 @@
         android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Study_S"
         android:windowSoftInputMode="adjustResize">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
