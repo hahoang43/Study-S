@@ -57,5 +57,6 @@ object Routes {
 
     const val EditPost = "edit_post"
 
+    const val ImageViewer = "image_viewer"
 
 }

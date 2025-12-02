@@ -2,10 +2,8 @@ package com.example.study_s.ui.screens.message
 
 import android.Manifest
 import android.app.Application
-import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -15,7 +13,20 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,10 +35,42 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,27 +83,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.data.model.MessageModel
-import com.example.study_s.data.model.UserModel
-import com.example.study_s.util.createImageFile
+import com.example.study_s.ui.navigation.Routes
 import com.example.study_s.viewmodel.ChatViewModel
 import com.example.study_s.viewmodel.ChatViewModelFactory
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuth
+import java.io.File
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.text.CharacterIterator
+import java.text.SimpleDateFormat
 import java.text.StringCharacterIterator
+import java.util.Date
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun ChatScreen(
     chatId: String,
@@ -68,53 +115,28 @@ fun ChatScreen(
     navController: NavController
 ) {
     val context = LocalContext.current
-    val chatViewModel: ChatViewModel = viewModel(
-        factory = ChatViewModelFactory(context.applicationContext as Application, chatId, targetUserId)
-    )
+    val chatViewModel: ChatViewModel = viewModel(factory = ChatViewModelFactory(context.applicationContext as Application, chatId, targetUserId))
 
     val messages by chatViewModel.messages.collectAsState()
     val targetUser by chatViewModel.targetUser.collectAsState()
     val uploadState by chatViewModel.uploadState.collectAsState()
+    val isBlockedByTarget by chatViewModel.isBlockedByTarget.collectAsState()
+    val haveIBlockedTarget by chatViewModel.haveIBlockedTarget.collectAsState()
 
-    val currentUserId = Firebase.auth.currentUser?.uid
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     val lazyListState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
 
-    var showOptionsMenu by remember { mutableStateOf(false) }
-    var showDeleteChatDialog by remember { mutableStateOf(false) }
-    var showBlockUserDialog by remember { mutableStateOf(false) }
-
-    var messageToAction by remember { mutableStateOf<MessageModel?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showBlockUserDialog by remember { mutableStateOf(false) }
+    var showDeleteChatDialog by remember { mutableStateOf(false) }
     var showEditDialog by remember { mutableStateOf(false) }
     var editingText by remember { mutableStateOf("") }
+    var showOptionsMenu by remember { mutableStateOf(false) }
+    var messageToAction by remember { mutableStateOf<MessageModel?>(null) }
 
-    val isBlockedByTarget by chatViewModel.isBlockedByTarget.collectAsState()
-    val haveIBlockedTarget by chatViewModel.haveIBlockedTarget.collectAsState()
-    // --- Launchers for permissions and activity results ---
-    val cameraPermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
     var imageUri by remember { mutableStateOf<Uri?>(null) }
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { isSuccess ->
-        if (isSuccess) {
-            imageUri?.let { chatViewModel.sendFile(it, "image") }
-        }
-    }
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-        if (isGranted) {
-            val uri = createImageFile(context)
-            if (uri != null) {
-                imageUri = uri
-                cameraLauncher.launch(uri)
-            }
-        }
-    }
-    val imagePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { chatViewModel.sendFile(it, "image") }
-    }
-    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let { chatViewModel.sendFile(it, "file") }
-    }
 
     LaunchedEffect(messages) {
         if (messages.isNotEmpty()) {
@@ -122,151 +144,130 @@ fun ChatScreen(
         }
     }
 
-    // --- Dialogs ---
-    if (showDeleteChatDialog) {
-        AlertDialog(            onDismissRequest = { showDeleteChatDialog = false },
-            title = { Text("Xóa cuộc trò chuyện") },
-            text = { Text("Bạn có chắc chắn muốn xóa toàn bộ cuộc trò chuyện này không? Hành động này không thể hoàn tác.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        chatViewModel.deleteChat()
-                        showDeleteChatDialog = false
-                        navController.popBackStack() // Quay về màn hình trước sau khi xóa
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Xóa") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteChatDialog = false }) { Text("Hủy") }
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? -> uri?.let { chatViewModel.sendFile(it, "image") } }
+    )
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? -> uri?.let { chatViewModel.sendFile(it, "file") } }
+    )
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                imageUri?.let { chatViewModel.sendFile(it, "image") }
             }
-        )    }
+        }
+    )
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                val uri = createImageFile(context)
+                if (uri != null) {
+                    imageUri = uri
+                    cameraLauncher.launch(uri)
+                }
+            } else {
+                Toast.makeText(context, "Quyền truy cập Camera bị từ chối", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    val cameraPermissionState = rememberPermissionState(permission = Manifest.permission.CAMERA)
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false; messageToAction = null },
+            title = { Text("Xác nhận xóa") },
+            text = { Text("Bạn có chắc chắn muốn xóa tin nhắn này không?") },
+            confirmButton = {
+                Button(onClick = {
+                    messageToAction?.let { chatViewModel.deleteMessage(it.id) }
+                    showDeleteDialog = false
+                    messageToAction = null
+                }) { Text("Xóa") }
+            },
+            dismissButton = { Button(onClick = { showDeleteDialog = false; messageToAction = null }) { Text("Hủy") } }
+        )
+    }
+
     if (showBlockUserDialog) {
         AlertDialog(
             onDismissRequest = { showBlockUserDialog = false },
             title = { Text("Chặn người dùng") },
-            text = { Text("Bạn có chắc chắn muốn chặn ${targetUser?.name ?: "người này"} không? Bạn sẽ không thể gửi hoặc nhận tin nhắn từ họ nữa.") },
+            text = { Text("Bạn có chắc chắn muốn chặn ${targetUser?.name ?: "người này"}? Bạn sẽ không thấy tin nhắn từ họ nữa.") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        chatViewModel.blockUser()
-                        showBlockUserDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Chặn") }
+                Button(onClick = {
+                    chatViewModel.blockUser()
+                    showBlockUserDialog = false
+                }) { Text("Chặn") }
             },
-            dismissButton = {
-                TextButton(onClick = { showBlockUserDialog = false }) { Text("Hủy") }
-            }
+            dismissButton = { Button(onClick = { showBlockUserDialog = false }) { Text("Hủy") } }
         )
     }
-    if (showDeleteDialog) {
+
+    if (showDeleteChatDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showDeleteDialog = false
-                messageToAction = null // Reset khi hủy
-            },
-            title = { Text("Xóa tin nhắn") },
-            text = { Text("Bạn có chắc chắn muốn xóa tin nhắn này không?") },
+            onDismissRequest = { showDeleteChatDialog = false },
+            title = { Text("Xóa cuộc trò chuyện") },
+            text = { Text("Toàn bộ lịch sử cuộc trò chuyện này sẽ bị xóa vĩnh viễn. Bạn có chắc chắn?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        // Gọi hàm deleteMessage trong ViewModel với ID của tin nhắn đã chọn
-                        messageToAction?.id?.let { chatViewModel.deleteMessage(it) }
-                        showDeleteDialog = false
-                        messageToAction = null // Reset sau khi thực hiện
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) { Text("Xóa") }
+                Button(onClick = {
+                    chatViewModel.deleteChat()
+                    showDeleteChatDialog = false
+                    navController.popBackStack()
+                }) { Text("Xóa") }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    showDeleteDialog = false
-                    messageToAction = null // Reset khi hủy
-                }) { Text("Hủy") }
-            }
-        )    }
+            dismissButton = { Button(onClick = { showDeleteChatDialog = false }) { Text("Hủy") } }
+        )
+    }
+
     if (showEditDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showEditDialog = false
-                messageToAction = null // Reset khi hủy
-            },
-            title = { Text("Sửa tin nhắn") },
-            text = {
-                // TextField để người dùng nhập nội dung mới
-                OutlinedTextField(
-                    value = editingText,
-                    onValueChange = { editingText = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Nội dung mới") }
-                )
-            },
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Chỉnh sửa tin nhắn") },
+            text = { OutlinedTextField(value = editingText, onValueChange = { editingText = it }, modifier = Modifier.fillMaxWidth()) },
             confirmButton = {
-                Button(
-                    onClick = {
-                        // Gọi hàm editMessage với ID và nội dung mới
-                        messageToAction?.id?.let { chatViewModel.editMessage(it, editingText) }
-                        showEditDialog = false
-                        messageToAction = null // Reset sau khi thực hiện
-                    },
-                    enabled = editingText.isNotBlank() // Chỉ cho phép sửa khi có nội dung
-                ) { Text("Lưu") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
+                Button(onClick = {
+                    messageToAction?.let { chatViewModel.editMessage(it.id, editingText) }
                     showEditDialog = false
-                    messageToAction = null // Reset khi hủy
-                }) { Text("Hủy") }
-            }
-        )    }
-
+                    messageToAction = null
+                }) { Text("Lưu") }
+            },
+            dismissButton = { Button(onClick = { showEditDialog = false; messageToAction = null }) { Text("Hủy") } }
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable {
-                            navController.navigate("profile/$targetUserId")
-                        }
-                    ) {
-                        Image(
-                            painter = rememberAsyncImagePainter(model = targetUser?.avatarUrl),
-                            contentDescription = "Avatar",
-                            modifier = Modifier.size(40.dp).clip(CircleShape)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = targetUser?.name ?: "Đang tải...", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
+                title = { Text(targetUser?.name ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại") } },
                 actions = {
                     Box {
                         IconButton(onClick = { showOptionsMenu = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = "Tùy chọn")
                         }
-                        DropdownMenu(
-                            expanded = showOptionsMenu,
-                            onDismissRequest = { showOptionsMenu = false }
-                        ) {
+                        DropdownMenu(expanded = showOptionsMenu, onDismissRequest = { showOptionsMenu = false }) {
                             DropdownMenuItem(
                                 text = { Text("Xóa cuộc trò chuyện") },
+                                leadingIcon = { Icon(Icons.Default.Delete, "Xóa cuộc trò chuyện") },
                                 onClick = {
                                     showDeleteChatDialog = true
                                     showOptionsMenu = false
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text(if(haveIBlockedTarget) "Bỏ chặn người này" else "Chặn người này") },
+                                text = { Text(if (haveIBlockedTarget) "Bỏ chặn người dùng" else "Chặn người dùng") },
+                                leadingIcon = { Icon(Icons.Default.Block, "Chặn người dùng") },
                                 onClick = {
-                                    if(haveIBlockedTarget) {
-                                        chatViewModel.unblockUser() // Bạn cần thêm hàm này vào ViewModel
+                                    if (haveIBlockedTarget) {
+                                        chatViewModel.unblockUser()
                                     } else {
                                         showBlockUserDialog = true
                                     }
@@ -282,7 +283,6 @@ fun ChatScreen(
                 )
             )
         },
-        // ✅ Cấu trúc `bottomBar` đã được sửa lại
         bottomBar = {
             Column {
                 if (uploadState is ChatViewModel.UploadState.Uploading) {
@@ -303,13 +303,10 @@ fun ChatScreen(
                         BlockedMessageBar(
                             message = "Bạn đã chặn ${targetUser?.name ?: "người này"}.",
                             showUnblockButton = true,
-                            onUnblock = {
-                                chatViewModel.unblockUser() // Bạn cần thêm hàm này vào ViewModel
-                            }
+                            onUnblock = { chatViewModel.unblockUser() }
                         )
                     }
                     else -> {
-                        // Di chuyển MessageInputBar vào đây
                         MessageInputBar(
                             onSendMessage = { text -> chatViewModel.sendMessage(text) },
                             uploadState = uploadState,
@@ -325,6 +322,8 @@ fun ChatScreen(
                                         }
                                     }
                                     cameraPermissionState.status.shouldShowRationale -> {
+                                        // Hiển thị dialog giải thích nếu cần
+                                        // (Bạn có thể thêm logic này nếu muốn)
                                         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                     }
                                     else -> {
@@ -364,7 +363,12 @@ fun ChatScreen(
                             showAvatar = showAvatar,
                             avatarUrl = if (showAvatar) targetUser?.avatarUrl else null,
                             onLongPress = { messageToAction = message },
-                            onClick = {}
+                            onClick = { 
+                                if (message.isImage()) {
+                                    val encodedUrl = URLEncoder.encode(message.content, StandardCharsets.UTF_8.toString())
+                                    navController.navigate("${Routes.ImageViewer}/$encodedUrl")
+                                }
+                            }
                         )
 
                         DropdownMenu(
@@ -377,9 +381,7 @@ fun ChatScreen(
                                     text = { Text("Tải về") },
                                     leadingIcon = { Icon(Icons.Default.Download, "Tải về") },
                                     onClick = {
-                                        scope.launch {
-                                            downloadFile(context, message.content, fileName)
-                                        }
+                                        chatViewModel.downloadFile(message.content, fileName)
                                         messageToAction = null
                                     }
                                 )
@@ -392,13 +394,17 @@ fun ChatScreen(
                                         onClick = {
                                             editingText = messageToAction?.content ?: ""
                                             showEditDialog = true
+                                            messageToAction = null // Dismiss menu
                                         }
                                     )
                                 }
                                 DropdownMenuItem(
                                     text = { Text("Xóa") },
                                     leadingIcon = { Icon(Icons.Default.DeleteOutline, "Xóa") },
-                                    onClick = { showDeleteDialog = true }
+                                    onClick = { 
+                                        showDeleteDialog = true 
+                                        messageToAction = null // Dismiss menu
+                                    }
                                 )
                             }
                         }
@@ -409,7 +415,21 @@ fun ChatScreen(
     }
 }
 
-// ✅ Tách thanh nhập liệu ra thành một Composable riêng
+private fun MessageModel.isImage(): Boolean {
+    return type == "image" || (type == "file" && fileName?.isImageFile() == true)
+}
+
+private fun String.isImageFile(): Boolean {
+    val lowercased = this.lowercase()
+    return lowercased.endsWith(".jpg") ||
+            lowercased.endsWith(".jpeg") ||
+            lowercased.endsWith(".png") ||
+            lowercased.endsWith(".gif") ||
+            lowercased.endsWith(".bmp") ||
+            lowercased.endsWith(".webp")
+}
+
+
 @Composable
 fun MessageInputBar(
     onSendMessage: (String) -> Unit,
@@ -474,8 +494,6 @@ fun MessageInputBar(
     }
 }
 
-
-// Các Composable `MessageBubble`, `BlockedMessageBar` và hàm `humanReadableByteCountSI` giữ nguyên như cũ...
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
@@ -483,17 +501,12 @@ fun MessageBubble(
     isCurrentUser: Boolean,
     showAvatar: Boolean,
     avatarUrl: String?,
-    onLongPress: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongPress: () -> Unit
 ) {
     Row(
-        modifier = Modifier
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongPress
-            )
-            .padding(vertical = 2.dp),
-        verticalAlignment = Alignment.Bottom
+        verticalAlignment = Alignment.Bottom,
+        modifier = Modifier.padding(vertical = 2.dp)
     ) {
         if (showAvatar) {
             Image(
@@ -519,17 +532,22 @@ fun MessageBubble(
                 bottomEnd = if (isCurrentUser) 0.dp else 16.dp
             ),
             color = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-            modifier = Modifier.widthIn(max = 300.dp)
+            modifier = Modifier
+                .widthIn(max = 300.dp)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongPress
+                )
         ) {
-            when (message.type) {
-                "text" -> {
+            when {
+                message.type == "text" -> {
                     Text(
                         text = message.content,
                         modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp),
                         color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                "image" -> {
+                message.isImage() -> {
                     AsyncImage(
                         model = message.content,
                         contentDescription = "Ảnh đã gửi",
@@ -540,41 +558,42 @@ fun MessageBubble(
                         contentScale = ContentScale.Fit
                     )
                 }
-                "file" -> {
-                    Row(
-                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.InsertDriveFile,
-                            contentDescription = "File",
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column {
-                            Text(
-                                text = message.fileName ?: "Tệp đính kèm",
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                message.type == "file" -> {
+                        Row(
+                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.InsertDriveFile,
+                                contentDescription = "File",
+                                modifier = Modifier.size(32.dp)
                             )
-                            message.fileSize?.let {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
                                 Text(
-                                    text = humanReadableByteCountSI(it),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = (if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant).copy(
-                                        alpha = 0.7f
-                                    )
+                                    text = message.fileName ?: "Tệp đính kèm",
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+                                message.fileSize?.let {
+                                    Text(
+                                        text = humanReadableByteCountSI(it),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = (if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant).copy(
+                                            alpha = 0.7f
+                                        )
+                                    )
+                                }
                             }
                         }
-                    }
                 }
             }
         }
     }
 }
+
 @Composable
 fun BlockedMessageBar(
     message: String,
@@ -605,29 +624,34 @@ fun BlockedMessageBar(
     }
 }
 
-private fun downloadFile(context: Context, url: String, fileName: String) {
-    try {
-        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-        val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle(fileName)
-            .setDescription("Đang tải xuống...")
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
-        downloadManager.enqueue(request)
-        Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
+private fun createImageFile(context: Context): Uri? {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val imageFileName = "JPEG_${timeStamp}_"
+    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+    return try {
+        val image = File.createTempFile(
+            imageFileName,
+            ".jpg",
+            storageDir
+        )
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            image
+        )
     } catch (e: Exception) {
-        Toast.makeText(context, "Tải xuống thất bại: ${e.message}", Toast.LENGTH_LONG).show()
         e.printStackTrace()
+        null
     }
 }
 
 fun humanReadableByteCountSI(bytes: Long): String {
-    if (-1000 < bytes && bytes < 1000) {
+    if (bytes in -999..999) {
         return "$bytes B"
     }
     val ci: CharacterIterator = StringCharacterIterator("kMGTPE")
     var tempBytes = bytes
-    while (tempBytes <= -999950 || tempBytes >= 999950) {
+    while (tempBytes <= -999_950 || tempBytes >= 999_950) {
         tempBytes /= 1000
         ci.next()
     }

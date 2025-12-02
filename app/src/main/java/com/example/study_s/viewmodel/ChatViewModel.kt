@@ -1,7 +1,12 @@
 package com.example.study_s.viewmodel
 
 import android.app.Application
+import android.app.DownloadManager
+import android.content.Context
 import android.net.Uri
+import android.os.Environment
+import android.provider.OpenableColumns
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.model.MessageModel
@@ -66,7 +71,6 @@ class ChatViewModel(
         }
     }
 
-    // ✅ SỬA 2: SỬA LẠI HOÀN TOÀN HÀM NÀY ĐỂ LỌC TIN NHẮN
     private fun loadChatAndFilterMessages() {
         val currentUserId = userRepository.getCurrentUserId() ?: return
 
@@ -74,12 +78,9 @@ class ChatViewModel(
             chatRepository.getOrCreateChat(targetUserId).onSuccess { chatId ->
                 _chatId.value = chatId
 
-                // Lấy luồng thông tin của người dùng hiện tại (để có danh sách chặn)
                 val myProfileFlow = userRepository.getUserProfileFlow(currentUserId)
-                // Lấy luồng tin nhắn gốc
                 val messagesFlow = chatRepository.getMessages(chatId)
 
-                // Kết hợp 2 luồng: khi có tin nhắn mới HOẶC danh sách chặn thay đổi -> lọc lại
                 myProfileFlow.combine(messagesFlow) { currentUser, messages ->
                     val blockedList = currentUser?.blockedUsers ?: emptyList()
                     messages.filter { message -> message.senderId !in blockedList }
@@ -103,8 +104,6 @@ class ChatViewModel(
             }
         }
     }
-
-    // ✅ SỬA 3: ĐẢM BẢO CÁC HÀM NÀY NẰM NGOÀI sendMessage và CÙNG CẤP VỚI NÓ
 
     fun deleteMessage(messageId: String) {
         viewModelScope.launch {
@@ -130,11 +129,12 @@ class ChatViewModel(
         }
     }
 
-    // ✅ SỬA 1: SỬA LẠI HÀM sendFile ĐỂ KHÔNG DÙNG _chatId.value
     fun sendFile(fileUri: Uri, type: String) {
         viewModelScope.launch {
             _uploadState.value = UploadState.Uploading
-            // Lấy chatId một cách an toàn, không dùng _chatId.value
+            // ✅ LẤY TÊN TỆP GỐC TRƯỚC KHI UPLOAD
+            val localFileName = getFileName(getApplication(), fileUri)
+
             chatRepository.getOrCreateChat(targetUserId).onSuccess { actualChatId ->
                 val result = chatRepository.uploadFile(fileUri)
                 result.onSuccess { uploadResult ->
@@ -142,7 +142,8 @@ class ChatViewModel(
                         senderId = userRepository.getCurrentUserId() ?: "",
                         content = uploadResult.url,
                         type = type,
-                        fileName = uploadResult.originalFilename,
+                        // ✅ SỬ DỤNG TÊN TỆP GỐC, KHÔNG DÙNG TÊN TỪ CLOUDINARY
+                        fileName = localFileName ?: "file",
                         fileSize = uploadResult.bytes
                     )
                     chatRepository.sendMessage(actualChatId, message)
@@ -153,6 +154,23 @@ class ChatViewModel(
             }.onFailure {
                 _uploadState.value = UploadState.Error("Không thể lấy thông tin cuộc trò chuyện.")
             }
+        }
+    }
+
+    fun downloadFile(url: String, fileName: String) {
+        val context = getApplication<Application>().applicationContext
+        try {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val request = DownloadManager.Request(Uri.parse(url))
+                .setTitle(fileName)
+                .setDescription("Đang tải xuống...")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+            downloadManager.enqueue(request)
+            Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Tải xuống thất bại: ${e.message}", Toast.LENGTH_LONG).show()
+            e.printStackTrace()
         }
     }
 
@@ -183,6 +201,32 @@ class ChatViewModel(
                 e.printStackTrace()
             }
         }
+    }
+
+    // ✅ HÀM TIỆN ÍCH MỚI ĐỂ LẤY TÊN TỆP
+    private fun getFileName(context: Context, uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            val cursor = context.contentResolver.query(uri, null, null, null, null)
+            try {
+                if (cursor != null && cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index != -1) {
+                        result = cursor.getString(index)
+                    }
+                }
+            } finally {
+                cursor?.close()
+            }
+        }
+        if (result == null) {
+            result = uri.path
+            val cut = result?.lastIndexOf('/')
+            if (cut != null && cut != -1) {
+                result = result.substring(cut + 1)
+            }
+        }
+        return result
     }
 
     sealed class UploadState {

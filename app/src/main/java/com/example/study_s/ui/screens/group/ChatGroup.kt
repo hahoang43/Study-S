@@ -43,6 +43,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
@@ -95,6 +96,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -107,6 +109,12 @@ import com.example.study_s.viewmodel.GroupChatViewModel
 import com.example.study_s.viewmodel.GroupViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.collectLatest
+import java.io.File
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -126,6 +134,7 @@ fun ChatGroupScreen(
     val bannedMembers by groupViewModel.bannedMembers.collectAsState()
     val pendingMembers by groupViewModel.pendingMembers.collectAsState()
     val isUploading by groupChatViewModel.isUploading.collectAsState()
+    val userCache by groupViewModel.userCache.collectAsState() // ✅ GET USER CACHE
 
     val listState = rememberLazyListState()
 
@@ -188,7 +197,8 @@ fun ChatGroupScreen(
                 members = members,
                 bannedMembers = bannedMembers,
                 pendingMembers = pendingMembers,
-                refreshData = refreshData
+                refreshData = refreshData,
+                userCache = userCache // ✅ PASS USER CACHE
             )
         },
         bottomBar = {
@@ -228,7 +238,8 @@ fun ChatGroupScreen(
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(messages) { message ->
-                        val sender = members.find { it.userId == message.senderId }
+                        // ✅ USE CACHE TO GET SENDER INFO
+                        val sender = userCache[message.senderId]
                         if (message.senderId == "system") {
                             SystemMessageItem(message = message)
                         } else if (currentUserId != null) {
@@ -359,7 +370,8 @@ fun GroupChatTopBar(
     members: List<UserModel>,
     bannedMembers: List<UserModel>,
     pendingMembers: List<UserModel>,
-    refreshData: () -> Unit
+    refreshData: () -> Unit,
+    userCache: Map<String, UserModel> // ✅ RECEIVE USER CACHE
 ) {
     var showMenu by remember { mutableStateOf(false) }
     var showLeaveDialog by remember { mutableStateOf(false) }
@@ -417,7 +429,9 @@ fun GroupChatTopBar(
             currentUserId = currentUserId,
             onDismiss = { showMembersDialog = false },
             onRemoveMember = { memberId, memberName ->
-                group.let {  groupViewModel.removeMember(it.groupId, memberId, it.groupName, memberName) }
+                // ✅ GET ADMIN NAME FROM CACHE
+                val adminName = userCache[currentUserId]?.name ?: "Quản trị viên"
+                group.let {  groupViewModel.removeMember(it.groupId, memberId, adminName, memberName) }
                 refreshData()
             },
             onBanMember = { memberId ->
@@ -643,6 +657,8 @@ fun MessageInput(
 
     var showPermissionRationale by remember { mutableStateOf(false) }
     var showAttachmentMenu by remember { mutableStateOf(false) }
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -663,6 +679,33 @@ fun MessageInput(
             }
         }
     }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            imageUri?.let {
+                if (currentUserId != null) {
+                    groupChatViewModel.sendFile(context, groupId, currentUserId, currentUserDisplayName, it, "image")
+                }
+            }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            val uri = createImageFile(context)
+            if (uri != null) {
+                imageUri = uri
+                cameraLauncher.launch(uri)
+            }
+        } else {
+            Toast.makeText(context, "Quyền truy cập Camera bị từ chối.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
@@ -747,6 +790,30 @@ fun MessageInput(
                             Icon(
                                 imageVector = Icons.Default.Image,
                                 contentDescription = "Upload Image"
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Chụp ảnh") },
+                        onClick = {
+                            showAttachmentMenu = false
+                            when (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)) {
+                                PackageManager.PERMISSION_GRANTED -> {
+                                    val uri = createImageFile(context)
+                                    if (uri != null) {
+                                        imageUri = uri
+                                        cameraLauncher.launch(uri)
+                                    }
+                                }
+                                else -> {
+                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                                }
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Take Photo"
                             )
                         }
                     )
@@ -847,44 +914,51 @@ fun MessageItem(
             Spacer(modifier = Modifier.width(8.dp))
         }
 
-        Box(
-            modifier = Modifier
-                .widthIn(max = 280.dp)
-                .background(
-                    color = if (isCurrentUser) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(
-                        topStart = 16.dp,
-                        topEnd = 16.dp,
-                        bottomStart = if (isCurrentUser) 16.dp else 0.dp,
-                        bottomEnd = if (isCurrentUser) 0.dp else 16.dp
+        Box {
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 280.dp)
+                    .combinedClickable(
+                        onClick = {
+                            if (message.type == "image") {
+                                message.fileUrl?.let {
+                                    val encodedUrl = URLEncoder.encode(it, StandardCharsets.UTF_8.toString())
+                                    navController.navigate("${Routes.ImageViewer}/$encodedUrl")
+                                }
+                            }
+                        },
+                        onLongClick = { showMenu = true }
                     )
-                )
-                .padding(12.dp)
-        ) {
-            Column {
+                    .background(
+                        color = if (isCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = if (isCurrentUser) 16.dp else 0.dp,
+                            bottomEnd = if (isCurrentUser) 0.dp else 16.dp
+                        )
+                    )
+                    .padding(4.dp) // Uniform padding
+            ) {
                 if (!isCurrentUser) {
                     Text(
-                        text = message.senderName,
+                        // ✅ USE SENDER NAME FROM CACHED USER, OR MESSAGE SENDER NAME AS FALLBACK
+                        text = sender?.name ?: message.senderName,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 14.sp,
-                        modifier = Modifier.clickable { navigateToProfile() }
+                        modifier = Modifier
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .clickable { navigateToProfile() }
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
                 }
                 when (message.type) {
                     "text" -> {
                         Text(
                             text = message.content,
-                            color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 16.sp,
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectTapGestures(
-                                    onLongPress = {
-                                        showMenu = true
-                                    }
-                                )
-                            }
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
                         )
                     }
                     "image" -> {
@@ -895,14 +969,7 @@ fun MessageItem(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(200.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onLongPress = {
-                                                showMenu = true
-                                            }
-                                        )
-                                    },
+                                    .clip(RoundedCornerShape(12.dp)),
                                 contentScale = ContentScale.Crop
                             )
                         }
@@ -910,34 +977,20 @@ fun MessageItem(
                     "file" -> {
                         message.fileUrl?.let { url ->
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.combinedClickable(
-                                    onClick = {
-                                        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-                                        val request = DownloadManager.Request(url.toUri())
-                                            .setTitle(message.content)
-                                            .setDescription("Downloading")
-                                            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                                            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, message.content)
-                                        downloadManager.enqueue(request)
-                                        Toast.makeText(context, "Bắt đầu tải xuống...", Toast.LENGTH_SHORT).show()
-                                    },
-                                    onLongClick = {
-                                        showMenu = true
-                                    }
-                                )
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.InsertDriveFile,
                                     contentDescription = "File icon",
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier.size(32.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = message.content,
-                                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (isCurrentUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -1094,4 +1147,26 @@ fun MembersDialog(
             }
         }
     )
+}
+
+private fun createImageFile(context: Context): Uri? {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val imageFileName = "JPEG_${timeStamp}_"
+    val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+    return try {
+        val image = File.createTempFile(
+            imageFileName,
+            ".jpg",
+            storageDir
+        )
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider", // Authority phải khớp với Manifest
+            image
+        )
+    } catch (e: Exception) {
+        e.printStackTrace()
+        Toast.makeText(context, "Không thể tạo tệp ảnh.", Toast.LENGTH_SHORT).show()
+        null
+    }
 }

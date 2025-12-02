@@ -35,6 +35,10 @@ class GroupViewModel(
     private val _bannedMembers = MutableStateFlow<List<UserModel>>(emptyList())
     val bannedMembers: StateFlow<List<UserModel>> = _bannedMembers.asStateFlow()
 
+    // ✅ ADDED: A persistent cache for all users encountered.
+    private val _userCache = MutableStateFlow<Map<String, UserModel>>(emptyMap())
+    val userCache: StateFlow<Map<String, UserModel>> = _userCache.asStateFlow()
+
     private val _isCreating = MutableStateFlow(false)
     val isCreating: StateFlow<Boolean> = _isCreating.asStateFlow()
 
@@ -49,6 +53,23 @@ class GroupViewModel(
 
     init {
         loadAllGroups()
+    }
+
+    // Helper to fetch user details and update both cache and a specific list
+    private fun fetchAndUpdateUserDetails(userIds: List<String>, listToUpdate: MutableStateFlow<List<UserModel>>) {
+        if (userIds.isEmpty()) {
+            listToUpdate.value = emptyList()
+            return
+        }
+        viewModelScope.launch {
+            try {
+                val newUsers = groupRepository.getMemberDetails(userIds)
+                _userCache.value = _userCache.value + newUsers.associateBy { it.userId }
+                listToUpdate.value = newUsers
+            } catch (e: Exception) {
+                _error.value = "Không thể tải chi tiết thành viên: ${e.message}"
+            }
+        }
     }
 
     fun loadAllGroups(): Job = viewModelScope.launch {
@@ -84,33 +105,15 @@ class GroupViewModel(
     }
 
     fun loadMemberDetails(memberIds: List<String>) {
-        viewModelScope.launch {
-            try {
-                _members.value = groupRepository.getMemberDetails(memberIds)
-            } catch (e: Exception) {
-                _error.value = "Không thể tải chi tiết thành viên: ${e.message}"
-            }
-        }
+        fetchAndUpdateUserDetails(memberIds, _members)
     }
 
     fun loadPendingMemberDetails(memberIds: List<String>) {
-        viewModelScope.launch {
-            try {
-                _pendingMembers.value = groupRepository.getMemberDetails(memberIds)
-            } catch (e: Exception) {
-                _error.value = "Không thể tải chi tiết thành viên: ${e.message}"
-            }
-        }
+        fetchAndUpdateUserDetails(memberIds, _pendingMembers)
     }
 
     fun loadBannedMemberDetails(memberIds: List<String>) {
-        viewModelScope.launch {
-            try {
-                _bannedMembers.value = groupRepository.getMemberDetails(memberIds)
-            } catch (e: Exception) {
-                _error.value = "Không thể tải chi tiết thành viên bị cấm: ${e.message}"
-            }
-        }
+        fetchAndUpdateUserDetails(memberIds, _bannedMembers)
     }
 
     fun createGroup(

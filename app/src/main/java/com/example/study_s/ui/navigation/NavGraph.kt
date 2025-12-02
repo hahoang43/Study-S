@@ -19,6 +19,7 @@ import com.example.study_s.ui.screens.auth.ForgotPasswordScreen
 import com.example.study_s.ui.screens.auth.LoginScreen
 import com.example.study_s.ui.screens.auth.RegisterScreen
 import com.example.study_s.ui.screens.auth.VerifyCodeScreen
+import com.example.study_s.ui.screens.common.ImageViewerScreen
 import com.example.study_s.ui.screens.group.ChatGroupScreen
 import com.example.study_s.ui.screens.group.GroupCreateScreen
 import com.example.study_s.ui.screens.group.GroupScreen
@@ -51,6 +52,8 @@ import com.example.study_s.viewmodel.SearchViewModelFactory
 import com.google.firebase.auth.FirebaseAuth
 import java.net.URLDecoder
 import com.example.study_s.viewmodel.MainViewModel
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun NavGraph(navController: NavHostController) {
@@ -117,6 +120,16 @@ fun NavGraph(navController: NavHostController) {
                 navController.popBackStack()
             }
         }
+
+        // ========== IMAGE VIEWER ==========
+        composable(
+            route = "${Routes.ImageViewer}/{imageUrl}",
+            arguments = listOf(navArgument("imageUrl") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val imageUrl = backStackEntry.arguments?.getString("imageUrl") ?: ""
+            ImageViewerScreen(navController = navController, imageUrl = imageUrl)
+        }
+
 
         // ========== NOTIFICATION ==========
         composable(Routes.Notification) {

@@ -41,6 +41,9 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 import coil.compose.AsyncImage
 import com.example.study_s.R
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+
 fun downloadFile(context: Context, url: String, fileName: String) {
     Log.d("DownloadDebug", "Đang thử tải URL: $url")
     try {
@@ -95,12 +98,11 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
         modifier = modifier
             .fillMaxWidth()
             .clickable(enabled = isClickable) { navController.navigate("${Routes.PostDetail}/${post.postId}") },
-        shape = RoundedCornerShape(12.dp), // Tăng bo góc cho mềm mại hơn
-        // ✅ THAY ĐỔI MÀU NỀN TẠI ĐÂY
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer // Màu nền nổi bật hơn
+            containerColor = MaterialTheme.colorScheme.surface // Thay đổi màu nền
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Bỏ shadow vì đã có màu nền phân biệt
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Thêm đổ bóng để nổi khối
     ){
         Column(modifier = Modifier.padding(16.dp)) { // Tăng padding cho thoáng hơn
             // Header
@@ -214,13 +216,17 @@ fun PostItem(navController: NavController, post: PostModel, viewModel: PostViewM
                 } ?: true
 
                 if (isImage) {
-                    Image(
-                        painter = rememberAsyncImagePainter(post.imageUrl),
+                    AsyncImage(
+                        model = post.imageUrl,
                         contentDescription = "Ảnh đính kèm",
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = 300.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { 
+                                val encodedUrl = URLEncoder.encode(post.imageUrl, StandardCharsets.UTF_8.toString())
+                                navController.navigate("${Routes.ImageViewer}/$encodedUrl")
+                             },
                         contentScale = ContentScale.Crop
                     )
                 } else {
