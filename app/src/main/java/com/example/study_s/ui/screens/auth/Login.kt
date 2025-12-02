@@ -1,5 +1,3 @@
-// ĐƯỜNG DẪN: ui/screens/auth/LoginScreen.kt
-
 package com.example.study_s.ui.screens.auth
 
 import android.app.Activity
@@ -151,13 +149,13 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(60.dp))
                 Text(text = "Đăng nhập", fontSize = 25.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Vui lòng nhập tên đăng nhập hoặc email", fontSize = 15.sp, textAlign = TextAlign.Center)
+                Text(text = "Vui lòng nhập email để đăng nhập", fontSize = 15.sp, textAlign = TextAlign.Center)
                 Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Nhập tên đăng nhập hoặc email") },
+                    label = { Text("Nhập email của bạn") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),

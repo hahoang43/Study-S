@@ -29,7 +29,8 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     private val _currentYear = MutableStateFlow(Calendar.getInstance().get(Calendar.YEAR))
     val currentYear = _currentYear.asStateFlow()
 
-    private val _currentMonth = MutableStateFlow(Calendar.getInstance().get(Calendar.MONTH)) // Tháng bắt đầu từ 0
+    private val _currentMonth =
+        MutableStateFlow(Calendar.getInstance().get(Calendar.MONTH)) // Tháng bắt đầu từ 0
     val currentMonth = _currentMonth.asStateFlow()
 
     // State cho danh sách các sự kiện của tháng
@@ -48,7 +49,8 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     // Tải dữ liệu từ Repository
     fun loadSchedulesForCurrentMonth() {
         viewModelScope.launch {
-            _events.value = repository.getSchedulesForMonth(_currentYear.value, _currentMonth.value + 1)
+            _events.value =
+                repository.getSchedulesForMonth(_currentYear.value, _currentMonth.value + 1)
         }
     }
 
@@ -73,20 +75,21 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     fun processScheduleWithReminder(schedule: ScheduleModel, option: ReminderOption) {
         viewModelScope.launch {
             // Bước 1: Thêm/Cập nhật lịch học vào Firestore
-            val finalScheduleId = repository.saveOrUpdateSchedule(schedule) // Repository sẽ tự xử lý thêm mới hoặc cập nhật
+            val finalScheduleId = repository.saveOrUpdateSchedule(schedule)
             if (finalScheduleId.isNotEmpty()) {
                 val processedSchedule = schedule.copy(scheduleId = finalScheduleId)
 
-                // Bước 2: Dựa vào lựa chọn để đặt báo thức
+                // ✅ BƯỚC 2: GỌI HÀM NÂNG CẤP
                 if (option.minutes > 0) {
-                    // Trường hợp đặt báo thức chính xác
-                    EventAlarmManager.setAlarmForEvent(
+                    // Trường hợp đặt báo thức chính xác (trước 5, 10, 30 phút)
+                    // Hàm mới này sẽ tự động đặt CẢ báo thức nhắc trước VÀ báo thức đúng giờ.
+                    EventAlarmManager.setAlarmsForEvent(
                         context = getApplication(),
                         schedule = processedSchedule,
                         reminderMinutes = option.minutes
                     )
                 } else {
-                    // Trường hợp "Nhắc chung vào cuối ngày"
+                    // Trường hợp "Nhắc chung vào cuối ngày" (giữ nguyên logic cũ)
                     repository.markScheduleForDailySummary(processedSchedule.scheduleId)
                     EventAlarmManager.scheduleDailySummaryAlarm(getApplication())
                 }
@@ -98,11 +101,16 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+
     fun deleteSchedule(schedule: ScheduleModel) {
         viewModelScope.launch {
             repository.deleteSchedule(schedule.scheduleId)
-            // Hủy báo thức tương ứng
-            EventAlarmManager.cancelAlarmForEvent(getApplication(), schedule)
+            // ✅ BƯỚC 3: GỌI HÀM HỦY ĐÚNG
+            // Hàm này sẽ hủy cả hai báo thức (nhắc trước và đúng giờ) liên quan đến sự kiện.
+            EventAlarmManager.cancelAlarmsForEvent(
+                context = getApplication(), // Truyền context vào
+                schedule = schedule
+            )
             // Tải lại danh sách
             loadSchedulesForCurrentMonth()
         }

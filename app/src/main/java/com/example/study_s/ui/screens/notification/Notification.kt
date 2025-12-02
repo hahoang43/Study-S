@@ -28,13 +28,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.rememberAsyncImagePainter
 import com.example.study_s.R
 import com.example.study_s.data.model.Notification
-import com.example.study_s.ui.screens.components.BottomNavBar
 import com.example.study_s.ui.screens.components.TopBar
 import com.example.study_s.viewmodel.MainViewModel
 import com.example.study_s.viewmodel.NotificationViewModel
-import androidx.compose.runtime.mutableStateOf   // 👈 THÊM
-import androidx.compose.runtime.remember      // 👈 THÊM
-import androidx.compose.runtime.setValue
+import com.example.study_s.ui.navigation.Routes
 @Composable
 fun NotificationScreen(
     navController: NavController,
@@ -50,18 +47,15 @@ fun NotificationScreen(
     Scaffold(
         topBar = {
             TopBar(
-                onChatClick = { /* ... */ },
-                onSearchClick = { /* ... */ },
-                onNotificationClick = { navController.navigate("notification") },
+                onChatClick = { navController.navigate(Routes.Message) },
+                onSearchClick = {
+                    navController.navigate(Routes.Search)
+                },
+                onNotificationClick = {
+                },
                 notificationCount = unreadCount
             )
         },
-        bottomBar = {
-            BottomNavBar(
-                navController = navController,
-                currentRoute = currentRoute
-            )
-        }
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -70,7 +64,7 @@ fun NotificationScreen(
         ) {
             item {
                 Text(
-                    text = "Hoạt động",
+                    text = "Thông báo",
                     style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
                 )
