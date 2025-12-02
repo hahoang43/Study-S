@@ -2,21 +2,28 @@
 package com.example.study_s.data.repository // Đảm bảo đây là package chính xác của bạn
 
 import android.net.Uri
+import android.system.Os
 import android.util.Log
 import com.example.study_s.data.model.FollowUserDataModel
 import com.example.study_s.data.model.UserModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
+import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.flow
 // import com.google.firebase.storage.FirebaseStorage // <<-- ❌ KHÔNG DÙNG NỮA
 import kotlinx.coroutines.tasks.await
 import java.util.Date
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.channels.awaitClose
 
 class UserRepository {
 
     private val db = FirebaseFirestore.getInstance()
+
     // private val storage = FirebaseStorage.getInstance() // <<-- ❌ KHÔNG DÙNG NỮA
     private val auth = FirebaseAuth.getInstance()
     private val usersCollection = db.collection("users")
@@ -363,6 +370,57 @@ class UserRepository {
             // Bắt các lỗi có thể xảy ra (ví dụ: cần xác thực lại, lỗi mạng...)
             Log.e("UserRepository", "Lỗi khi xóa tài khoản: ", e)
             Result.failure(e)
+        }
+    }
+    fun getUserDocumentRef(userId: String): DocumentReference {
+        return usersCollection.document(userId)
+    }
+    fun getWhoBlockedUserFlow(userId: String): Flow<List<String>> {
+        // Chúng ta cần truy vấn tất cả người dùng để xem ai đã chặn `userId`.
+        // Đây là một truy vấn tốn kém và không được khuyến nghị trên quy mô lớn.
+        //
+        // THAY VÀO ĐÓ, chúng ta sẽ tối ưu bằng cách tạo một trường mới trong tài liệu người dùng.
+        // Ví dụ, khi UserA chặn UserB, chúng ta sẽ cập nhật:
+        // 1. users/UserA -> blockedUsers: [..., "UserB"]
+        // 2. users/UserB -> blockedBy: [..., "UserA"]
+        //
+        // Tuy nhiên, để đơn giản và không thay đổi cấu trúc DB quá nhiều,
+        // chúng ta sẽ kiểm tra trực tiếp từ `targetUser`.
+        // Cách này hiệu quả hơn nhiều.
+        return flow {
+            // Hàm này sẽ được triển khai trong ViewModel một cách hiệu quả hơn
+            // bằng cách chỉ đọc tài liệu của targetUser.
+            // Để trống ở đây và xử lý trong ViewModel để tránh phức tạp hóa Repository.
+        }
+    }
+    fun getUserProfileFlow(userId: String): Flow<UserModel?> = callbackFlow {
+        // Lấy tham chiếu đến document của người dùng
+        val documentRef = usersCollection.document(userId)
+
+        // Đăng ký một listener để lắng nghe sự thay đổi trên document này
+        val subscription = documentRef.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                // Nếu có lỗi, đóng Flow với một exception
+                close(error)
+                return@addSnapshotListener
+            }
+
+            if (snapshot != null && snapshot.exists()) {
+                // Nếu document tồn tại, chuyển đổi nó thành đối tượng UserModel
+                val user = snapshot.toObject(UserModel::class.java)
+                // Phát ra (emit) đối tượng user mới nhất.
+                // trySend sẽ không block nếu không có ai lắng nghe.
+                trySend(user).isSuccess
+            } else {
+                // Nếu document không tồn tại hoặc bị xóa, phát ra giá trị null
+                trySend(null).isSuccess
+            }
+        }
+
+        // Khối `awaitClose` sẽ được gọi khi Flow bị hủy (khi ViewModel bị hủy).
+        // Chúng ta cần hủy đăng ký listener để tránh rò rỉ bộ nhớ.
+        awaitClose {
+            subscription.remove()
         }
     }
 }
