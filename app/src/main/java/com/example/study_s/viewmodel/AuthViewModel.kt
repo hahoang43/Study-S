@@ -7,6 +7,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.study_s.data.repository.AuthRepository
 import com.example.study_s.data.repository.UserRepository
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseUser
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,12 +46,6 @@ class AuthViewModel(
     private val _currentUser = MutableStateFlow(repo.currentUser)
     val currentUser: StateFlow<FirebaseUser?> = _currentUser
 
-    // ✅✅✅ BƯỚC 1: ĐỔI TÊN HÀM `reloadUserData` THÀNH `reloadCurrentUser` ✅✅✅
-    /**
-     * Tải lại thông tin người dùng hiện tại từ Firebase Auth.
-     * Hàm này được EditProfileScreen gọi để đồng bộ hóa dữ liệu (như tên, avatar)
-     * sau khi người dùng cập nhật hồ sơ của họ.
-     */
     fun reloadCurrentUser() {
         viewModelScope.launch {
             val user = repo.currentUser
@@ -89,7 +87,22 @@ class AuthViewModel(
             val result = repo.signIn(email, pass)
             result.fold(
                 onSuccess = { firebaseUser -> handleSuccessfulLogin(firebaseUser) },
-                onFailure = { _state.value = AuthState.Error(it.message ?: "Đăng nhập thất bại.") }
+                onFailure = { error ->
+                    // --- PHẦN VIỆT HÓA LỖI ĐĂNG NHẬP ---
+                    val errorMessage = when (error) {
+                        is FirebaseAuthInvalidUserException ->
+                            "Tài khoản với email này không tồn tại."
+                        is FirebaseAuthInvalidCredentialsException ->
+                            "Sai mật khẩu. Vui lòng thử lại."
+                        is FirebaseAuthException -> when (error.errorCode) {
+                            "ERROR_INVALID_EMAIL" -> "Địa chỉ email không hợp lệ."
+                            "ERROR_NETWORK_REQUEST_FAILED" -> "Lỗi kết nối mạng. Vui lòng kiểm tra lại."
+                            else -> "Lỗi không xác định: ${error.errorCode}"
+                        }
+                        else -> error.message ?: "Đăng nhập thất bại."
+                    }
+                    _state.value = AuthState.Error(errorMessage)
+                }
             )
         }
     }
@@ -150,7 +163,18 @@ class AuthViewModel(
                     )
                 },
                 onFailure = { authError ->
-                    _state.value = AuthState.Error(authError.message ?: "Lỗi đăng ký không xác định")
+                    val errorMessage = when (authError) {
+                        is FirebaseAuthUserCollisionException ->
+                            "Địa chỉ email này đã được sử dụng bởi một tài khoản khác."
+                        is FirebaseAuthException -> when (authError.errorCode) {
+                            "ERROR_WEAK_PASSWORD" -> "Mật khẩu quá yếu. Vui lòng sử dụng ít nhất 6 ký tự."
+                            "ERROR_INVALID_EMAIL" -> "Địa chỉ email không hợp lệ."
+                            "ERROR_NETWORK_REQUEST_FAILED" -> "Lỗi kết nối mạng. Vui lòng kiểm tra lại."
+                            else -> "Lỗi không xác định: ${authError.errorCode}"
+                        }
+                        else -> authError.message ?: "Lỗi đăng ký không xác định"
+                    }
+                    _state.value = AuthState.Error(errorMessage)
                 }
             )
         }
