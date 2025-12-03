@@ -17,18 +17,8 @@ data class UserModel(val userId: String = "",
                      val nameLowercase: String = name.lowercase(),
                      val searchKeywords: List<String> = emptyList(),
                      val fcmToken: String = "",
-                     val joinedGroups: List<String> = emptyList() // <-- THÊM DÒNG NÀY
-) {
-    // Constructor này rất cần thiết để Firestore có thể chuyển đổi dữ liệu thành đối tượng User.
-    constructor() : this(
-        userId = "",
-        name = "",
-        email = "",
-        avatarUrl = null,
-        bio = "",
-        createdAt = null,
-        nameLowercase = "" ,// Thêm giá trị mặc định cho trường mới
-        searchKeywords = emptyList()
-    )
-}
-
+                     val joinedGroups: List<String> = emptyList(), // <-- THÊM DÒNG NÀY
+                     val online: Boolean = false,
+    @ServerTimestamp
+                     val lastSeen: Date? = null
+)

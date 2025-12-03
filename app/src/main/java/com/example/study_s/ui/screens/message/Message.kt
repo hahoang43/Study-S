@@ -227,7 +227,7 @@ fun MessageItem(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box {
+        Box(contentAlignment = Alignment.Center) {
             AsyncImage(
                 model = user?.avatarUrl ?: R.drawable.ic_profile,
                 contentDescription = "Avatar",
@@ -236,20 +236,33 @@ fun MessageItem(
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
-            if (isSelected) {
+            if (user?.online == true) {
                 Box(
                     modifier = Modifier
-                        .size(50.dp)
+                        .size(15.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.4f)),
-                    contentAlignment = Alignment.Center
+                        .background(Color(0xFF03B44F))
+                        .align(Alignment.BottomEnd)
+                )
+            }
+            if (inSelectionMode) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(CircleShape)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            else Color.Transparent
+                        )
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Selected",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Selected",
+                            tint = Color.White,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
                 }
             }
         }

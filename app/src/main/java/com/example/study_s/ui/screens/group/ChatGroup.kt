@@ -902,15 +902,24 @@ fun MessageItem(
         verticalAlignment = Alignment.Bottom
     ) {
         if (!isCurrentUser) {
-            AsyncImage(
-                model = sender?.avatarUrl,
-                contentDescription = "User Avatar",
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .clickable { navigateToProfile() },
-                contentScale = ContentScale.Crop
-            )
+            Box(contentAlignment = Alignment.BottomEnd) {
+                AsyncImage(
+                    model = sender?.avatarUrl,
+                    contentDescription = "User Avatar",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .clickable { navigateToProfile() },
+                    contentScale = ContentScale.Crop
+                )
+                if (sender?.online == true) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(Color(0xFF00C853), CircleShape)
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(8.dp))
         }
 
@@ -967,9 +976,12 @@ fun MessageItem(
                                 model = url,
                                 contentDescription = "Sent image",
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .clip(RoundedCornerShape(12.dp)),
+                                    .height(180.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        val encodedUrl = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
+                                        navController.navigate("${Routes.ImageViewer}/$encodedUrl")
+                                    },
                                 contentScale = ContentScale.Crop
                             )
                         }

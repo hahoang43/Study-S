@@ -246,7 +246,18 @@ fun ChatScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(targetUser?.name ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                title = {
+                    Column {
+                        Text(targetUser?.name ?: "", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (targetUser?.online == true) {
+                            Text(
+                                text = "Đang hoạt động",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
                 navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại") } },
                 actions = {
                     Box {
@@ -363,7 +374,7 @@ fun ChatScreen(
                             showAvatar = showAvatar,
                             avatarUrl = if (showAvatar) targetUser?.avatarUrl else null,
                             onLongPress = { messageToAction = message },
-                            onClick = { 
+                            onClick = {
                                 if (message.isImage()) {
                                     val encodedUrl = URLEncoder.encode(message.content, StandardCharsets.UTF_8.toString())
                                     navController.navigate("${Routes.ImageViewer}/$encodedUrl")
@@ -401,8 +412,8 @@ fun ChatScreen(
                                 DropdownMenuItem(
                                     text = { Text("Xóa") },
                                     leadingIcon = { Icon(Icons.Default.DeleteOutline, "Xóa") },
-                                    onClick = { 
-                                        showDeleteDialog = true 
+                                    onClick = {
+                                        showDeleteDialog = true
                                         messageToAction = null // Dismiss menu
                                     }
                                 )
