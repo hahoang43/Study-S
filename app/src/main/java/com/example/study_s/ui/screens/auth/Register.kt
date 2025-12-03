@@ -1,4 +1,3 @@
-// ĐƯỜNG DẪN: ui/screens/auth/RegisterScreen.kt
 
 package com.example.study_s.ui.screens.auth
 
@@ -42,6 +41,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.study_s.R
 import com.example.study_s.ui.navigation.Routes
+
 import com.example.study_s.viewmodel.AuthState
 import com.example.study_s.viewmodel.AuthViewModel
 import com.example.study_s.viewmodel.AuthViewModelFactory
@@ -54,7 +54,7 @@ fun RegisterScreen(
     nameFromGoogle: String,
     emailFromGoogle: String
 ) {
-    // === PHẦN LOGIC ===
+    // === PHẦN LOGIC (GIỮ NGUYÊN) ===
     val isLinkingAccount = nameFromGoogle.isNotEmpty() && emailFromGoogle.isNotEmpty()
     var fullName by remember { mutableStateOf(nameFromGoogle) }
     var userEmail by remember { mutableStateOf(emailFromGoogle) }
@@ -66,7 +66,6 @@ fun RegisterScreen(
     val authState by authViewModel.state.collectAsState()
     val context = LocalContext.current
 
-    // LaunchedEffect xử lý kết quả (Giữ nguyên)
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
@@ -85,11 +84,12 @@ fun RegisterScreen(
         }
     }
 
-    // === PHẦN GIAO DIỆN MỚI ===
+    // === PHẦN GIAO DIỆN (CHỈ SỬA NHỮNG ĐIỂM CẦN THIẾT) ===
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            // SỬA 1: Thay màu nền cố định bằng màu nền từ theme
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Image(
             painter = painterResource(id = R.drawable.logo_study),
@@ -101,7 +101,7 @@ fun RegisterScreen(
         )
 
         Scaffold(
-            containerColor = Color.Transparent, // Làm nền Scaffold trong suốt để thấy ảnh nền
+            containerColor = Color.Transparent, // Giữ nguyên theo code của bạn
         ) { paddingValues ->
             Column(
                 modifier = Modifier
@@ -117,7 +117,9 @@ fun RegisterScreen(
                     text = if (isLinkingAccount) "Hoàn Tất Hồ Sơ" else "Tạo tài khoản",
                     style = MaterialTheme.typography.headlineLarge,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Serif
+                    fontFamily = FontFamily.Serif,
+                    // SỬA 2: Thêm màu cho tiêu đề để hiển thị đúng trong dark mode
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -129,7 +131,7 @@ fun RegisterScreen(
                 )
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // --- Các trường nhập liệu (phong cách mới) ---
+                // --- Các trường nhập liệu (Giữ nguyên theo code của bạn) ---
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
@@ -174,7 +176,6 @@ fun RegisterScreen(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // ✅ Ô xác nhận mật khẩu đã có con mắt
                 OutlinedTextField(
                     value = confirmPassword,
                     onValueChange = { confirmPassword = it },
@@ -227,14 +228,20 @@ fun RegisterScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
-                        .clip(RoundedCornerShape(50)), // Bo tròn mạnh
+                        .clip(RoundedCornerShape(50)),
                     enabled = authState !is AuthState.Loading,
+                    // SỬA 3: Dùng màu từ theme cho nút để tương thích dark mode
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF00897B) // Màu xanh teal giống ảnh mẫu
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     if (authState is AuthState.Loading) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            // SỬA 4: Dùng màu từ theme cho vòng xoay
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
                     } else {
                         Text(
                             text = if (isLinkingAccount) "HOÀN TẤT" else "ĐĂNG KÝ",
@@ -251,6 +258,7 @@ fun RegisterScreen(
                     Text(
                         "Quay lại",
                         fontSize = 15.sp,
+                        // Giữ nguyên màu onSurfaceVariant theo code gốc của bạn
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
@@ -260,29 +268,4 @@ fun RegisterScreen(
     }
 }
 
-// Sửa lại Preview để xem giao diện mới
-@Preview(showBackground = true, name = "Register - Normal")
-@Composable
-fun RegisterScreenPreview() {
-    MaterialTheme {
-        RegisterScreen(
-            navController = rememberNavController(),
-            authViewModel = viewModel(factory = AuthViewModelFactory()),
-            nameFromGoogle = "",
-            emailFromGoogle = ""
-        )
-    }
-}
 
-@Preview(showBackground = true, name = "Register - Google Link")
-@Composable
-fun RegisterScreenLinkPreview() {
-    MaterialTheme {
-        RegisterScreen(
-            navController = rememberNavController(),
-            authViewModel = viewModel(factory = AuthViewModelFactory()),
-            nameFromGoogle = "Son Goku",
-            emailFromGoogle = "goku.saiyan@dbz.com"
-        )
-    }
-}
