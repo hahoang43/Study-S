@@ -1,57 +1,55 @@
-# Study-S
-Câu 1: Chọn đề tài, lên ý tưởng, nghiên cứu và phân tích đề tài
+# 🎓 Study-S: Mạng Xã Hội Học Tập Cho Sinh Viên
 
-Ý tưởng
-Ứng dụng được xây dựng nhằm tạo ra một nền tảng học tập trực tuyến dành riêng cho sinh viên:
-•	Kết nối sinh viên theo môn học, nhóm học tập.
-•	Cung cấp bảng tin học tập, thư viện tài liệu chung, chat nhóm, lịch học.
-•	Hỗ trợ sinh viên dễ dàng chia sẻ kiến thức, tài liệu và trao đổi trong quá trình học.
-Ý tưởng chính: Ứng dụng trở thành một “mạng xã hội học tập thu nhỏ” cho sinh viên.
+> **Repository:** [https://github.com/hahoang43/Study-S](https://github.com/hahoang43/Study-S)
 
-Nghiên cứu hiện trạng
-Sinh viên hiện nay thường dùng Facebook, Zalo, Google Drive để trao đổi, nhưng:
-•	Thông tin bị phân tán, khó quản lý.
-•	Khó tìm lại tài liệu cũ.
-•	Không có lịch học, deadline tích hợp.
-Một số ứng dụng học tập khác (Coursera, Google Classroom) thiên về khóa học trực tuyến, chưa hỗ trợ nhiều cho nhóm học tập linh hoạt.
-Vì vậy cần một ứng dụng kết hợp mạng xã hội + quản lý học tập.
+## 📖 Giới thiệu
 
-Mục tiêu
-Tạo môi trường học tập cộng đồng cho sinh viên. Giúp sinh viên:
-•	Kết nối – thảo luận theo nhóm học.
-•	Quản lý tài liệu, bài tập dễ dàng.
-•	Theo dõi lịch học, deadline thuận tiện.
+**Study-S** là hệ sinh thái học tập thu nhỏ trên thiết bị di động, được xây dựng với mục tiêu giải quyết vấn đề phân tán dữ liệu của sinh viên. Thay vì sử dụng nhiều ứng dụng rời rạc (Lịch, Chat, Drive...), Study-S tích hợp tất cả trong một nền tảng duy nhất, giúp tối ưu hóa hiệu quả học tập và kết nối.
 
-Phân tích chức năng chính
-•	Quản lý tài khoản: đăng ký, đăng nhập, chỉnh sửa thông tin.
-•	Bảng tin: xem và đăng bài viết, bình luận, chia sẻ.
-•	Thư viện tài liệu: tải lên, lưu trữ.
-•	Nhóm học tập: tạo nhóm, tham gia nhóm, chat nhóm.
-•	Lịch học: hiển thị thời khóa biểu, deadline, nhắc nhở.
-•	Thông báo: cập nhật hoạt động mới của nhóm hoặc bài viết.
-•	Cài đặt & hỗ trợ: chính sách, bảo mật, phản hồi.
+---
 
-Câu 2. Cho ra được toàn bộ ý tưởng thiết kế của ứng dụng
+## ✨ Tính năng nổi bật
 
-1.	Màn hình chào (Splash Screen)
-2.	Đăng nhập
-3.	Đăng ký
-4.	Quên mật khẩu
-5.	Bảng tin
-6.	Tìm kiếm
-7.	Chi tiết bài đăng
-8.	Thư viện tài liệu
-9.	Đăng bài
-10.	Danh sách nhóm học tập
-11.	Chat nhóm
-12.	Tin nhắn
-13.	Lịch học
-14.	Hồ sơ cá nhân
-15.	Cập nhật hồ sơ
-16.	Giao diện người lạ
-17.	Cài đặt
-18.	Thông báo
-19.	Drawer menu
-20.	Giao diện chính sách
-21.	Giao diện hỗ trợ
-       LINK FIGMA: https://www.figma.com/design/09SKxXndN4cth6IlZcdDef/Study-S?node-id=0-1&t=NPJAZeL24ruqfjPm-1
+### 🌐 1. Mạng xã hội học tập
+* **Newfeed:** Đăng bài, chia sẻ kiến thức, hỏi đáp.
+* **Tương tác:** Tính năng Like, Bình luận, Theo dõi (Follow) bạn bè.
+* **Cập nhật:** Nắm bắt tin tức nhanh chóng từ cộng đồng sinh viên.
+
+### 📚 2. Quản lý học tập
+* **📅 Lịch cá nhân:** Tạo sự kiện, quản lý Deadline, đặt nhắc nhở thông minh.
+* **📂 Thư viện số:** Lưu trữ và chia sẻ tài liệu (PDF, Ảnh...) tốc độ cao nhờ tích hợp **Cloudinary**.
+
+### 👥 3. Làm việc nhóm
+* **Quản lý nhóm:** Tạo nhóm học tập dễ dàng theo môn học hoặc dự án.
+* **Chat Real-time:** Nhắn tin, trao đổi trực tuyến trong thời gian thực.
+
+---
+
+## 🛠 Công nghệ sử dụng
+
+Dự án được xây dựng dựa trên các công nghệ hiện đại của Android:
+
+| Thành phần | Công nghệ |
+| :--- | :--- |
+| **Nền tảng** | Android (Mobile App) |
+| **Ngôn ngữ** | Kotlin |
+| **Giao diện (UI)** | Jetpack Compose (Declarative UI) |
+| **Kiến trúc** | MVVM (Model - View - ViewModel) |
+| **Backend** | Google Firebase (Authentication, Firestore, Realtime DB) |
+| **Lưu trữ (Storage)** | Cloudinary |
+
+---
+
+## 🚀 Hướng dẫn Cài đặt & Triển khai
+
+### ⚙️ Yêu cầu hệ thống
+* **IDE:** Android Studio (Bản mới nhất hỗ trợ Jetpack Compose).
+* **JDK:** Phiên bản 11 hoặc 17 trở lên.
+* **Internet:** Kết nối ổn định để tải Gradle và SDK.
+
+### 👨‍💻 Dành cho Developer
+
+**Bước 1: Clone dự án**
+Mở terminal và chạy lệnh sau (hoặc tải ZIP từ GitHub):
+```bash
+git clone [https://github.com/hahoang43/Study-S.git](https://github.com/hahoang43/Study-S.git)
