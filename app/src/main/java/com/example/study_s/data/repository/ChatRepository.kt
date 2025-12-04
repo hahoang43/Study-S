@@ -2,7 +2,6 @@ package com.example.study_s.data.repository
 
 import android.content.Context
 import android.net.Uri
-// ✅ BƯỚC 1: THÊM CÁC IMPORT CẦN THIẾT
 import com.cloudinary.android.MediaManager
 import com.cloudinary.android.callback.ErrorInfo
 import com.cloudinary.android.callback.UploadCallback
@@ -19,13 +18,9 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlin.coroutines.resume
 
-// ✅ BƯỚC 2: ĐỊNH NGHĨA DATA CLASS ĐỂ CHỨA KẾT QUẢ
-/**
- * Data class để chứa thông tin trả về từ Cloudinary sau khi upload thành công.
- */
 data class CloudinaryResult(
     val url: String,
-    val resourceType: String, // "image", "video", "raw"
+    val resourceType: String, 
     val originalFilename: String,
     val bytes: Long
 )
@@ -36,20 +31,8 @@ class ChatRepository (private val context: Context){
     private val auth = FirebaseAuth.getInstance()
     private val chatsCollection = db.collection("chats")
 
-    // ✅ BƯỚC 3: BỔ SUNG HÀM UPLOAD FILE
-    /**
-     * Upload một file lên Cloudinary và trả về kết quả.
-     * @param fileUri URI của file cần upload.
-     * @return Result chứa CloudinaryResult nếu thành công, hoặc Exception nếu thất bại.
-     */
-    data class UploadResult(
-        val url: String,
-        val originalFilename: String,
-        val bytes: Long
-    )
     suspend fun uploadFile(fileUri: Uri): Result<CloudinaryResult> {
         return suspendCancellableCoroutine { continuation ->
-            // Sử dụng MediaManager để upload file
             val requestId = MediaManager.get().upload(fileUri)
                 .callback(object : UploadCallback {
                     override fun onSuccess(requestId: String?, resultData: MutableMap<Any?, Any?>?) {
@@ -64,7 +47,6 @@ class ChatRepository (private val context: Context){
                             originalFilename = originalFilename,
                             bytes = bytes
                         )
-                        // Chỉ resume coroutine nếu nó còn active
                         if (continuation.isActive) {
                             continuation.resume(Result.success(cloudinaryResult))
                         }
@@ -76,12 +58,11 @@ class ChatRepository (private val context: Context){
                         }
                     }
 
-                    override fun onStart(requestId: String?) { /* Có thể log hoặc cập nhật UI */ }
-                    override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) { /* Cập nhật tiến trình */ }
-                    override fun onReschedule(requestId: String?, error: ErrorInfo?) { /* Xử lý nếu cần */ }
+                    override fun onStart(requestId: String?) { }
+                    override fun onProgress(requestId: String?, bytes: Long, totalBytes: Long) { }
+                    override fun onReschedule(requestId: String?, error: ErrorInfo?) { }
                 }).dispatch()
 
-            // Hủy request upload nếu coroutine bị hủy
             continuation.invokeOnCancellation {
                 MediaManager.get().cancelRequest(requestId)
             }
@@ -93,13 +74,8 @@ class ChatRepository (private val context: Context){
         return auth.currentUser?.uid
     }
 
-    /**
-     * Lấy hoặc tạo một cuộc trò chuyện mới giữa người dùng hiện tại và người dùng mục tiêu.
-     * Trả về ID của cuộc trò chuyện.
-     */
     suspend fun getOrCreateChat(targetUserId: String): Result<String> {
         val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not logged in"))
-        // Sắp xếp ID để đảm bảo ID cuộc trò chuyện là duy nhất và nhất quán
         val members = listOf(currentUserId, targetUserId).sorted()
         val chatId = members.joinToString("_")
 
@@ -121,28 +97,21 @@ class ChatRepository (private val context: Context){
         }
     }
 
-    /**
-     * Gửi một tin nhắn mới vào cuộc trò chuyện và cập nhật lastMessage.
-     * Hàm này có thể xử lý mọi loại tin nhắn (text, image, file).
-     */
     suspend fun sendMessage(chatId: String, message: MessageModel): Result<Unit> {
         return try {
             val currentUserId = getCurrentUserId() ?: return Result.failure(Exception("User not logged in"))
             val targetUserId = getTargetUserId(chatId, currentUserId)
 
-            // 1. Tạo tin nhắn với trạng thái readBy ban đầu
             val messageWithReadStatus = message.copy(
-                senderId = currentUserId, // Đảm bảo senderId luôn đúng
+                senderId = currentUserId, 
                 readBy = mapOf(currentUserId to true, targetUserId to false)
             )
 
-            // 2. Thêm tin nhắn vào sub-collection "messages"
             val messageDocRef = chatsCollection.document(chatId)
                 .collection("messages")
                 .add(messageWithReadStatus)
                 .await()
 
-            // 3. Cập nhật lastMessage với ID và trạng thái đọc
             val finalMessage = messageWithReadStatus.copy(id = messageDocRef.id)
             chatsCollection.document(chatId).update("lastMessage", finalMessage).await()
 
@@ -152,38 +121,30 @@ class ChatRepository (private val context: Context){
         }
     }
 
-    /**
-     * Lắng nghe các tin nhắn trong một cuộc trò chuyện theo thời gian thực.
-     */
     fun getMessages(chatId: String): Flow<List<MessageModel>> = callbackFlow {
         val listenerRegistration = chatsCollection.document(chatId)
             .collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error) // Đóng flow nếu có lỗi
+                    close(error) 
                     return@addSnapshotListener
                 }
                 if (snapshot != null) {
-                    // Ánh xạ document sang object Message, bao gồm cả ID của document
                     val messages = snapshot.documents.mapNotNull { doc ->
                         doc.toObject<MessageModel>()?.copy(id = doc.id)
                     }
-                    trySend(messages) // Gửi danh sách tin nhắn mới
+                    trySend(messages) 
                 }
             }
-        // Hủy lắng nghe khi flow bị đóng
         awaitClose { listenerRegistration.remove() }
     }
 
-    /**
-     * Xóa một tin nhắn và cập nhật lại lastMessage.
-     */
     suspend fun deleteMessage(chatId: String, messageId: String): Result<Unit> {
         return try {
             val messageRef = chatsCollection.document(chatId).collection("messages").document(messageId)
             messageRef.delete().await()
-            updateLastMessage(chatId) // Cập nhật lại tin nhắn cuối cùng
+            updateLastMessage(chatId) 
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -195,7 +156,6 @@ class ChatRepository (private val context: Context){
             val chatDocRef = chatsCollection.document(chatId)
             val messagesCollection = chatDocRef.collection("messages")
 
-            // Lấy tất cả document và chia thành các chunk nhỏ (ví dụ: 499)
             val allMessages = messagesCollection.get().await()
             if (!allMessages.isEmpty) {
                 allMessages.documents.chunked(499).forEach { chunk ->
@@ -207,7 +167,6 @@ class ChatRepository (private val context: Context){
                 }
             }
 
-            // Sau khi xóa hết sub-collection, xóa document cha
             chatDocRef.delete().await()
 
             Result.success(Unit)
@@ -216,30 +175,22 @@ class ChatRepository (private val context: Context){
         }
     }
 
-    /**
-     * Sửa nội dung của một tin nhắn và cập nhật lại lastMessage nếu cần.
-     */
     suspend fun editMessage(chatId: String, messageId: String, newContent: String): Result<Unit> {
         return try {
             val messageRef = chatsCollection.document(chatId).collection("messages").document(messageId)
-            // Cập nhật nội dung và đánh dấu là đã sửa, KHÔNG CẬP NHẬT TIMESTAMP
             messageRef.update(
                 mapOf(
                     "content" to newContent,
                     "isEdited" to true
                 )
             ).await()
-            updateLastMessage(chatId) // Cập nhật lại tin nhắn cuối cùng
+            updateLastMessage(chatId) 
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    /**
-     * Cập nhật lastMessage của cuộc trò chuyện sau một hành động (sửa, xóa).
-     * Logic mới: Đơn giản là lấy tin nhắn cuối cùng và cập nhật.
-     */
     private suspend fun updateLastMessage(chatId: String) {
         val lastMessageQuery = chatsCollection.document(chatId)
             .collection("messages")
@@ -249,20 +200,16 @@ class ChatRepository (private val context: Context){
             .await()
 
         val lastMessage = if (lastMessageQuery.isEmpty) {
-            null // Không còn tin nhắn nào
+            null
         } else {
             val doc = lastMessageQuery.documents.first()
             doc.toObject<MessageModel>()?.copy(id = doc.id)
         }
 
-        // Cập nhật lastMessage trong document chat (sẽ là null nếu không còn tin nhắn)
         chatsCollection.document(chatId).update("lastMessage", lastMessage).await()
     }
 
 
-    /**
-     * Helper function để lấy ID của người dùng còn lại trong cuộc trò chuyện.
-     */
     private suspend fun getTargetUserId(chatId: String, currentUserId: String): String {
         val chatDoc = chatsCollection.document(chatId).get().await()
         val members = chatDoc.get("members") as? List<String> ?: emptyList()
