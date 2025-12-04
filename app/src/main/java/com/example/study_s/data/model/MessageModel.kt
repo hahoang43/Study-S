@@ -15,5 +15,6 @@ data class MessageModel(
     val url: String? = null,
     val fileName: String? = null,
     val fileSize: Long? = null,
-    val readBy: Map<String, Boolean> = emptyMap()
+    val readBy: Map<String, Boolean> = emptyMap(),
+    val isEdited: Boolean = false // Thêm trường này
 )

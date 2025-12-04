@@ -405,7 +405,6 @@ fun ChatScreen(
                                         onClick = {
                                             editingText = messageToAction?.content ?: ""
                                             showEditDialog = true
-                                            messageToAction = null // Dismiss menu
                                         }
                                     )
                                 }
@@ -414,7 +413,6 @@ fun ChatScreen(
                                     leadingIcon = { Icon(Icons.Default.DeleteOutline, "Xóa") },
                                     onClick = {
                                         showDeleteDialog = true
-                                        messageToAction = null // Dismiss menu
                                     }
                                 )
                             }

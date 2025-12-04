@@ -183,7 +183,7 @@ class ChatRepository (private val context: Context){
         return try {
             val messageRef = chatsCollection.document(chatId).collection("messages").document(messageId)
             messageRef.delete().await()
-            updateLastMessageAfterAction(chatId) // Cập nhật lại tin nhắn cuối cùng
+            updateLastMessage(chatId) // Cập nhật lại tin nhắn cuối cùng
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -222,8 +222,14 @@ class ChatRepository (private val context: Context){
     suspend fun editMessage(chatId: String, messageId: String, newContent: String): Result<Unit> {
         return try {
             val messageRef = chatsCollection.document(chatId).collection("messages").document(messageId)
-            messageRef.update("content", newContent).await()
-            updateLastMessageAfterAction(chatId, messageId) // Cập nhật lại tin nhắn cuối cùng
+            // Cập nhật nội dung và đánh dấu là đã sửa, KHÔNG CẬP NHẬT TIMESTAMP
+            messageRef.update(
+                mapOf(
+                    "content" to newContent,
+                    "isEdited" to true
+                )
+            ).await()
+            updateLastMessage(chatId) // Cập nhật lại tin nhắn cuối cùng
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -232,9 +238,9 @@ class ChatRepository (private val context: Context){
 
     /**
      * Cập nhật lastMessage của cuộc trò chuyện sau một hành động (sửa, xóa).
+     * Logic mới: Đơn giản là lấy tin nhắn cuối cùng và cập nhật.
      */
-    private suspend fun updateLastMessageAfterAction(chatId: String, editedMessageId: String? = null) {
-        // Lấy tin nhắn cuối cùng thực tế từ sub-collection
+    private suspend fun updateLastMessage(chatId: String) {
         val lastMessageQuery = chatsCollection.document(chatId)
             .collection("messages")
             .orderBy("timestamp", Query.Direction.DESCENDING)
@@ -242,21 +248,17 @@ class ChatRepository (private val context: Context){
             .get()
             .await()
 
-        val lastMessage = lastMessageQuery.documents.firstOrNull()?.let { doc ->
+        val lastMessage = if (lastMessageQuery.isEmpty) {
+            null // Không còn tin nhắn nào
+        } else {
+            val doc = lastMessageQuery.documents.first()
             doc.toObject<MessageModel>()?.copy(id = doc.id)
         }
 
-        // Nếu tin nhắn bị sửa là tin nhắn cuối cùng, chúng ta cần cập nhật lại nội dung của nó
-        if (editedMessageId != null && lastMessage?.id == editedMessageId) {
-            val updatedLastMessage = lastMessage.copy(content = chatsCollection.document(chatId)
-                .collection("messages").document(editedMessageId).get().await()
-                .getString("content") ?: lastMessage.content)
-            chatsCollection.document(chatId).update("lastMessage", updatedLastMessage).await()
-        } else {
-            // Nếu xóa hoặc sửa tin nhắn cũ hơn, chỉ cần lấy tin nhắn cuối cùng mới nhất
-            chatsCollection.document(chatId).update("lastMessage", lastMessage).await()
-        }
+        // Cập nhật lastMessage trong document chat (sẽ là null nếu không còn tin nhắn)
+        chatsCollection.document(chatId).update("lastMessage", lastMessage).await()
     }
+
 
     /**
      * Helper function để lấy ID của người dùng còn lại trong cuộc trò chuyện.
