@@ -5,7 +5,7 @@
 ### ❓ Bối cảnh & Lý do chọn đề tài
 Trong môi trường đại học hiện nay, sinh viên phải quản lý khối lượng kiến thức lớn và lịch trình dày đặc. Tuy nhiên, việc sử dụng nhiều ứng dụng rời rạc (Lịch riêng, Chat riêng, Drive riêng...) gây ra sự phân tán dữ liệu, bất tiện và giảm hiệu suất học tập.
 
-**Study-S** ra đời nhằm giải quyết vấn đề này bằng cách xây dựng một **hệ sinh thái học tập thu nhỏ (All-in-one)**, tích hợp mạng xã hội, quản lý thời gian và làm việc nhóm vào một ứng dụng duy nhất.
+**Study-S** ra đời nhằm giải quyết vấn đề này bằng cách xây dựng một ứng dụng riêng biệt, tích hợp mạng xã hội, quản lý thời gian và làm việc nhóm vào một ứng dụng duy nhất.
 
 ### 🎯 Mục tiêu & Phạm vi
 * **Mục tiêu:** Tạo môi trường kết nối, thảo luận nhóm, quản lý tài liệu và lịch học dễ dàng.
@@ -27,8 +27,8 @@ Trong môi trường đại học hiện nay, sinh viên phải quản lý khố
 * **Kết nối:** Theo dõi (Follow) bạn bè và người dùng khác.
 
 ### 📚 Quản lý học tập
-* **📅 Lịch cá nhân:** Tạo sự kiện, deadline, đặt nhắc nhở (Alarm).
-* **📂 Thư viện tài liệu:** Upload và lưu trữ tài liệu (PDF, Ảnh...) không giới hạn nhờ tích hợp **Cloudinary**.
+* **📅 Lịch cá nhân:** Tạo sự kiện, deadline, đặt nhắc nhở.
+* **📂 Thư viện tài liệu:** Upload và lưu trữ tài liệu (PDF, Ảnh...) nhờ **Cloudinary**.
 
 ### 👥 Làm việc nhóm (Group Study)
 * **Quản lý nhóm:** Tạo nhóm mới, duyệt thành viên, tìm kiếm nhóm.
@@ -73,5 +73,5 @@ Bạn có thể tải và cài đặt ứng dụng ngay lập tức mà không c
 
 > *Lưu ý: Nếu thiết bị yêu cầu quyền bảo mật, vui lòng chọn "Cho phép cài đặt từ nguồn này" (Allow from this source).*
 
-![QR Code Scan Me]()
+**QR scan here** <img width="1000" height="1000" alt="image" src="https://github.com/user-attachments/assets/97cc973c-fb94-467f-8c8a-31014f7fbb53" />
 
